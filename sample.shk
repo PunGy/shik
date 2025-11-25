@@ -1,0 +1,57 @@
+; Numbers (floating point)
+42
+3.14
+-17.5
+
+; Strings (single quotes)
+"hello world"
+"path/to/file.txt"
+"line with \"escaped\" quotes"
+"line with 'quotes'"
+:one-line-without-spaces-string
+"any string can have {- 10 20} computed values"
+
+; Lists
+[]
+[1 2 3]
+[:a :b :c]
+[[1 2] [3 4]]  ; nested lists
+[f x] ; two elements, f and x
+[(f x)] ; one element, result of apply x to f
+
+; Objects
+{}
+{x 10 y 20} ; two items
+
+let x 10
+
+let st { :x 10 :y 20 }
+obj.get :x st ;-- 10
+; shorthand: obj. :x set
+obj.set :x 20 st ;-- 0
+
+let fn (fn [x y] + x y)
+
+let string.reverse (fn [str] '(
+    let reversed ""
+    let append (str.push reversed)
+    str $> iterate-backward append
+    reversed
+))
+
+let +' (fn [x y] + x y)
+
+{* Block comment
+ *
+ * macro proposal:
+
+let macrofn (macro [name] '(
+  "let {+ fn "-" name} {+ 10 20}"
+))
+*}
+
+;; Piping
+file.read-safe :file.txt $>
+    result.read-or false $>
+    (fn [content] if content (string.upper content $> file.write :file.txt))
+
