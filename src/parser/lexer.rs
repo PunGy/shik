@@ -1,58 +1,5 @@
+use crate::parser::error::ParseError;
 use crate::parser::tokens::{Interpolation, StringInterpolationInfo, Token, TokenType};
-
-#[derive(Debug)]
-pub enum ParseError {
-    UnexpectedChar {
-        char: char,
-        line: usize,
-        column: usize,
-    },
-
-    InvalidNumber {
-        lexeme: String,
-        line: usize,
-        column: usize,
-    },
-
-    ReservedIdentifier {
-        lexeme: String,
-        line: usize,
-        column: usize,
-    },
-
-    UnterminatedString {
-        line: usize,
-        column: usize,
-    },
-    UnterminatedInterpolationString {
-        line: usize,
-        column: usize,
-    },
-}
-impl ParseError {
-    fn unexpected_char(ch: char, line: usize, column: usize) -> Self {
-        Self::UnexpectedChar {
-            char: ch,
-            line,
-            column,
-        }
-    }
-
-    fn invalid_number(lexeme: String, line: usize, column: usize) -> Self {
-        Self::InvalidNumber {
-            lexeme,
-            line,
-            column,
-        }
-    }
-    fn reserved_identifier(lexeme: String, line: usize, column: usize) -> Self {
-        Self::ReservedIdentifier {
-            lexeme,
-            line,
-            column,
-        }
-    }
-}
 
 pub type TokenizeResult = ParseResult<Vec<Token>>;
 
@@ -102,6 +49,10 @@ impl Lexer {
 
             let token = self.next_token()?;
             tokens.push(token);
+            // newline termination
+            if self.peek() == Some('\n') {
+                tokens.push(Token::newline(0, 0));
+            }
         }
 
         Ok(tokens)
@@ -138,14 +89,19 @@ impl Lexer {
             ':' => return self.string_inline(start_column),
 
             '#' => {
-                if self.peek_next() == Some('(') {
+                if self.peek() == Some('(') {
+                    self.advance(); // skip (
                     Token::open_lazy(line, start_column)
+                } else if self.peek() == Some('>') {
+                    self.advance(); // skip >
+                    Token::flow(line, start_column)
                 } else {
                     Token::hash(line, start_column)
                 }
             }
             '\'' => {
                 if self.peek() == Some('(') {
+                    self.advance(); // skip (
                     Token::open_block(line, start_column)
                 } else {
                     return Err(ParseError::UnexpectedChar {
@@ -156,7 +112,28 @@ impl Lexer {
                 }
             }
 
-            '0'..='9' => return self.number(start_column),
+            '-' => {
+                if self
+                    .peek()
+                    .map(|x| ('0'..='9').contains(&x))
+                    .unwrap_or(false)
+                {
+                    self.advance();
+                    return self.number(start_column, true);
+                } else {
+                    return self.ident(start_column);
+                }
+            }
+            '0'..='9' => return self.number(start_column, false),
+
+            '$' => {
+                if self.peek() == Some('>') {
+                    self.advance();
+                    Token::new(TokenType::Pipe, "$>".to_string(), line, start_column)
+                } else {
+                    return self.ident(start_column);
+                }
+            }
 
             c if is_ident_start(c) => return self.ident(start_column),
 
@@ -172,7 +149,7 @@ impl Lexer {
         Ok(token)
     }
 
-    fn number(&mut self, start_column: usize) -> ParseResult<Token> {
+    fn number(&mut self, start_column: usize, negative: bool) -> ParseResult<Token> {
         let start = self.current - 1;
 
         while is_digit(self.peek()) {
@@ -191,7 +168,7 @@ impl Lexer {
 
         match lexeme.parse::<f64>() {
             Ok(value) => Ok(Token {
-                token_type: TokenType::Number(value),
+                token_type: TokenType::Number(if negative { -value } else { value }),
                 lexeme,
                 line: self.line,
                 column: start_column,
@@ -218,7 +195,6 @@ impl Lexer {
                     self.advance(); // skip next character
                 }
                 Some('{') => {
-                    let mut depth = 0;
                     // start of interpolation relative to input
                     let i_start = self.current;
                     // start of interpolation relative to string
@@ -228,22 +204,16 @@ impl Lexer {
                     loop {
                         let inner = self.peek();
                         match inner {
-                            Some('{') => {
-                                depth += 1;
-                            }
                             Some('}') => {
-                                if depth == 0 {
-                                    break;
-                                } else {
-                                    depth -= 1;
-                                }
+                                break;
                             }
-                            s if s == None || (s == Some('"') && depth == 0) => {
+                            Some('"') => {
                                 return Err(ParseError::UnterminatedInterpolationString {
                                     line: self.line,
                                     column: start_column,
-                                })
+                                });
                             }
+                            None => {}
                             _ => {
                                 self.advance();
                             }
@@ -422,7 +392,6 @@ impl Lexer {
         let lexeme: String = self.input[start..self.current].iter().collect();
 
         let token = match lexeme.as_str() {
-            "$>" => Token::new(TokenType::Pipe, lexeme, self.line, start_column),
             "let" => Token::new(TokenType::Let, lexeme, self.line, start_column),
             "fn" => Token::new(TokenType::Fn, lexeme, self.line, start_column),
             _ => Token::ident(lexeme, self.line, start_column),

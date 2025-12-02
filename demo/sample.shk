@@ -27,10 +27,9 @@ let x 10
 
 let st { :x 10 :y 20 }
 obj.get :x st ;-- 10
-; shorthand: obj. :x set
-obj.set :x 20 st ;-- 0
+obj.set :x 10 st ;-- 0
 
-let fn (fn [x y] + x y)
+let f (fn [x y] + x y)
 
 let string.reverse (fn [str] '(
     let reversed ""
@@ -54,4 +53,44 @@ let macrofn (macro [name] '(
 file.read-safe :file.txt $>
     result.read-or false $>
     (fn [content] if content (string.upper content $> file.write :file.txt))
+    ; (if-can (string.upper #> file.write :file.txt))
 
+
+let ff (string.reverse #> string.upper)
+
+file.read-safe :file.txt
+
+;; if.can: reversed if with 
+file.read-safe :file.txt $>
+    result.read-or false $>
+    if.can (string.upper #> file.write :file.txt)
+
+
+let try-write (file.write :some.file "some content")
+
+let x (if-can 10)
+
+;; 10
+print (x true)
+
+;; void
+print (x true)
+
+;; Lowering application prescedence:
+let result $ file.write :name.txt :content
+let result (file.write :name.txt :content)
+;; chaining:
+let result $ file.write :name.txt :content $ :world?
+let result ((file.write :name.txt :content) (:world))
+
+{*
+<expr> $ <expr>
+is for:
+(<expr>) (<expr>)
+*}
+
+;; print :success
+if try-write (print :success) (print :error)
+
+;; write wasn't called, always success
+if 'try-write (print :success) (print :error)

@@ -10,6 +10,7 @@ pub enum TokenType {
     Let,
     Fn,
     Pipe, // $>
+    Flow, // #>
 
     // Delimiters
     LeftParen,         // (
@@ -28,6 +29,7 @@ pub enum TokenType {
 
     // Special
     Hash, // meta keyword
+    Newline, // new line
     Eof,
 }
 
@@ -169,6 +171,15 @@ impl Token {
         }
     }
 
+    pub fn flow(line: usize, column: usize) -> Self {
+        Self {
+            token_type: TokenType::Flow,
+            lexeme: "#>".to_string(),
+            line,
+            column,
+        }
+    }
+
     pub fn block_comment(lexeme: String, line: usize, column: usize) -> Self {
         Self {
             token_type: TokenType::BlockComment,
@@ -181,6 +192,15 @@ impl Token {
         Self {
             token_type: TokenType::SingleLineComment,
             lexeme,
+            line,
+            column,
+        }
+    }
+
+    pub fn newline(line: usize, column: usize) -> Self {
+        Self {
+            token_type: TokenType::Newline,
+            lexeme: "\n".to_string(),
             line,
             column,
         }

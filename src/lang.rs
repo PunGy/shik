@@ -1,22 +1,20 @@
 //! Language interpretation module
 
-use crate::parser::{lexer::TokenizeResult, Lexer};
+use crate::parser::{parse, ParseResult, Program};
 
-pub fn evaluate(input: &str) -> TokenizeResult {
-    let mut lexer = Lexer::new(input);
-    lexer.tokenize()
+pub fn evaluate(input: &str) -> ParseResult<Program> {
+    parse(input)
 }
 
-pub fn print(input: TokenizeResult) {
+pub fn print(input: ParseResult<Program>) {
     match input {
-        Ok(tokens) => {
-            for token in tokens {
-                println!("Token: [{:?}: ({})]", token.token_type, token.lexeme)
+        Ok(program) => {
+            println!("  Parsed: {} statements", program.statements.len());
+            for (i, stmt) in program.statements.iter().enumerate() {
+                println!("    Statement {}: {:?}", i, stmt.expression);
             }
         }
-        Err(e) => {
-            println!("Error: {:?}", e);
-        }
+        Err(e) => println!("  Parse Error: {:?}", e),
     }
 }
 
@@ -53,16 +51,7 @@ pub fn run_repl() {
             "" => {
                 // Empty input, just continue
             }
-            _ => match evaluate(input) {
-                Ok(tokens) => {
-                    for token in tokens {
-                        println!("Token: [{:?}: ({})]", token.token_type, token.lexeme)
-                    }
-                }
-                Err(e) => {
-                    println!("Error: {:?}", e);
-                }
-            },
+            _ => print(evaluate(input)),
         }
     }
 }
