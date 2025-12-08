@@ -28,7 +28,7 @@ pub enum TokenType {
     OpenLazy,  // #(
 
     // Special
-    Hash, // meta keyword
+    Hash,    // meta keyword
     Newline, // new line
     Eof,
 }

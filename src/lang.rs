@@ -1,20 +1,32 @@
 //! Language interpretation module
 
-use crate::parser::{parse, ParseResult, Program};
+use crate::eval::error::RuntimeError;
+use crate::eval::evaluator::interpretate;
+use crate::eval::value::ValueRef;
+use crate::parser::{parse, ParseError};
+use thiserror::Error;
 
-pub fn evaluate(input: &str) -> ParseResult<Program> {
-    parse(input)
+#[derive(Error, Debug)]
+pub enum EvalError {
+    #[error("Parsing failed: {0}")]
+    Parse(#[from] ParseError),
+    #[error("Runtime error: {0}")]
+    Runtime(#[from] RuntimeError),
 }
 
-pub fn print(input: ParseResult<Program>) {
+pub fn evaluate(input: &str) -> Result<ValueRef, EvalError> {
+    let program = parse(input)?;
+    let result = interpretate(&program)?;
+
+    Ok(result)
+}
+
+pub fn print(input: Result<ValueRef, EvalError>) {
     match input {
-        Ok(program) => {
-            println!("  Parsed: {} statements", program.statements.len());
-            for (i, stmt) in program.statements.iter().enumerate() {
-                println!("    Statement {}: {:?}", i, stmt.expression);
-            }
+        Ok(res) => {
+            println!("{:?}", res);
         }
-        Err(e) => println!("  Parse Error: {:?}", e),
+        Err(e) => println!("{:?}", e),
     }
 }
 
