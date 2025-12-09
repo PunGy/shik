@@ -1,7 +1,7 @@
 //! Language interpretation module
 
 use crate::eval::error::RuntimeError;
-use crate::eval::evaluator::interpretate;
+use crate::eval::evaluator::Interpretator;
 use crate::eval::value::ValueRef;
 use crate::parser::{parse, ParseError};
 use thiserror::Error;
@@ -14,9 +14,9 @@ pub enum EvalError {
     Runtime(#[from] RuntimeError),
 }
 
-pub fn evaluate(input: &str) -> Result<ValueRef, EvalError> {
+pub fn evaluate(input: &str, interpretator: &Interpretator) -> Result<ValueRef, EvalError> {
     let program = parse(input)?;
-    let result = interpretate(&program)?;
+    let result = interpretator.interpretate(&program)?;
 
     Ok(result)
 }
@@ -24,9 +24,9 @@ pub fn evaluate(input: &str) -> Result<ValueRef, EvalError> {
 pub fn print(input: Result<ValueRef, EvalError>) {
     match input {
         Ok(res) => {
-            println!("{:?}", res);
+            println!("{}", res);
         }
-        Err(e) => println!("{:?}", e),
+        Err(e) => println!("{}", e),
     }
 }
 
@@ -36,6 +36,8 @@ pub fn run_repl() {
     println!("=== SHIK ===");
     println!("Enter expressions to evaluate, or 'quit' to exit.");
     println!("Type 'help' for available commands.\n");
+
+    let interpretator = Interpretator::new();
 
     loop {
         print!("> ");
@@ -63,7 +65,7 @@ pub fn run_repl() {
             "" => {
                 // Empty input, just continue
             }
-            _ => print(evaluate(input)),
+            _ => print(evaluate(input, &interpretator)),
         }
     }
 }
@@ -72,6 +74,7 @@ pub fn eval_file(path: String) {
     use std::fs::read_to_string;
 
     let contents = read_to_string(path).expect("Unable to open the file");
+    let interpretator = Interpretator::new();
 
-    print(evaluate(&contents))
+    print(evaluate(&contents, &interpretator))
 }

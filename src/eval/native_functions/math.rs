@@ -6,53 +6,78 @@ use crate::eval::{
     EvalResult,
 };
 
-#[derive(Debug)]
-pub struct Plus;
-impl NativeFn for Plus {
-    fn exec(&self, args: &Vec<ValueRef>) -> EvalResult {
-        match args.as_slice() {
-            [x, y] => {
-                let x = x.as_number().ok_or(RuntimeError::MissmatchedTypes {
-                    got: x.get_type(),
-                    expected: ValueType::Number,
-                })?;
-                let y = y.as_number().ok_or(RuntimeError::MissmatchedTypes {
-                    got: y.get_type(),
-                    expected: ValueType::Number,
-                })?;
+macro_rules! native_op {
+    // Pattern: name, [arg1, arg2...], body
+    ($name:ident, $fn_title:expr, [$($arg:ident),*], $body:expr) => {
+        #[derive(Debug)]
+        pub struct $name;
 
-                Ok(Rc::new(Value::Number(x + y)))
+        impl NativeFn for $name {
+            fn exec(&self, args: &Vec<ValueRef>) -> EvalResult {
+                if args.len() != count_args!($($arg),*) {
+                    return Err(RuntimeError::InvalidApplication)
+                }
+                let mut iter = args.iter();
+                $(let $arg = iter.next().unwrap();)*
+
+                $body
             }
-            _ => Err(RuntimeError::InvalidApplication),
+
         }
-    }
+
+        impl $name {
+            pub fn define(env: &EnvRef) {
+                env.define(
+                    ($fn_title).to_string(),
+                    Rc::new(Value::NativeLambda(Rc::new(NativeClosure::new(
+                        count_args!($($arg),*),
+                        Rc::new($name),
+                    )))),
+                );
+            }
+        }
+    };
+}
+macro_rules! count_args {
+    () => { 0 };
+    ($head:ident $(, $tail:ident)*) => { 1 + count_args!($($tail),*) };
 }
 
-
-#[derive(Debug)]
-pub struct Minus;
-impl NativeFn for Minus {
-    fn exec(&self, args: &Vec<ValueRef>) -> EvalResult {
-        match args.as_slice() {
-            [x, y] => {
-                let x = x.as_number().ok_or(RuntimeError::MissmatchedTypes {
-                    got: x.get_type(),
-                    expected: ValueType::Number,
-                })?;
-                let y = y.as_number().ok_or(RuntimeError::MissmatchedTypes {
-                    got: y.get_type(),
-                    expected: ValueType::Number,
-                })?;
-
-                Ok(Rc::new(Value::Number(x - y)))
-            }
-            _ => Err(RuntimeError::InvalidApplication),
-        }
-    }
+fn native_result(val: Value) -> EvalResult {
+    Ok(Rc::new(val))
 }
+
+native_op!(Plus, "+", [x, y], {
+    let x = x.expect_number()?;
+    let y = y.expect_number()?;
+
+    native_result(Value::Number(x + y))
+});
+
+native_op!(Minus, "-", [x, y], {
+    let x = x.expect_number()?;
+    let y = y.expect_number()?;
+
+    native_result(Value::Number(x - y))
+});
+
+native_op!(Multiply, "*", [x, y], {
+    let x = x.expect_number()?;
+    let y = y.expect_number()?;
+
+    native_result(Value::Number(x * y))
+});
+
+native_op!(Divide, "/", [x, y], {
+    let x = x.expect_number()?;
+    let y = y.expect_number()?;
+
+    native_result(Value::Number(x / y))
+});
 
 pub fn bind_math_module(env: &EnvRef) {
-    env.define("+".to_string(), Rc::new(Value::NativeLambda(Rc::new(NativeClosure::new(2, Rc::new(Plus))))));
-    env.define("-".to_string(), Rc::new(Value::NativeLambda(Rc::new(NativeClosure::new(2, Rc::new(Minus))))));
+    Plus::define(&env);
+    Minus::define(&env);
+    Divide::define(&env);
+    Multiply::define(&env);
 }
-

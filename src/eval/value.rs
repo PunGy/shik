@@ -1,8 +1,8 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::iter;
 use std::rc::Rc;
-use std::cell::RefCell;
 
 use crate::{
     eval::error::RuntimeError,
@@ -69,7 +69,19 @@ pub struct Closure {
 }
 
 impl Closure {
-    pub fn bind_variables(&self, ctx: EnvRef) {
+    pub fn new(params: Vec<MatchPattern>, body: Box<Expression>, env: EnvRef) -> Self {
+        Self {
+            params,
+            binded: Vec::new(),
+            body,
+            env,
+        }
+    }
+    pub fn bind_variables(&self) {
+        // println!("-][-");
+        // println!("vars: {:?}", self.params);
+        // println!("bind: {:?}", self.binded);
+        // println!("-][-");
         for (p, v) in self
             .params
             .iter()
@@ -78,7 +90,7 @@ impl Closure {
         {
             match &p {
                 MatchPattern::Identifier(id) => {
-                    ctx.assign(id, Rc::clone(v));
+                    self.env.define(id.clone(), Rc::clone(v));
                 }
                 _ => panic!("not support pattern matching yet"),
             }
@@ -99,6 +111,15 @@ impl Value {
         match self {
             Value::Number(x) => Some(*x),
             _ => None,
+        }
+    }
+    pub fn expect_number(&self) -> Result<f64, RuntimeError> {
+        match self {
+            Value::Number(x) => Ok(*x),
+            _ => Err(RuntimeError::MissmatchedTypes {
+                got: self.get_type(),
+                expected: ValueType::Number,
+            }),
         }
     }
 
@@ -139,5 +160,33 @@ impl Env {
                 e.vars.borrow_mut().insert(name.to_string(), value);
                 true
             })
+    }
+}
+
+impl std::fmt::Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Number(x) => write!(f, "{}", x),
+            Value::String(s) => write!(f, "\"{}\"", s),
+            Value::List(l) => {
+                write!(f, "[")?;
+                for i in l.iter() {
+                    write!(f, "{}", i)?;
+                }
+                write!(f, "]")
+            }
+            Value::Object(o) => {
+                write!(f, "{{")?;
+                for (name, value) in o.iter() {
+                    write!(f, "{}: {}", name, value)?;
+                }
+                write!(f, "}}")
+            }
+            Value::NativeLambda(_) | Value::Lambda(_) => {
+                write!(f, "Lambda function")
+            }
+
+            Value::Null => write!(f, "null"),
+        }
     }
 }
