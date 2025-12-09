@@ -11,6 +11,7 @@ pub enum TokenType {
     Fn,
     Pipe, // $>
     Flow, // #>
+    Chain, // $
 
     // Delimiters
     LeftParen,         // (

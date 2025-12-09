@@ -87,6 +87,28 @@ impl Interpretator {
 
                 self.apply_fn(&f, &a)
             }
+            Expression::Chain { left, right } => {
+                let f = self.eval_expr(left.as_ref(), ctx)?;
+                match f.as_ref() {
+                    Value::SpecialForm(closure) => {
+                        let mut curried = SpecialClosure::new(
+                            Rc::clone(&closure.logic),
+                            Rc::clone(&closure.interpretator),
+                            Rc::clone(&ctx),
+                        );
+                        curried.params.extend_from_slice(&closure.params);
+                        curried.params.push(*right.clone());
+                        let f = Value::SpecialForm(curried);
+
+                        Ok(Rc::new(f))
+                    }
+                    _ => {
+                        let a = self.expand(self.eval_expr(right.as_ref(), ctx)?)?;
+
+                        self.apply_fn(&f, &a)
+                    }
+                }
+            }
             Expression::Application { function, argument } => {
                 let f = self.eval_expr(function.as_ref(), ctx)?;
                 match f.as_ref() {
@@ -179,10 +201,8 @@ impl Interpretator {
 
     fn expand(&self, v: ValueRef) -> EvalResult {
         match v.as_ref() {
-            Value::SpecialForm(closure) => {
-                closure.exec()
-            }
-            _ => Ok(v)
+            Value::SpecialForm(closure) => closure.exec(),
+            _ => Ok(v),
         }
     }
 }

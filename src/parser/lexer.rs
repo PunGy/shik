@@ -126,14 +126,16 @@ impl Lexer {
             }
             '0'..='9' => return self.number(start_column, false),
 
-            '$' => {
-                if self.peek() == Some('>') {
+            '$' => match self.peek() {
+                Some('>') => {
                     self.advance();
                     Token::new(TokenType::Pipe, "$>".to_string(), line, start_column)
-                } else {
-                    return self.ident(start_column);
                 }
-            }
+                Some('\n') | Some(' ') | Some('\t') | Some('\r') => {
+                    Token::new(TokenType::Chain, "$".to_string(), line, start_column)
+                }
+                _ => return self.ident(start_column),
+            },
 
             c if is_ident_start(c) => return self.ident(start_column),
 

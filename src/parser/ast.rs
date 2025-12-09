@@ -27,6 +27,10 @@ pub enum Expression {
         left: Box<Expression>,
         right: Box<Expression>,
     },
+    Chain {
+        left: Box<Expression>,
+        right: Box<Expression>,
+    },
     Application {
         function: Box<Expression>,
         argument: Box<Expression>,
@@ -116,6 +120,13 @@ impl Expression {
 
     pub fn pipe(left: Expression, right: Expression) -> Self {
         Expression::Pipe {
+            left: Box::new(left),
+            right: Box::new(right),
+        }
+    }
+
+    pub fn chain(left: Expression, right: Expression) -> Self {
+        Expression::Chain {
             left: Box::new(left),
             right: Box::new(right),
         }

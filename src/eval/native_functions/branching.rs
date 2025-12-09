@@ -72,10 +72,10 @@ impl SpecialFn for If {
                 Ok(Rc::new(Value::Bool(false)))
             }
         } else {
-            let mut next: Option<&Expression> = None;
             // With else at the end
+            let mut next: Option<&Expression> = args_it.next();
+
             while !predicate {
-                args_it.next(); // skip body
                 next = args_it.next();
                 // if it is the last - go back, we found final `else`
                 if args_it.peek() == None {
@@ -86,12 +86,14 @@ impl SpecialFn for If {
                     // next body
                     next = args_it.next();
                     break
+                } else {
+                    args_it.next();
                 }
             }
 
             // the next would be the desired body for sure, either `elseif` block, or `else`
             let next = next.ok_or(RuntimeError::InvalidApplication)?;
-            inter.eval_expr(next, env)
+            inter.eval_expr(next, &env)
         }
     }
 }

@@ -10,8 +10,9 @@ pub type ParseResult<T> = Result<T, ParseError>;
 enum Precedence {
     Lowest = 0,
     Pipe = 1,  // $> - pipe/apply value to function (lowest precedence of operators)
-    Apply = 2, // function application (medium precedence)
-    Flow = 3,  // #> - function composition (highest precedence)
+    Chain = 2,  // $ - chain application - acts like apply, but with lower precedence
+    Apply = 3, // function application (medium precedence)
+    Flow = 4,  // #> - function composition (highest precedence)
 }
 
 pub struct Parser {
@@ -103,6 +104,16 @@ impl Parser {
                     }
                     let right = self.parse_expression(Precedence::Pipe)?;
                     left = Expression::pipe(left, right);
+                    true
+                }
+                Ok(TokenType::Chain) if precedence < Precedence::Chain => {
+                    self.advance();
+                    // Allow newlines after chain operator
+                    while self.is_newline() {
+                        self.advance();
+                    }
+                    let right = self.parse_expression(Precedence::Chain)?;
+                    left = Expression::chain(left, right);
                     true
                 }
                 Ok(TokenType::Flow) if precedence < Precedence::Flow => {
