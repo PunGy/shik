@@ -27,9 +27,9 @@ pub enum Value {
     Bool(bool),
     List(Vec<ValueRef>),
     Object(HashMap<String, ValueRef>),
-    Lambda(Rc<Closure>),
+    Lambda(Closure),
 
-    NativeLambda(Rc<NativeClosure>),
+    NativeLambda(NativeClosure),
 
     Null,
 }

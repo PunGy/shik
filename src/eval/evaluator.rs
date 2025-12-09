@@ -100,11 +100,11 @@ impl Interpretator {
                 parameters,
                 rest,
                 body,
-            } => Ok(Rc::new(Value::Lambda(Rc::new(Closure::new(
+            } => Ok(Rc::new(Value::Lambda(Closure::new(
                 parameters.clone(),
                 body.clone(),
                 Rc::new(Env::new(Some(Rc::clone(ctx)))),
-            ))))),
+            )))),
             Expression::Let { pattern, value } => match pattern {
                 LetPattern::Identifier(name) => {
                     let val = self.eval_expr(value, ctx)?;
@@ -123,7 +123,7 @@ impl Interpretator {
     fn apply_fn(&self, f: &ValueRef, a: &ValueRef) -> EvalResult {
         match f.as_ref() {
             Value::Lambda(closure) => {
-                let mut curried = closure.as_ref().clone();
+                let mut curried = closure.clone();
                 curried.binded.push(a.clone());
 
                 if curried.binded.len() == curried.params.len() {
@@ -134,11 +134,10 @@ impl Interpretator {
                     self.eval_expr(&closure.body, &closure.env)
                 } else {
                     // Make a new curried lambda
-                    Ok(Rc::new(Value::Lambda(Rc::new(curried))))
+                    Ok(Rc::new(Value::Lambda(curried)))
                 }
             }
             Value::NativeLambda(closure) => {
-                let closure = closure.as_ref();
                 // Make a new curried lambda
                 let mut curried =
                     NativeClosure::new(closure.params_count, Rc::clone(&closure.logic));
@@ -148,7 +147,7 @@ impl Interpretator {
                 if curried.binded.len() == closure.params_count {
                     curried.exec()
                 } else {
-                    Ok(Rc::new(Value::NativeLambda(Rc::new(curried))))
+                    Ok(Rc::new(Value::NativeLambda(curried)))
                 }
             }
             _ => Ok(f.clone()),

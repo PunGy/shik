@@ -22,10 +22,10 @@ macro_rules! native_op {
             pub fn define(env: &EnvRef) {
                 env.define(
                     ($fn_title).to_string(),
-                    Rc::new(Value::NativeLambda(Rc::new(NativeClosure::new(
+                    Rc::new(Value::NativeLambda(NativeClosure::new(
                         count_args!($($arg),*),
                         Rc::new($name),
-                    )))),
+                    ))),
                 );
             }
         }
