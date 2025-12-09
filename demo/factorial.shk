@@ -1,0 +1,13 @@
+{*
+let fac!' fn [x] '(
+  let fac (fn [x i] if (= i 1) i (* x (fac x (- 1 i))))
+  fac x x
+)
+
+let fac!'' fn [x] '(
+  if (< x 2) 1 (* x (fac! (- x 1)))
+)
+*}
+
+
+countdown $ 5

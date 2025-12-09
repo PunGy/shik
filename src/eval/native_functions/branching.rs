@@ -37,7 +37,7 @@ if predicate
 pub struct If;
 
 impl SpecialFn for If {
-    fn exec(&self, args: &Vec<Expression>, inter: &Interpretator) -> EvalResult {
+    fn exec(&self, args: &Vec<Expression>, inter: &Interpretator, env: &EnvRef) -> EvalResult {
         let args_count = args.len();
         if args_count < 2 {
             return Err(RuntimeError::InvalidApplication);
@@ -45,12 +45,12 @@ impl SpecialFn for If {
 
         let mut args_it = args.iter().peekable();
         let predicate = args_it.next().ok_or(RuntimeError::InvalidApplication)?;
-        let mut predicate = inter.eval_expr(predicate, &inter.ctx)?.expect_bool()?;
+        let mut predicate = inter.eval_expr(predicate, &env)?.expect_bool()?;
 
         if args_count == 2 {
             // Simple if without else
             if predicate {
-                inter.eval_expr(&args_it.next().unwrap(), &inter.ctx)
+                inter.eval_expr(&args_it.next().unwrap(), &env)
             } else {
                 Ok(Rc::new(Value::Bool(false)))
             }
@@ -62,12 +62,12 @@ impl SpecialFn for If {
                 if next == None {
                     break;
                 }
-                predicate = inter.eval_expr(next.unwrap(), &inter.ctx)?.expect_bool()?;
+                predicate = inter.eval_expr(next.unwrap(), &env)?.expect_bool()?;
             }
 
             if predicate {
                 let next = args_it.next().ok_or(RuntimeError::InvalidApplication)?;
-                inter.eval_expr(next, &inter.ctx)
+                inter.eval_expr(next, &env)
             } else {
                 Ok(Rc::new(Value::Bool(false)))
             }
@@ -81,7 +81,7 @@ impl SpecialFn for If {
                 if args_it.peek() == None {
                     break;
                 }
-                predicate = inter.eval_expr(next.unwrap(), &inter.ctx)?.expect_bool()?;
+                predicate = inter.eval_expr(next.unwrap(), &env)?.expect_bool()?;
                 if predicate {
                     // next body
                     next = args_it.next();
@@ -91,16 +91,17 @@ impl SpecialFn for If {
 
             // the next would be the desired body for sure, either `elseif` block, or `else`
             let next = next.ok_or(RuntimeError::InvalidApplication)?;
-            inter.eval_expr(next, &inter.ctx)
+            inter.eval_expr(next, env)
         }
     }
 }
 
 impl If {
     pub fn define(env: &EnvRef, inter: Rc<Interpretator>) {
+        let ctx = Rc::clone(&env);
         env.define(
             "if".to_string(),
-            Rc::new(Value::SpecialForm(SpecialClosure::new(Rc::new(If), inter))),
+            Rc::new(Value::SpecialForm(SpecialClosure::new(Rc::new(If), inter, ctx))),
         );
     }
 }

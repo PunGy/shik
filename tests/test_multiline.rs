@@ -1,7 +1,7 @@
 use shik::parser::Lexer;
 
 fn main() {
-    let inputs = vec!["\n\n s x\nf x"];
+    let inputs = vec!["if x $\n1\n2"];
 
     for input in inputs {
         println!("\nInput: {}", input);

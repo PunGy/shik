@@ -42,7 +42,7 @@ pub trait NativeFn: Debug {
     fn exec(&self, args: &Vec<ValueRef>) -> Result<ValueRef, RuntimeError>;
 }
 pub trait SpecialFn: Debug {
-    fn exec(&self, args: &Vec<Expression>, inter: &Interpretator) -> Result<ValueRef, RuntimeError>;
+    fn exec(&self, args: &Vec<Expression>, inter: &Interpretator, env: &EnvRef) -> Result<ValueRef, RuntimeError>;
 }
 
 #[derive(Debug)]
@@ -56,6 +56,7 @@ pub struct NativeClosure {
 pub struct SpecialClosure {
     pub params: Vec<Expression>,
     pub interpretator: Rc<Interpretator>,
+    pub env: EnvRef,
 
     pub logic: Rc<dyn SpecialFn>,
 }
@@ -76,14 +77,15 @@ impl NativeClosure {
 
 impl SpecialClosure {
     pub fn exec(&self) -> Result<Rc<Value>, RuntimeError> {
-        self.logic.exec(&self.params, &self.interpretator)
+        self.logic.exec(&self.params, &self.interpretator, &self.env)
     }
 
-    pub fn new(logic: Rc<dyn SpecialFn>, interpretator: Rc<Interpretator>) -> Self {
+    pub fn new(logic: Rc<dyn SpecialFn>, interpretator: Rc<Interpretator>, env: EnvRef) -> Self {
         Self {
             params: Vec::new(),
             logic,
             interpretator,
+            env,
         }
     }
 }

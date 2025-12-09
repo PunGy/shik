@@ -94,6 +94,7 @@ impl Interpretator {
                         let mut curried = SpecialClosure::new(
                             Rc::clone(&closure.logic),
                             Rc::clone(&closure.interpretator),
+                            Rc::clone(&ctx),
                         );
                         curried.params.extend_from_slice(&closure.params);
                         curried.params.push(*argument.clone());
