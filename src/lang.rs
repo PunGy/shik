@@ -21,10 +21,12 @@ pub fn evaluate(input: &str, interpretator: &Interpretator) -> Result<ValueRef, 
     Ok(result)
 }
 
-pub fn print(input: Result<ValueRef, EvalError>) {
+pub fn print(input: Result<ValueRef, EvalError>, silent: bool) {
     match input {
         Ok(res) => {
-            println!("{}", res);
+            if !silent {
+                println!("{}", res);
+            }
         }
         Err(e) => println!("{}", e),
     }
@@ -65,7 +67,7 @@ pub fn run_repl() {
             "" => {
                 // Empty input, just continue
             }
-            _ => print(evaluate(input, &interpretator)),
+            _ => print(evaluate(input, &interpretator), false),
         }
     }
 }
@@ -76,5 +78,5 @@ pub fn eval_file(path: String) {
     let contents = read_to_string(path).expect("Unable to open the file");
     let interpretator = Interpretator::new();
 
-    print(evaluate(&contents, &interpretator))
+    print(evaluate(&contents, &interpretator), true)
 }

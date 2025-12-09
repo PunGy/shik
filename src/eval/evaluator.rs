@@ -2,13 +2,15 @@
 use crate::{
     eval::{
         error::RuntimeError,
-        native_functions::math::bind_math_module,
+        native_functions::{
+            bool::bind_bool_module, keywords::bind_keywords_module, math::bind_math_module, print::bind_print_module
+        },
         value::{Closure, Env, EnvRef, NativeClosure, Value, ValueRef},
         EvalResult,
     },
     parser::{Expression, LetPattern, Program},
 };
-use std::rc::Rc;
+use std::{collections::HashMap, rc::Rc};
 
 pub struct Interpretator {
     // global context
@@ -18,7 +20,7 @@ pub struct Interpretator {
 impl Interpretator {
     pub fn new() -> Self {
         Self {
-            ctx: Interpretator::new_global()
+            ctx: Interpretator::new_global(),
         }
     }
 
@@ -36,6 +38,9 @@ impl Interpretator {
         let env = Rc::new(Env::new(None));
 
         bind_math_module(&env);
+        bind_bool_module(&env);
+        bind_print_module(&env);
+        bind_keywords_module(&env);
 
         env
     }
@@ -46,6 +51,35 @@ impl Interpretator {
         // println!("With env: {:?}", ctx);
         match expr {
             Expression::Number(x) => Ok(Rc::new(Value::Number(*x))),
+            Expression::String(s) => Ok(Rc::new(Value::String(s.clone()))),
+            Expression::List(lst) => {
+                let mut res: Vec<ValueRef> = Vec::new();
+
+                for it in lst.into_iter() {
+                    let val = self.eval_expr(it, ctx)?;
+                    res.push(val);
+                }
+
+                Ok(Rc::new(Value::List(res)))
+            }
+            Expression::Object(obj) => {
+                let mut res: HashMap<String, ValueRef> = HashMap::new();
+
+                for it in obj.iter() {
+                    let key = self.eval_expr(&it.key, ctx)?;
+                    let key = key.expect_string()?;
+                    let val = self.eval_expr(&it.value, ctx)?;
+                    res.insert(key.to_string(), val);
+                }
+
+                Ok(Rc::new(Value::Object(res)))
+            }
+            Expression::Pipe { left, right } => {
+                let a = self.eval_expr(left.as_ref(), ctx)?;
+                let f = self.eval_expr(right.as_ref(), ctx)?;
+
+                self.apply_fn(&f, &a)
+            }
             Expression::Application { function, argument } => {
                 let f = self.eval_expr(function.as_ref(), ctx)?;
                 let a = self.eval_expr(argument.as_ref(), ctx)?;
@@ -53,6 +87,15 @@ impl Interpretator {
                 self.apply_fn(&f, &a)
             }
             Expression::Parenthesized(expr) => self.eval_expr(expr, ctx),
+            Expression::Block(expr_lst) => {
+                let mut last = Rc::new(Value::Null);
+
+                for it in expr_lst.iter() {
+                    last = self.eval_expr(it, ctx)?;
+                }
+
+                Ok(last)
+            }
             Expression::Lambda {
                 parameters,
                 rest,

@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::{cell::RefCell, fmt::write};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::iter;
@@ -13,6 +13,7 @@ use crate::{
 pub enum ValueType {
     Number,
     String,
+    Bool,
     List,
     Object,
     Lambda,
@@ -23,6 +24,7 @@ pub enum ValueType {
 pub enum Value {
     Number(f64),
     String(String),
+    Bool(bool),
     List(Vec<ValueRef>),
     Object(HashMap<String, ValueRef>),
     Lambda(Rc<Closure>),
@@ -122,6 +124,42 @@ impl Value {
             }),
         }
     }
+    pub fn expect_bool(&self) -> Result<bool, RuntimeError> {
+        match self {
+            Value::Bool(x) => Ok(*x),
+            _ => Err(RuntimeError::MissmatchedTypes {
+                got: self.get_type(),
+                expected: ValueType::Number,
+            }),
+        }
+    }
+    pub fn expect_string(&self) -> Result<&String, RuntimeError> {
+        match self {
+            Value::String(s) => Ok(s),
+            _ => Err(RuntimeError::MissmatchedTypes {
+                got: self.get_type(),
+                expected: ValueType::Number,
+            }),
+        }
+    }
+    pub fn expect_list(&self) -> Result<&Vec<ValueRef>, RuntimeError> {
+        match self {
+            Value::List(lst) => Ok(lst),
+            _ => Err(RuntimeError::MissmatchedTypes {
+                got: self.get_type(),
+                expected: ValueType::Number,
+            }),
+        }
+    }
+    pub fn expect_obj(&self) -> Result<&HashMap<String, ValueRef>, RuntimeError> {
+        match self {
+            Value::Object(obj) => Ok(obj),
+            _ => Err(RuntimeError::MissmatchedTypes {
+                got: self.get_type(),
+                expected: ValueType::Number,
+            }),
+        }
+    }
 
     pub fn get_type(&self) -> ValueType {
         match self {
@@ -131,6 +169,7 @@ impl Value {
             Value::Object(_) => ValueType::Object,
             Value::Lambda(_) => ValueType::Lambda,
             Value::NativeLambda(_) => ValueType::Lambda,
+            Value::Bool(_) => ValueType::Bool,
             Value::Null => ValueType::Null,
         }
     }
@@ -168,17 +207,18 @@ impl std::fmt::Display for Value {
         match self {
             Value::Number(x) => write!(f, "{}", x),
             Value::String(s) => write!(f, "\"{}\"", s),
+            Value::Bool(b) => write!(f, "{}", b),
             Value::List(l) => {
                 write!(f, "[")?;
                 for i in l.iter() {
-                    write!(f, "{}", i)?;
+                    write!(f, " {}", i)?;
                 }
-                write!(f, "]")
+                write!(f, " ]")
             }
             Value::Object(o) => {
                 write!(f, "{{")?;
                 for (name, value) in o.iter() {
-                    write!(f, "{}: {}", name, value)?;
+                    write!(f, "{}: {},\n", name, value)?;
                 }
                 write!(f, "}}")
             }
