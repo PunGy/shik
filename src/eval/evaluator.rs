@@ -3,32 +3,39 @@ use crate::{
     eval::{
         error::RuntimeError,
         native_functions::{
-            bool::bind_bool_module, keywords::bind_keywords_module, math::bind_math_module, print::bind_print_module
+            bool::bind_bool_module, branching::bind_special_module, keywords::bind_keywords_module,
+            math::bind_math_module, print::bind_print_module,
         },
-        value::{Closure, Env, EnvRef, NativeClosure, Value, ValueRef},
+        value::{Closure, Env, EnvRef, NativeClosure, SpecialClosure, Value, ValueRef},
         EvalResult,
     },
     parser::{Expression, LetPattern, Program},
 };
 use std::{collections::HashMap, rc::Rc};
 
+#[derive(Debug)]
 pub struct Interpretator {
     // global context
-    ctx: EnvRef,
+    pub ctx: EnvRef,
 }
 
 impl Interpretator {
-    pub fn new() -> Self {
-        Self {
+    pub fn new() -> Rc<Self> {
+        let inter = Self {
             ctx: Interpretator::new_global(),
-        }
+        };
+        let inter = Rc::new(inter);
+
+        bind_special_module(&inter.ctx, Rc::clone(&inter));
+
+        inter
     }
 
     pub fn interpretate(&self, program: &Program) -> EvalResult {
         let mut last = Rc::new(Value::Null);
 
         for stmt in &program.statements {
-            last = self.eval_expr(&stmt.expression, &self.ctx)?;
+            last = self.expand(self.eval_expr(&stmt.expression, &self.ctx)?)?;
         }
 
         Ok(last)
@@ -45,7 +52,7 @@ impl Interpretator {
         env
     }
 
-    fn eval_expr(&self, expr: &Expression, ctx: &EnvRef) -> EvalResult {
+    pub fn eval_expr(&self, expr: &Expression, ctx: &EnvRef) -> EvalResult {
         // println!("---");
         // println!("eval expr: {:?}", expr);
         // println!("With env: {:?}", ctx);
@@ -56,7 +63,7 @@ impl Interpretator {
                 let mut res: Vec<ValueRef> = Vec::new();
 
                 for it in lst.into_iter() {
-                    let val = self.eval_expr(it, ctx)?;
+                    let val = self.expand(self.eval_expr(it, ctx)?)?;
                     res.push(val);
                 }
 
@@ -66,32 +73,47 @@ impl Interpretator {
                 let mut res: HashMap<String, ValueRef> = HashMap::new();
 
                 for it in obj.iter() {
-                    let key = self.eval_expr(&it.key, ctx)?;
+                    let key = self.expand(self.eval_expr(&it.key, ctx)?)?;
                     let key = key.expect_string()?;
-                    let val = self.eval_expr(&it.value, ctx)?;
+                    let val = self.expand(self.eval_expr(&it.value, ctx)?)?;
                     res.insert(key.to_string(), val);
                 }
 
                 Ok(Rc::new(Value::Object(res)))
             }
             Expression::Pipe { left, right } => {
-                let a = self.eval_expr(left.as_ref(), ctx)?;
+                let a = self.expand(self.eval_expr(left.as_ref(), ctx)?)?;
                 let f = self.eval_expr(right.as_ref(), ctx)?;
 
                 self.apply_fn(&f, &a)
             }
             Expression::Application { function, argument } => {
                 let f = self.eval_expr(function.as_ref(), ctx)?;
-                let a = self.eval_expr(argument.as_ref(), ctx)?;
+                match f.as_ref() {
+                    Value::SpecialForm(closure) => {
+                        let mut curried = SpecialClosure::new(
+                            Rc::clone(&closure.logic),
+                            Rc::clone(&closure.interpretator),
+                        );
+                        curried.params.extend_from_slice(&closure.params);
+                        curried.params.push(*argument.clone());
+                        let f = Value::SpecialForm(curried);
 
-                self.apply_fn(&f, &a)
+                        Ok(Rc::new(f))
+                    }
+                    _ => {
+                        let a = self.expand(self.eval_expr(argument.as_ref(), ctx)?)?;
+
+                        self.apply_fn(&f, &a)
+                    }
+                }
             }
             Expression::Parenthesized(expr) => self.eval_expr(expr, ctx),
             Expression::Block(expr_lst) => {
                 let mut last = Rc::new(Value::Null);
 
                 for it in expr_lst.iter() {
-                    last = self.eval_expr(it, ctx)?;
+                    last = self.expand(self.eval_expr(it, ctx)?)?;
                 }
 
                 Ok(last)
@@ -107,7 +129,7 @@ impl Interpretator {
             )))),
             Expression::Let { pattern, value } => match pattern {
                 LetPattern::Identifier(name) => {
-                    let val = self.eval_expr(value, ctx)?;
+                    let val = self.expand(self.eval_expr(value, ctx)?)?;
                     ctx.define(name.to_string(), Rc::clone(&val));
                     Ok(val)
                 }
@@ -151,6 +173,15 @@ impl Interpretator {
                 }
             }
             _ => Ok(f.clone()),
+        }
+    }
+
+    fn expand(&self, v: ValueRef) -> EvalResult {
+        match v.as_ref() {
+            Value::SpecialForm(closure) => {
+                closure.exec()
+            }
+            _ => Ok(v)
         }
     }
 }

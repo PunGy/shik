@@ -2,6 +2,7 @@ pub mod bool;
 pub mod math;
 pub mod print;
 pub mod keywords;
+pub mod branching;
 pub mod macros;
 
 use crate::eval::{value::Value, EvalResult};

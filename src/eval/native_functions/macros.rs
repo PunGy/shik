@@ -32,6 +32,41 @@ macro_rules! native_op {
     };
 }
 
+
+macro_rules! special_op {
+    // Pattern: name, [arg1, arg2...], body
+    ($name:ident, $fn_title:expr, [$($arg:ident),*], $body:expr) => {
+        #[derive(Debug)]
+        pub struct $name;
+
+        impl NativeFn for $name {
+            fn exec(&self, args: &Vec<Expression>, inter: &Interpretator) -> EvalResult {
+                if args.len() != count_args!($($arg),*) {
+                    return Err(RuntimeError::InvalidApplication)
+                }
+                let mut iter = args.iter();
+                $(let $arg = iter.next().unwrap();)*
+
+                $body
+            }
+
+        }
+
+        impl $name {
+            pub fn define(env: &EnvRef, inter: Rc<Interpretator>) {
+                env.define(
+                    ($fn_title).to_string(),
+                    Rc::new(Value::SpecialForm(SpecialClosure::new(
+                        count_args!($($arg),*),
+                        Rc::new($name),
+                        inter,
+                    ))),
+                );
+            }
+        }
+    };
+}
+
 #[macro_export]
 macro_rules! count_args {
     () => { 0 };

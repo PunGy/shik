@@ -1,0 +1,4 @@
+file.glob :./src/**/*.rs $>
+  list.map file.read $>
+  list.map (string.count-of "\n") $>
+  list.sum

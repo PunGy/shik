@@ -4,6 +4,7 @@ use std::fmt::Debug;
 use std::iter;
 use std::rc::Rc;
 
+use crate::eval::evaluator::Interpretator;
 use crate::{
     eval::error::RuntimeError,
     parser::{Expression, MatchPattern},
@@ -30,6 +31,7 @@ pub enum Value {
     Lambda(Closure),
 
     NativeLambda(NativeClosure),
+    SpecialForm(SpecialClosure),
 
     Null,
 }
@@ -39,6 +41,9 @@ pub type ValueRef = Rc<Value>;
 pub trait NativeFn: Debug {
     fn exec(&self, args: &Vec<ValueRef>) -> Result<ValueRef, RuntimeError>;
 }
+pub trait SpecialFn: Debug {
+    fn exec(&self, args: &Vec<Expression>, inter: &Interpretator) -> Result<ValueRef, RuntimeError>;
+}
 
 #[derive(Debug)]
 pub struct NativeClosure {
@@ -46,6 +51,13 @@ pub struct NativeClosure {
     pub binded: Vec<ValueRef>,
 
     pub logic: Rc<dyn NativeFn>,
+}
+#[derive(Debug)]
+pub struct SpecialClosure {
+    pub params: Vec<Expression>,
+    pub interpretator: Rc<Interpretator>,
+
+    pub logic: Rc<dyn SpecialFn>,
 }
 
 impl NativeClosure {
@@ -58,6 +70,20 @@ impl NativeClosure {
             params_count,
             binded: Vec::new(),
             logic,
+        }
+    }
+}
+
+impl SpecialClosure {
+    pub fn exec(&self) -> Result<Rc<Value>, RuntimeError> {
+        self.logic.exec(&self.params, &self.interpretator)
+    }
+
+    pub fn new(logic: Rc<dyn SpecialFn>, interpretator: Rc<Interpretator>) -> Self {
+        Self {
+            params: Vec::new(),
+            logic,
+            interpretator,
         }
     }
 }
@@ -167,8 +193,7 @@ impl Value {
             Value::String(_) => ValueType::String,
             Value::List(_) => ValueType::List,
             Value::Object(_) => ValueType::Object,
-            Value::Lambda(_) => ValueType::Lambda,
-            Value::NativeLambda(_) => ValueType::Lambda,
+            Value::Lambda(_) | Value::NativeLambda(_) | Value::SpecialForm(_) => ValueType::Lambda,
             Value::Bool(_) => ValueType::Bool,
             Value::Null => ValueType::Null,
         }
@@ -222,7 +247,7 @@ impl std::fmt::Display for Value {
                 }
                 write!(f, "}}")
             }
-            Value::NativeLambda(_) | Value::Lambda(_) => {
+            Value::NativeLambda(_) | Value::Lambda(_) | Value::SpecialForm(_) => {
                 write!(f, "Lambda function")
             }
 
