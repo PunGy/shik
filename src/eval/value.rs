@@ -38,9 +38,52 @@ pub enum Value {
 
 pub type ValueRef = Rc<Value>;
 
-pub trait NativeFn: Debug {
-    fn exec(&self, args: &Vec<ValueRef>) -> Result<ValueRef, RuntimeError>;
+/// Context passed to native functions, providing access to the interpretator and environment
+pub struct NativeContext<'a> {
+    pub inter: &'a Interpretator,
+    pub env: &'a EnvRef,
 }
+
+impl<'a> NativeContext<'a> {
+    /// Apply a function (Lambda or NativeLambda) to an argument
+    pub fn apply(&self, f: &ValueRef, arg: &ValueRef) -> Result<ValueRef, RuntimeError> {
+        match f.as_ref() {
+            Value::Lambda(closure) => {
+                let mut curried = closure.clone();
+                curried.binded.push(arg.clone());
+
+                if curried.binded.len() == curried.params.len() {
+                    curried.bind_variables();
+                    self.inter.eval_expr(&closure.body, &closure.env)
+                } else {
+                    Ok(Rc::new(Value::Lambda(curried)))
+                }
+            }
+            Value::NativeLambda(closure) => {
+                let mut curried = NativeClosure::new(
+                    closure.params_count,
+                    Rc::clone(&closure.logic),
+                    Rc::clone(&closure.inter),
+                    Rc::clone(&closure.env),
+                );
+                curried.binded.extend_from_slice(&closure.binded);
+                curried.binded.push(arg.clone());
+
+                if curried.binded.len() == closure.params_count {
+                    curried.exec()
+                } else {
+                    Ok(Rc::new(Value::NativeLambda(curried)))
+                }
+            }
+            _ => Err(RuntimeError::InvalidApplication),
+        }
+    }
+}
+
+pub trait NativeFn: Debug {
+    fn exec(&self, args: &Vec<ValueRef>, ctx: &NativeContext) -> Result<ValueRef, RuntimeError>;
+}
+
 pub trait SpecialFn: Debug {
     fn exec(&self, args: &Vec<Expression>, inter: &Interpretator, env: &EnvRef) -> Result<ValueRef, RuntimeError>;
 }
@@ -49,8 +92,9 @@ pub trait SpecialFn: Debug {
 pub struct NativeClosure {
     pub params_count: usize,
     pub binded: Vec<ValueRef>,
-
     pub logic: Rc<dyn NativeFn>,
+    pub inter: Rc<Interpretator>,
+    pub env: EnvRef,
 }
 #[derive(Debug)]
 pub struct SpecialClosure {
@@ -63,14 +107,20 @@ pub struct SpecialClosure {
 
 impl NativeClosure {
     pub fn exec(&self) -> Result<Rc<Value>, RuntimeError> {
-        self.logic.exec(&self.binded)
+        let ctx = NativeContext {
+            inter: &self.inter,
+            env: &self.env,
+        };
+        self.logic.exec(&self.binded, &ctx)
     }
 
-    pub fn new(params_count: usize, logic: Rc<dyn NativeFn>) -> Self {
+    pub fn new(params_count: usize, logic: Rc<dyn NativeFn>, inter: Rc<Interpretator>, env: EnvRef) -> Self {
         Self {
             params_count,
             binded: Vec::new(),
             logic,
+            inter,
+            env,
         }
     }
 }

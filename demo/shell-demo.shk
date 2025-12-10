@@ -1,0 +1,31 @@
+; Shell module demonstration
+
+; Get environment variables
+let home (shell.env "HOME")
+print home
+
+; Get OS and architecture
+let os shell.os
+let arch shell.arch
+print (string.concat "OS: " os)
+print (string.concat "Arch: " arch)
+
+; Get current working directory
+let cwd (shell.cwd)
+print (string.concat "CWD: " cwd)
+
+; Execute a shell command
+let files (shell "ls -la")
+print files
+
+; Get lines from a command
+let lines (shell.lines "echo 'line1\nline2\nline3'")
+print lines
+
+; Check if a command exists
+let has_git (shell.has "git")
+print (string.concat "Has git: " (string has_git))
+
+; Get process ID
+let pid (shell.pid)
+print (string.concat "PID: " (string pid))

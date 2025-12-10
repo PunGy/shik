@@ -2,8 +2,9 @@ use crate::{
     count_args,
     eval::{
         error::RuntimeError,
+        evaluator::Interpretator,
         native_functions::native_result,
-        value::{EnvRef, NativeClosure, NativeFn, Value, ValueRef},
+        value::{EnvRef, NativeContext, NativeClosure, NativeFn, Value, ValueRef},
         EvalResult,
     },
     native_op,
@@ -16,6 +17,6 @@ native_op!(Print, "print", [arg], {
     native_result(Value::Null)
 });
 
-pub fn bind_print_module(env: &EnvRef) {
-    Print::define(env);
+pub fn bind_print_module(env: &EnvRef, inter: Rc<Interpretator>) {
+    Print::define(env, inter);
 }

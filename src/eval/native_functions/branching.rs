@@ -52,7 +52,7 @@ impl SpecialFn for If {
             if predicate {
                 inter.eval_expr(&args_it.next().unwrap(), &env)
             } else {
-                Ok(Rc::new(Value::Bool(false)))
+                Ok(Rc::new(Value::Null))
             }
         } else if args_count % 2 == 0 {
             // Without else at the end
@@ -69,7 +69,7 @@ impl SpecialFn for If {
                 let next = args_it.next().ok_or(RuntimeError::InvalidApplication)?;
                 inter.eval_expr(next, &env)
             } else {
-                Ok(Rc::new(Value::Bool(false)))
+                Ok(Rc::new(Value::Null))
             }
         } else {
             // With else at the end

@@ -2,11 +2,13 @@ use crate::{
     count_args,
     eval::{
         error::RuntimeError,
+        evaluator::Interpretator,
         native_functions::native_result,
-        value::{EnvRef, NativeClosure, NativeFn, Value, ValueRef},
+        value::{EnvRef, NativeContext, NativeClosure, NativeFn, Value, ValueRef},
         EvalResult,
     },
     native_op,
+    define_native,
 };
 use std::rc::Rc;
 
@@ -50,11 +52,11 @@ native_op!(Lt, "<", [x, y], {
     native_result(Value::Bool(x < y))
 });
 
-pub fn bind_bool_module(env: &EnvRef) {
-    Eq::define(&env);
-    Gt::define(&env);
-    Lt::define(&env);
-    Not::define(&env);
-    Or::define(&env);
-    And::define(&env);
+pub fn bind_bool_module(env: &EnvRef, inter: Rc<Interpretator>) {
+    define_native!(Eq, env, inter);
+    define_native!(Gt, env, inter);
+    define_native!(Lt, env, inter);
+    define_native!(Not, env, inter);
+    define_native!(Or, env, inter);
+    define_native!(And, env, inter);
 }

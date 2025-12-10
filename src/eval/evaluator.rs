@@ -3,7 +3,10 @@ use crate::{
     eval::{
         error::RuntimeError,
         native_functions::{
-            bool::bind_bool_module, branching::bind_special_module, file::bind_file_module, keywords::bind_keywords_module, list::bind_list_module, math::bind_math_module, print::bind_print_module, string::bind_string_module
+            bool::bind_bool_module, branching::bind_special_module, file::bind_file_module,
+            keywords::bind_keywords_module, list::bind_list_module, math::bind_math_module,
+            print::bind_print_module, shell::bind_shell_module, string::bind_string_module,
+            variables::bind_variable_module,
         },
         value::{Closure, Env, EnvRef, NativeClosure, SpecialClosure, Value, ValueRef},
         EvalResult,
@@ -20,12 +23,25 @@ pub struct Interpretator {
 
 impl Interpretator {
     pub fn new() -> Rc<Self> {
+        let env = Rc::new(Env::new(None));
+
+        // Create interpretator with the environment
         let inter = Self {
-            ctx: Interpretator::new_global(),
+            ctx: Rc::clone(&env),
         };
         let inter = Rc::new(inter);
 
-        bind_special_module(&inter.ctx, Rc::clone(&inter));
+        // Bind all modules with access to interpretator
+        bind_math_module(&env, Rc::clone(&inter));
+        bind_bool_module(&env, Rc::clone(&inter));
+        bind_string_module(&env, Rc::clone(&inter));
+        bind_list_module(&env, Rc::clone(&inter));
+        bind_print_module(&env, Rc::clone(&inter));
+        bind_keywords_module(&env, Rc::clone(&inter));
+        bind_file_module(&env, Rc::clone(&inter));
+        bind_shell_module(&env, Rc::clone(&inter));
+        bind_variable_module(&env, Rc::clone(&inter));
+        bind_special_module(&env, Rc::clone(&inter));
 
         inter
     }
@@ -38,20 +54,6 @@ impl Interpretator {
         }
 
         Ok(last)
-    }
-
-    fn new_global() -> EnvRef {
-        let env = Rc::new(Env::new(None));
-
-        bind_math_module(&env);
-        bind_bool_module(&env);
-        bind_string_module(&env);
-        bind_list_module(&env);
-        bind_print_module(&env);
-        bind_keywords_module(&env);
-        bind_file_module(&env);
-
-        env
     }
 
     pub fn eval_expr(&self, expr: &Expression, ctx: &EnvRef) -> EvalResult {
@@ -145,6 +147,7 @@ impl Interpretator {
             }
             Expression::Lambda {
                 parameters,
+                #[allow(unused_variables)] // rest still not supported
                 rest,
                 body,
             } => Ok(Rc::new(Value::Lambda(Closure::new(
@@ -167,9 +170,13 @@ impl Interpretator {
         }
     }
 
-    fn apply_fn(&self, f: &ValueRef, a: &ValueRef) -> EvalResult {
+    pub fn apply_fn(&self, f: &ValueRef, a: &ValueRef) -> EvalResult {
         match f.as_ref() {
             Value::Lambda(closure) => {
+                if closure.params.len() == 0 {
+                    return self.eval_expr(&closure.body, &closure.env);
+                }
+
                 let mut curried = closure.clone();
                 curried.binded.push(a.clone());
 
@@ -178,16 +185,24 @@ impl Interpretator {
                     curried.bind_variables();
                     // println!("<--apply body");
 
-                    self.eval_expr(&closure.body, &closure.env)
+                    self.eval_expr(&curried.body, &curried.env)
                 } else {
                     // Make a new curried lambda
                     Ok(Rc::new(Value::Lambda(curried)))
                 }
             }
             Value::NativeLambda(closure) => {
+                if closure.params_count == 0 {
+                    return closure.exec();
+                }
+
                 // Make a new curried lambda
-                let mut curried =
-                    NativeClosure::new(closure.params_count, Rc::clone(&closure.logic));
+                let mut curried = NativeClosure::new(
+                    closure.params_count,
+                    Rc::clone(&closure.logic),
+                    Rc::clone(&closure.inter),
+                    Rc::clone(&closure.env),
+                );
                 curried.binded.extend_from_slice(&closure.binded);
                 curried.binded.push(a.clone());
 

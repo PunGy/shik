@@ -1,4 +1,6 @@
 file.glob :./src/**/*.rs $>
   list.map file.read $>
-  list.map (string.count-of "\n") $>
-  list.sum
+  list.map (fn [c] string.lines c $> list.len) $>
+  list.sum $>
+  print
+

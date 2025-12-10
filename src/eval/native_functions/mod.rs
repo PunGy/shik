@@ -7,6 +7,8 @@ pub mod macros;
 pub mod file;
 pub mod string;
 pub mod list;
+pub mod variables;
+pub mod shell;
 
 use crate::eval::{value::Value, EvalResult};
 use std::rc::Rc;
