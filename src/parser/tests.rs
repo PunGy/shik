@@ -200,16 +200,37 @@ mod tests {
 
     #[test]
     fn test_parse_block() {
+        // '(x y z) should be a single application chain: App(App(x, y), z)
         let input = "'(x y z)";
         let result = parse(input).unwrap();
         assert_eq!(result.statements.len(), 1);
 
         match &result.statements[0].expression {
             Expression::Block(exprs) => {
-                assert_eq!(exprs.len(), 3);
+                assert_eq!(exprs.len(), 1);
                 match &exprs[0] {
-                    Expression::Identifier(name) => assert_eq!(name, "x"),
-                    _ => panic!("Expected identifier in block"),
+                    Expression::Application { function, argument } => {
+                        // argument should be z
+                        match &**argument {
+                            Expression::Identifier(name) => assert_eq!(name, "z"),
+                            _ => panic!("Expected identifier z as argument"),
+                        }
+                        // function should be App(x, y)
+                        match &**function {
+                            Expression::Application { function: inner_fn, argument: inner_arg } => {
+                                match &**inner_fn {
+                                    Expression::Identifier(name) => assert_eq!(name, "x"),
+                                    _ => panic!("Expected identifier x"),
+                                }
+                                match &**inner_arg {
+                                    Expression::Identifier(name) => assert_eq!(name, "y"),
+                                    _ => panic!("Expected identifier y"),
+                                }
+                            }
+                            _ => panic!("Expected nested application"),
+                        }
+                    }
+                    _ => panic!("Expected application in block"),
                 }
             }
             _ => panic!("Expected block"),
@@ -218,13 +239,27 @@ mod tests {
 
     #[test]
     fn test_parse_lazy() {
+        // #(x y) should be a single application: App(x, y)
         let input = "#(x y)";
         let result = parse(input).unwrap();
         assert_eq!(result.statements.len(), 1);
 
         match &result.statements[0].expression {
             Expression::Lazy(exprs) => {
-                assert_eq!(exprs.len(), 2);
+                assert_eq!(exprs.len(), 1);
+                match &exprs[0] {
+                    Expression::Application { function, argument } => {
+                        match &**function {
+                            Expression::Identifier(name) => assert_eq!(name, "x"),
+                            _ => panic!("Expected identifier x"),
+                        }
+                        match &**argument {
+                            Expression::Identifier(name) => assert_eq!(name, "y"),
+                            _ => panic!("Expected identifier y"),
+                        }
+                    }
+                    _ => panic!("Expected application in lazy block"),
+                }
             }
             _ => panic!("Expected lazy block"),
         }
@@ -517,6 +552,179 @@ mod tests {
                 _ => panic!("Expected parenthesized expression"),
             },
             _ => panic!("Expected let expression"),
+        }
+    }
+
+    #[test]
+    fn test_block_chain_operator_binds_to_full_application() {
+        // This tests the bug fix: inside a block, the chain operator ($) should
+        // bind to the entire application chain built so far, not just the last primary.
+        //
+        // `if true $ print 1` should parse as:
+        // Chain { left: Application(if, true), right: Application(print, 1) }
+        //
+        // NOT as:
+        // Application { function: if, argument: Chain { left: true, right: Application(print, 1) } }
+        
+        let input = "'(\n  if true $\n    print 1\n)";
+        let result = parse(input).unwrap();
+        
+        assert_eq!(result.statements.len(), 1);
+        
+        match &result.statements[0].expression {
+            Expression::Block(exprs) => {
+                assert_eq!(exprs.len(), 1);
+                
+                match &exprs[0] {
+                    Expression::Chain { left, right } => {
+                        // Left side should be: Application(if, true)
+                        match &**left {
+                            Expression::Application { function, argument } => {
+                                match &**function {
+                                    Expression::Identifier(name) => assert_eq!(name, "if"),
+                                    _ => panic!("Expected 'if' identifier as function"),
+                                }
+                                match &**argument {
+                                    Expression::Identifier(name) => assert_eq!(name, "true"),
+                                    _ => panic!("Expected 'true' identifier as argument"),
+                                }
+                            }
+                            _ => panic!("Expected Application on left side of Chain, got {:?}", left),
+                        }
+                        
+                        // Right side should be: Application(print, 1)
+                        match &**right {
+                            Expression::Application { function, argument } => {
+                                match &**function {
+                                    Expression::Identifier(name) => assert_eq!(name, "print"),
+                                    _ => panic!("Expected 'print' identifier as function"),
+                                }
+                                match &**argument {
+                                    Expression::Number(n) => assert_eq!(*n, 1.0),
+                                    _ => panic!("Expected number 1 as argument"),
+                                }
+                            }
+                            _ => panic!("Expected Application on right side of Chain, got {:?}", right),
+                        }
+                    }
+                    _ => panic!("Expected Chain expression in block, got {:?}", exprs[0]),
+                }
+            }
+            _ => panic!("Expected Block expression"),
+        }
+    }
+
+    #[test]
+    fn test_block_chain_single_line() {
+        // Same test but on a single line within the block
+        let input = "'(\n  a b $ c d\n)";
+        let result = parse(input).unwrap();
+        
+        assert_eq!(result.statements.len(), 1);
+        
+        match &result.statements[0].expression {
+            Expression::Block(exprs) => {
+                assert_eq!(exprs.len(), 1);
+                
+                match &exprs[0] {
+                    Expression::Chain { left, right } => {
+                        // Left: Application(a, b)
+                        match &**left {
+                            Expression::Application { function, argument } => {
+                                match &**function {
+                                    Expression::Identifier(name) => assert_eq!(name, "a"),
+                                    _ => panic!("Expected 'a' identifier"),
+                                }
+                                match &**argument {
+                                    Expression::Identifier(name) => assert_eq!(name, "b"),
+                                    _ => panic!("Expected 'b' identifier"),
+                                }
+                            }
+                            _ => panic!("Expected Application on left"),
+                        }
+                        
+                        // Right: Application(c, d)
+                        match &**right {
+                            Expression::Application { function, argument } => {
+                                match &**function {
+                                    Expression::Identifier(name) => assert_eq!(name, "c"),
+                                    _ => panic!("Expected 'c' identifier"),
+                                }
+                                match &**argument {
+                                    Expression::Identifier(name) => assert_eq!(name, "d"),
+                                    _ => panic!("Expected 'd' identifier"),
+                                }
+                            }
+                            _ => panic!("Expected Application on right"),
+                        }
+                    }
+                    _ => panic!("Expected Chain expression"),
+                }
+            }
+            _ => panic!("Expected Block expression"),
+        }
+    }
+
+    #[test]
+    fn test_lazy_chain_operator_binds_to_full_application() {
+        // Same test for lazy blocks
+        let input = "#(\n  if true $\n    print 1\n)";
+        let result = parse(input).unwrap();
+        
+        assert_eq!(result.statements.len(), 1);
+        
+        match &result.statements[0].expression {
+            Expression::Lazy(exprs) => {
+                assert_eq!(exprs.len(), 1);
+                
+                match &exprs[0] {
+                    Expression::Chain { left, right } => {
+                        match &**left {
+                            Expression::Application { .. } => {}
+                            _ => panic!("Expected Application on left side of Chain"),
+                        }
+                        match &**right {
+                            Expression::Application { .. } => {}
+                            _ => panic!("Expected Application on right side of Chain"),
+                        }
+                    }
+                    _ => panic!("Expected Chain expression in lazy block"),
+                }
+            }
+            _ => panic!("Expected Lazy expression"),
+        }
+    }
+
+    #[test]
+    fn test_block_multiple_operators_same_line() {
+        // Test: a b $ c d $> e f
+        // Should parse as: Pipe { left: Chain { left: App(a,b), right: App(c,d) }, right: App(e,f) }
+        let input = "'(\n  a b $ c d $> e f\n)";
+        let result = parse(input).unwrap();
+        
+        assert_eq!(result.statements.len(), 1);
+        
+        match &result.statements[0].expression {
+            Expression::Block(exprs) => {
+                assert_eq!(exprs.len(), 1);
+                
+                match &exprs[0] {
+                    Expression::Pipe { left, right } => {
+                        // Left should be Chain { left: App(a,b), right: App(c,d) }
+                        match &**left {
+                            Expression::Chain { .. } => {}
+                            _ => panic!("Expected Chain on left side of Pipe, got {:?}", left),
+                        }
+                        // Right should be App(e, f)
+                        match &**right {
+                            Expression::Application { .. } => {}
+                            _ => panic!("Expected Application on right side of Pipe"),
+                        }
+                    }
+                    _ => panic!("Expected Pipe expression, got {:?}", exprs[0]),
+                }
+            }
+            _ => panic!("Expected Block expression"),
         }
     }
 }

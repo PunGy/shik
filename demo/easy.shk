@@ -1,6 +1,7 @@
 let run (fn [x y] '(
   let sum (+ x y)
-  * sum sum
+  sum $>
+    * sum
 ))
 
 

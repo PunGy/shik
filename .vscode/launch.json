@@ -26,7 +26,7 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'shik' with file branching",
+            "name": "Debug executable 'shik' with sample file",
             "cargo": {
                 "args": [
                     "build",
@@ -38,7 +38,7 @@
                     "kind": "bin"
                 }
             },
-            "args": ["demo/branching.shk"],
+            "args": ["demo/factorial.shk"],
             "cwd": "${workspaceFolder}"
         },
         {

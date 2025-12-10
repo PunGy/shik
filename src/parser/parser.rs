@@ -10,7 +10,7 @@ pub type ParseResult<T> = Result<T, ParseError>;
 enum Precedence {
     Lowest = 0,
     Pipe = 1,  // $> - pipe/apply value to function (lowest precedence of operators)
-    Chain = 2,  // $ - chain application - acts like apply, but with lower precedence
+    Chain = 2, // $ - chain application - acts like apply, but with lower precedence
     Apply = 3, // function application (medium precedence)
     Flow = 4,  // #> - function composition (highest precedence)
 }
@@ -156,20 +156,21 @@ impl Parser {
             });
         }
 
-        let token = self.current_token()?;
+        // Use reference to avoid cloning the token
+        let token_type = self.current_token_type_ref();
 
-        match &token.token_type {
-            TokenType::Number(n) => {
+        match token_type {
+            Some(TokenType::Number(n)) => {
                 let value = *n;
                 self.advance();
                 Ok(Expression::number(value))
             }
-            TokenType::String(s) => {
+            Some(TokenType::String(s)) => {
                 let value = s.clone();
                 self.advance();
                 Ok(Expression::string(value))
             }
-            TokenType::StringInterpolation(info) => {
+            Some(TokenType::StringInterpolation(info)) => {
                 let value = info.clone();
                 self.advance();
                 let interpolatons = value
@@ -191,49 +192,48 @@ impl Parser {
                 };
                 Ok(Expression::StringInterpolation(inter_info))
             }
-            TokenType::Ident => {
-                let name = token.lexeme.clone();
+            Some(TokenType::Ident) => {
+                let name = self.current_lexeme().to_string();
                 self.advance();
-
-                // Check for underscore (wildcard in patterns)
-                if name == "_" {
-                    // This will be handled in pattern parsing context
-                    Ok(Expression::identifier(name))
-                } else {
-                    Ok(Expression::identifier(name))
-                }
+                Ok(Expression::identifier(name))
             }
-            TokenType::Let => {
+            Some(TokenType::Let) => {
                 self.advance();
                 self.parse_let_expression()
             }
-            TokenType::Fn => {
+            Some(TokenType::Fn) => {
                 self.advance();
                 self.parse_lambda()
             }
-            TokenType::LeftParen => {
+            Some(TokenType::LeftParen) => {
                 self.advance();
                 let expr = self.parse_expression(Precedence::Lowest)?;
                 self.expect_token(TokenType::RightParen)?;
                 Ok(Expression::parenthesized(expr))
             }
-            TokenType::OpenBlock => {
+            Some(TokenType::OpenBlock) => {
                 self.advance();
                 self.parse_block()
             }
-            TokenType::OpenLazy => {
+            Some(TokenType::OpenLazy) => {
                 self.advance();
                 self.parse_lazy()
             }
-            TokenType::LeftBracket => {
+            Some(TokenType::LeftBracket) => {
                 self.advance();
                 self.parse_list()
             }
-            TokenType::LeftCurlyBracket => {
+            Some(TokenType::LeftCurlyBracket) => {
                 self.advance();
                 self.parse_object()
             }
-            _ => Err(self.unexpected_token_error(token.clone(), "expression")),
+            _ => {
+                let token = self.current_token_cloned()?;
+                Err(ParseError::unexpected_token(
+                    token,
+                    "expression".to_string(),
+                ))
+            }
         }
     }
 
@@ -245,13 +245,13 @@ impl Parser {
     }
 
     fn parse_let_pattern(&mut self) -> ParseResult<LetPattern> {
-        match &self.current_token_type()? {
-            TokenType::Ident => {
-                let name = self.current_token()?.lexeme.clone();
+        match self.current_token_type_ref() {
+            Some(TokenType::Ident) => {
+                let name = self.current_lexeme().to_string();
                 self.advance();
                 Ok(LetPattern::Identifier(name))
             }
-            TokenType::LeftBracket => {
+            Some(TokenType::LeftBracket) => {
                 self.advance();
                 let mut patterns = Vec::new();
                 let mut rest = None;
@@ -268,7 +268,13 @@ impl Parser {
                 self.expect_token(TokenType::RightBracket)?;
                 Ok(LetPattern::List { patterns, rest })
             }
-            _ => Err(self.unexpected_token_error(self.current_token()?, "let pattern")),
+            _ => {
+                let token = self.current_token_cloned()?;
+                Err(ParseError::unexpected_token(
+                    token,
+                    "let pattern".to_string(),
+                ))
+            }
         }
     }
 
@@ -300,9 +306,9 @@ impl Parser {
     }
 
     fn parse_match_pattern(&mut self) -> ParseResult<MatchPattern> {
-        match &self.current_token_type()? {
-            TokenType::Ident => {
-                let name = self.current_token()?.lexeme.clone();
+        match self.current_token_type_ref() {
+            Some(TokenType::Ident) => {
+                let name = self.current_lexeme().to_string();
                 self.advance();
 
                 if name == "_" {
@@ -311,17 +317,17 @@ impl Parser {
                     Ok(MatchPattern::Identifier(name))
                 }
             }
-            TokenType::Number(n) => {
+            Some(TokenType::Number(n)) => {
                 let value = *n;
                 self.advance();
                 Ok(MatchPattern::Literal(LiteralPattern::Number(value)))
             }
-            TokenType::String(s) => {
+            Some(TokenType::String(s)) => {
                 let value = s.clone();
                 self.advance();
                 Ok(MatchPattern::Literal(LiteralPattern::String(value)))
             }
-            TokenType::LeftBracket => {
+            Some(TokenType::LeftBracket) => {
                 self.advance();
                 let mut patterns = Vec::new();
                 let mut rest = None;
@@ -338,154 +344,83 @@ impl Parser {
                 self.expect_token(TokenType::RightBracket)?;
                 Ok(MatchPattern::List { patterns, rest })
             }
-            _ => Err(self.unexpected_token_error(self.current_token()?, "match pattern")),
+            _ => {
+                let token = self.current_token_cloned()?;
+                Err(ParseError::unexpected_token(
+                    token,
+                    "match pattern".to_string(),
+                ))
+            }
         }
     }
 
     fn parse_block(&mut self) -> ParseResult<Expression> {
-        let mut expressions = Vec::new();
-        let mut current_line_exprs = Vec::new();
-        let mut has_newlines = false;
-
-        while !self.check_token(&TokenType::RightParen) && !self.is_at_end() {
-            // Check for newlines
-            if self.is_newline() {
-                has_newlines = true;
-                // If we have expressions on the current line, process them
-                if !current_line_exprs.is_empty() {
-                    // Multiple expressions on the same line become an application chain
-                    if current_line_exprs.len() == 1 {
-                        expressions.push(current_line_exprs.pop().unwrap());
-                    } else {
-                        let mut expr = current_line_exprs.remove(0);
-                        for arg in current_line_exprs.drain(..) {
-                            expr = Expression::application(expr, arg);
-                        }
-                        expressions.push(expr);
-                    }
-                    current_line_exprs.clear();
-                }
-                self.advance();
-                continue;
-            }
-
-            // Parse a primary expression (not full expression to avoid consuming the whole line)
-            let expr = self.parse_primary()?;
-
-            // Check if there's an operator that continues the expression
-            if matches!(
-                self.current_token_type(),
-                Ok(TokenType::Pipe) | Ok(TokenType::Flow)
-            ) {
-                // Parse the full expression with operators
-                let full_expr = self.continue_expression(expr, Precedence::Lowest)?;
-                if has_newlines {
-                    current_line_exprs.push(full_expr);
-                } else {
-                    // No newlines in block, each expression is separate
-                    expressions.push(full_expr);
-                }
-            } else if self.can_start_primary() && has_newlines {
-                // Might be function application on the same line
-                current_line_exprs.push(expr);
-            } else {
-                if has_newlines {
-                    current_line_exprs.push(expr);
-                } else {
-                    // No newlines in block, each expression is separate
-                    expressions.push(expr);
-                }
-            }
-        }
-
-        // Handle any remaining expressions on the last line
-        if !current_line_exprs.is_empty() {
-            if current_line_exprs.len() == 1 {
-                expressions.push(current_line_exprs.pop().unwrap());
-            } else {
-                let mut expr = current_line_exprs.remove(0);
-                for arg in current_line_exprs.drain(..) {
-                    expr = Expression::application(expr, arg);
-                }
-                expressions.push(expr);
-            }
-        }
-
+        let expressions = self.parse_block_contents()?;
         self.expect_token(TokenType::RightParen)?;
         Ok(Expression::block(expressions))
     }
 
     fn parse_lazy(&mut self) -> ParseResult<Expression> {
+        let expressions = self.parse_block_contents()?;
+        self.expect_token(TokenType::RightParen)?;
+        Ok(Expression::lazy(expressions))
+    }
+
+    /// Shared parsing logic for block and lazy expressions.
+    /// Handles newline-separated statements where each line can contain
+    /// function applications and operators.
+    fn parse_block_contents(&mut self) -> ParseResult<Vec<Expression>> {
         let mut expressions = Vec::new();
-        let mut current_line_exprs = Vec::new();
+        let mut current_line_expr: Option<Expression> = None;
         let mut has_newlines = false;
 
         while !self.check_token(&TokenType::RightParen) && !self.is_at_end() {
             // Check for newlines
             if self.is_newline() {
                 has_newlines = true;
-                // If we have expressions on the current line, process them
-                if !current_line_exprs.is_empty() {
-                    // Multiple expressions on the same line become an application chain
-                    if current_line_exprs.len() == 1 {
-                        expressions.push(current_line_exprs.pop().unwrap());
-                    } else {
-                        let mut expr = current_line_exprs.remove(0);
-                        for arg in current_line_exprs.drain(..) {
-                            expr = Expression::application(expr, arg);
-                        }
-                        expressions.push(expr);
-                    }
-                    current_line_exprs.clear();
+                // If we have an expression on the current line, finalize it
+                if let Some(expr) = current_line_expr.take() {
+                    expressions.push(expr);
                 }
                 self.advance();
                 continue;
             }
 
-            // Parse a primary expression (not full expression to avoid consuming the whole line)
-            let expr = self.parse_primary()?;
+            // Parse a primary expression
+            let primary = self.parse_primary()?;
+
+            // Build up the current line expression
+            current_line_expr = Some(match current_line_expr.take() {
+                None => primary,
+                Some(left) => Expression::application(left, primary),
+            });
 
             // Check if there's an operator that continues the expression
+            // The operator should bind to the entire expression built so far
             if matches!(
                 self.current_token_type(),
-                Ok(TokenType::Pipe) | Ok(TokenType::Flow)
+                Ok(TokenType::Pipe) | Ok(TokenType::Flow) | Ok(TokenType::Chain)
             ) {
-                // Parse the full expression with operators
-                let full_expr = self.continue_expression(expr, Precedence::Lowest)?;
+                // Continue parsing with the accumulated expression as the left side
+                let left = current_line_expr.take().unwrap();
+                let full_expr = self.continue_expression(left, Precedence::Lowest)?;
+
                 if has_newlines {
-                    current_line_exprs.push(full_expr);
+                    current_line_expr = Some(full_expr);
                 } else {
-                    // No newlines in block, each expression is separate
-                    expressions.push(full_expr);
-                }
-            } else if self.can_start_primary() && has_newlines {
-                // Might be function application on the same line
-                current_line_exprs.push(expr);
-            } else {
-                if has_newlines {
-                    current_line_exprs.push(expr);
-                } else {
-                    // No newlines in block, each expression is separate
-                    expressions.push(expr);
+                    // No newlines in block yet, each operator-terminated expression is separate
+                    // But we should continue building if more primaries follow
+                    current_line_expr = Some(full_expr);
                 }
             }
         }
 
-        // Handle any remaining expressions on the last line
-        if !current_line_exprs.is_empty() {
-            if current_line_exprs.len() == 1 {
-                expressions.push(current_line_exprs.pop().unwrap());
-            } else {
-                let mut expr = current_line_exprs.remove(0);
-                for arg in current_line_exprs.drain(..) {
-                    expr = Expression::application(expr, arg);
-                }
-                expressions.push(expr);
-            }
+        // Handle any remaining expression on the last line
+        if let Some(expr) = current_line_expr {
+            expressions.push(expr);
         }
 
-        self.expect_token(TokenType::RightParen)?;
-        Ok(Expression::lazy(expressions))
+        Ok(expressions)
     }
 
     fn continue_expression(
@@ -508,6 +443,16 @@ impl Parser {
                     }
                     let right = self.parse_expression(Precedence::Pipe)?;
                     left = Expression::pipe(left, right);
+                    true
+                }
+                Ok(TokenType::Chain) if precedence < Precedence::Chain => {
+                    self.advance();
+                    // Allow newlines after chain operator (continuation)
+                    while self.is_newline() {
+                        self.advance();
+                    }
+                    let right = self.parse_expression(Precedence::Chain)?;
+                    left = Expression::chain(left, right);
                     true
                 }
                 Ok(TokenType::Flow) if precedence < Precedence::Flow => {
@@ -568,18 +513,34 @@ impl Parser {
         self.peek = self.tokens.pop_front();
     }
 
-    fn current_token(&self) -> ParseResult<Token> {
+    /// Returns a reference to the current token type without cloning.
+    fn current_token_type_ref(&self) -> Option<&TokenType> {
+        self.current.as_ref().map(|t| &t.token_type)
+    }
+
+    /// Returns the current token's lexeme as a string slice.
+    fn current_lexeme(&self) -> &str {
+        self.current
+            .as_ref()
+            .map(|t| t.lexeme.as_str())
+            .unwrap_or("")
+    }
+
+    /// Clones the current token. Use sparingly - prefer reference-based methods.
+    fn current_token_cloned(&self) -> ParseResult<Token> {
         self.current
             .clone()
-            .ok_or_else(|| ParseError::UnexpectedChar {
-                char: '\0',
-                line: 0,
-                column: 0,
+            .ok_or_else(|| ParseError::UnexpectedEndOfInput {
+                expected: "token".to_string(),
             })
     }
 
     fn current_token_type(&self) -> ParseResult<TokenType> {
-        Ok(self.current_token()?.token_type.clone())
+        self.current_token_type_ref()
+            .cloned()
+            .ok_or_else(|| ParseError::UnexpectedEndOfInput {
+                expected: "token".to_string(),
+            })
     }
 
     fn check_token(&self, token_type: &TokenType) -> bool {
@@ -590,23 +551,31 @@ impl Parser {
     }
 
     fn expect_token(&mut self, token_type: TokenType) -> ParseResult<Token> {
-        let token = self.current_token()?;
-        if std::mem::discriminant(&token.token_type) == std::mem::discriminant(&token_type) {
-            self.advance();
-            Ok(token)
-        } else {
-            Err(self.unexpected_token_error(token, &format!("{:?}", token_type)))
+        if let Some(current_type) = self.current_token_type_ref() {
+            if std::mem::discriminant(current_type) == std::mem::discriminant(&token_type) {
+                let token = self.current_token_cloned()?;
+                self.advance();
+                return Ok(token);
+            }
         }
+        let token = self.current_token_cloned()?;
+        Err(ParseError::unexpected_token(
+            token,
+            format!("{:?}", token_type),
+        ))
     }
 
     fn expect_identifier(&mut self) -> ParseResult<String> {
-        let token = self.current_token()?;
-        if let TokenType::Ident = token.token_type {
-            let name = token.lexeme.clone();
+        if let Some(TokenType::Ident) = self.current_token_type_ref() {
+            let name = self.current_lexeme().to_string();
             self.advance();
             Ok(name)
         } else {
-            Err(self.unexpected_token_error(token, "identifier"))
+            let token = self.current_token_cloned()?;
+            Err(ParseError::unexpected_token(
+                token,
+                "identifier".to_string(),
+            ))
         }
     }
 
@@ -648,13 +617,5 @@ impl Parser {
 
     fn current_column(&self) -> usize {
         self.current.as_ref().map(|t| t.column).unwrap_or(0)
-    }
-
-    fn unexpected_token_error(&self, token: Token, _expected: &str) -> ParseError {
-        ParseError::UnexpectedChar {
-            char: token.lexeme.chars().next().unwrap_or('\0'),
-            line: token.line,
-            column: token.column,
-        }
     }
 }

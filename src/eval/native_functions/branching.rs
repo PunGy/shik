@@ -2,12 +2,12 @@ use crate::{
     eval::{
         error::RuntimeError,
         evaluator::Interpretator,
-        value::{EnvRef, SpecialClosure, SpecialFn, Value, ValueRef},
+        value::{EnvRef, SpecialClosure, SpecialFn, Value},
         EvalResult,
     },
     parser::Expression,
 };
-use std::{os::unix::process::parent_id, rc::Rc};
+use std::{rc::Rc};
 
 /*
 ; count 2

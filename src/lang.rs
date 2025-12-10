@@ -16,7 +16,7 @@ pub enum EvalError {
 
 pub fn evaluate(input: &str, interpretator: &Interpretator) -> Result<ValueRef, EvalError> {
     let program = parse(input)?;
-    println!("parsing: {:?}", program);
+    // println!("parsing: {:#?}", program);
     let result = interpretator.interpretate(&program)?;
 
     Ok(result)
