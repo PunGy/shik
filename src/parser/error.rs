@@ -30,6 +30,12 @@ pub enum ParseError {
         column: usize,
     },
 
+    InvalidEscapeSequence {
+        sequence: String,
+        line: usize,
+        column: usize,
+    },
+
     UnexpectedToken {
         token: Token,
         expected: String,
@@ -86,6 +92,14 @@ impl ParseError {
             column,
         }
     }
+
+    pub fn invalid_escape_sequence(sequence: String, line: usize, column: usize) -> Self {
+        Self::InvalidEscapeSequence {
+            sequence,
+            line,
+            column,
+        }
+    }
 }
 
 impl std::fmt::Display for ParseError {
@@ -128,6 +142,17 @@ impl std::fmt::Display for ParseError {
                     f,
                     "Unterminated interpolation string at line {}, column {}",
                     line, column
+                )
+            }
+            ParseError::InvalidEscapeSequence {
+                sequence,
+                line,
+                column,
+            } => {
+                write!(
+                    f,
+                    "Invalid escape sequence '\\{}' at line {}, column {}",
+                    sequence, line, column
                 )
             }
             ParseError::UnexpectedToken { token, expected } => {

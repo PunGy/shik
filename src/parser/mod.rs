@@ -7,6 +7,9 @@ pub mod tokens;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+mod lexer_tests;
+
 pub use ast::{Expression, LetPattern, MatchPattern, ObjectItem, Program, Statement};
 pub use error::ParseError;
 pub use lexer::Lexer;

@@ -10,7 +10,7 @@ use thiserror::Error;
 pub enum EvalError {
     #[error("Parsing failed: {0}")]
     Parse(#[from] ParseError),
-    #[error("Runtime error: {0}")]
+    #[error("{0}")]
     Runtime(#[from] RuntimeError),
 }
 

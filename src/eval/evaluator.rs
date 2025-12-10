@@ -3,8 +3,7 @@ use crate::{
     eval::{
         error::RuntimeError,
         native_functions::{
-            bool::bind_bool_module, branching::bind_special_module, keywords::bind_keywords_module,
-            math::bind_math_module, print::bind_print_module,
+            bool::bind_bool_module, branching::bind_special_module, file::bind_file_module, keywords::bind_keywords_module, list::bind_list_module, math::bind_math_module, print::bind_print_module, string::bind_string_module
         },
         value::{Closure, Env, EnvRef, NativeClosure, SpecialClosure, Value, ValueRef},
         EvalResult,
@@ -46,8 +45,11 @@ impl Interpretator {
 
         bind_math_module(&env);
         bind_bool_module(&env);
+        bind_string_module(&env);
+        bind_list_module(&env);
         bind_print_module(&env);
         bind_keywords_module(&env);
+        bind_file_module(&env);
 
         env
     }

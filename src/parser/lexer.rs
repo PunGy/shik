@@ -179,11 +179,157 @@ impl Lexer {
         }
     }
 
+    /// Process an escape sequence starting after the backslash.
+    /// Returns the escaped character or an error for invalid sequences.
+    fn process_escape_sequence(&mut self, start_column: usize) -> ParseResult<char> {
+        let escape_col = self.column;
+        let ch = self.peek();
+
+        match ch {
+            Some('n') => {
+                self.advance();
+                Ok('\n')
+            }
+            Some('r') => {
+                self.advance();
+                Ok('\r')
+            }
+            Some('t') => {
+                self.advance();
+                Ok('\t')
+            }
+            Some('\\') => {
+                self.advance();
+                Ok('\\')
+            }
+            Some('"') => {
+                self.advance();
+                Ok('"')
+            }
+            Some('\'') => {
+                self.advance();
+                Ok('\'')
+            }
+            Some('0') => {
+                self.advance();
+                Ok('\0')
+            }
+            Some('{') => {
+                self.advance();
+                Ok('{')
+            }
+            Some('}') => {
+                self.advance();
+                Ok('}')
+            }
+            Some('x') => {
+                // Hex escape: \xNN
+                self.advance(); // consume 'x'
+                let hex_start = self.current;
+                for _ in 0..2 {
+                    match self.peek() {
+                        Some(c) if c.is_ascii_hexdigit() => {
+                            self.advance();
+                        }
+                        _ => {
+                            let seq: String = self.input[hex_start..self.current].iter().collect();
+                            return Err(ParseError::invalid_escape_sequence(
+                                format!("x{}", seq),
+                                self.line,
+                                escape_col,
+                            ));
+                        }
+                    }
+                }
+                let hex_str: String = self.input[hex_start..self.current].iter().collect();
+                let code = u8::from_str_radix(&hex_str, 16).map_err(|_| {
+                    ParseError::invalid_escape_sequence(
+                        format!("x{}", hex_str),
+                        self.line,
+                        escape_col,
+                    )
+                })?;
+                Ok(code as char)
+            }
+            Some('u') => {
+                // Unicode escape: \u{NNNN} or \u{NNNNNN}
+                self.advance(); // consume 'u'
+                if self.peek() != Some('{') {
+                    return Err(ParseError::invalid_escape_sequence(
+                        "u".to_string(),
+                        self.line,
+                        escape_col,
+                    ));
+                }
+                self.advance(); // consume '{'
+                let hex_start = self.current;
+                while let Some(c) = self.peek() {
+                    if c == '}' {
+                        break;
+                    }
+                    if c.is_ascii_hexdigit() {
+                        self.advance();
+                    } else {
+                        let seq: String = self.input[hex_start..self.current].iter().collect();
+                        return Err(ParseError::invalid_escape_sequence(
+                            format!("u{{{}", seq),
+                            self.line,
+                            escape_col,
+                        ));
+                    }
+                }
+                if self.peek() != Some('}') {
+                    let seq: String = self.input[hex_start..self.current].iter().collect();
+                    return Err(ParseError::invalid_escape_sequence(
+                        format!("u{{{}", seq),
+                        self.line,
+                        escape_col,
+                    ));
+                }
+                let hex_str: String = self.input[hex_start..self.current].iter().collect();
+                self.advance(); // consume '}'
+
+                if hex_str.is_empty() || hex_str.len() > 6 {
+                    return Err(ParseError::invalid_escape_sequence(
+                        format!("u{{{}}}", hex_str),
+                        self.line,
+                        escape_col,
+                    ));
+                }
+
+                let code = u32::from_str_radix(&hex_str, 16).map_err(|_| {
+                    ParseError::invalid_escape_sequence(
+                        format!("u{{{}}}", hex_str),
+                        self.line,
+                        escape_col,
+                    )
+                })?;
+                char::from_u32(code).ok_or_else(|| {
+                    ParseError::invalid_escape_sequence(
+                        format!("u{{{}}}", hex_str),
+                        self.line,
+                        escape_col,
+                    )
+                })
+            }
+            Some(c) => Err(ParseError::invalid_escape_sequence(
+                c.to_string(),
+                self.line,
+                escape_col,
+            )),
+            None => Err(ParseError::UnterminatedString {
+                line: self.line,
+                column: start_column,
+            }),
+        }
+    }
+
     /// Block string - "example", "hello {. user :name}!"
     fn string_block(&mut self, start_column: usize) -> ParseResult<Token> {
         let start = self.current - 1;
-
+        let mut content = String::new();
         let mut interpolation: Option<StringInterpolationInfo> = None;
+
         loop {
             let ch = self.peek();
 
@@ -193,16 +339,16 @@ impl Lexer {
                     break;
                 }
                 Some('\\') => {
-                    self.advance();
-                    self.advance(); // skip next character
+                    self.advance(); // consume backslash
+                    let escaped = self.process_escape_sequence(start_column)?;
+                    content.push(escaped);
                 }
                 Some('{') => {
-                    // start of interpolation relative to input
-                    let i_start = self.current;
-                    // start of interpolation relative to string
-                    let interpolation_start = self.current - (start + 1);
+                    // start of interpolation relative to processed content
+                    let interpolation_start = content.len();
 
                     self.advance();
+                    let i_start = self.current;
                     loop {
                         let inner = self.peek();
                         match inner {
@@ -215,19 +361,24 @@ impl Lexer {
                                     column: start_column,
                                 });
                             }
-                            None => {}
+                            None => {
+                                return Err(ParseError::UnterminatedInterpolationString {
+                                    line: self.line,
+                                    column: start_column,
+                                });
+                            }
                             _ => {
                                 self.advance();
                             }
                         }
                     }
 
-                    let input: String = self.input[i_start + 1..self.current].iter().collect();
+                    let input: String = self.input[i_start..self.current].iter().collect();
                     let mut inter_lexer = Lexer::new(input.as_str());
 
                     if interpolation.is_none() {
                         interpolation = Some(StringInterpolationInfo {
-                            string: "".to_string(),
+                            string: String::new(),
                             entries: vec![],
                         })
                     }
@@ -235,19 +386,19 @@ impl Lexer {
                     match inter_lexer.tokenize() {
                         Ok(tokens) => {
                             interpolation.as_mut().unwrap().entries.push(Interpolation {
-                                tokens: tokens,
+                                tokens,
                                 start: interpolation_start,
-                                end: self.current - (start + 1),
-
-                                position: 0, // to be adjusted further
-                            })
+                                end: interpolation_start + 1, // placeholder position
+                                position: interpolation_start,
+                            });
+                            content.push('_'); // placeholder for interpolation
                         }
                         Err(err) => {
                             return Err(err);
                         }
                     }
 
-                    self.advance();
+                    self.advance(); // consume '}'
                 }
                 None => {
                     return Err(ParseError::UnterminatedString {
@@ -255,7 +406,8 @@ impl Lexer {
                         column: self.column,
                     })
                 }
-                _ => {
+                Some(c) => {
+                    content.push(c);
                     self.advance();
                 }
             };
@@ -265,30 +417,13 @@ impl Lexer {
 
         let token = match interpolation {
             None => Token::new(
-                TokenType::String(lexeme[1..lexeme.len() - 1].to_string()),
+                TokenType::String(content),
                 lexeme,
                 self.line,
                 start_column,
             ),
             Some(mut i) => {
-                let original = &lexeme[1..lexeme.len() - 1];
-                let mut interpolated: String = String::with_capacity(lexeme.len());
-
-                let mut position: usize = 0;
-                let mut from: usize = 0;
-                for inter in &mut i.entries {
-                    interpolated.push_str(&original[from..inter.start]);
-                    interpolated.push('_');
-
-                    position += inter.start - from;
-                    inter.position = position;
-
-                    from = inter.end + 1;
-                }
-                interpolated.push_str(&original[from..]);
-
-                i.string = interpolated;
-
+                i.string = content;
                 Token::new(
                     TokenType::StringInterpolation(i),
                     lexeme,
@@ -300,20 +435,42 @@ impl Lexer {
 
         Ok(token)
     }
+
     /// Inline string - :example
     fn string_inline(&mut self, start_column: usize) -> ParseResult<Token> {
         let start = self.current - 1;
+        let mut content = String::new();
 
         loop {
             let ch = self.peek();
 
             match ch {
-                Some(s) => {
-                    if INLINE_STRING_SEPARATOR.contains(s) {
-                        break;
+                Some('\\') => {
+                    self.advance(); // consume backslash
+                    // Check if next char is a separator - if so, escape it
+                    if let Some(next) = self.peek() {
+                        if INLINE_STRING_SEPARATOR.contains(next) {
+                            // Allow escaping separator characters in inline strings
+                            content.push(next);
+                            self.advance();
+                        } else {
+                            // Process standard escape sequence
+                            let escaped = self.process_escape_sequence(start_column)?;
+                            content.push(escaped);
+                        }
                     } else {
-                        self.advance();
+                        return Err(ParseError::UnterminatedString {
+                            line: self.line,
+                            column: start_column,
+                        });
                     }
+                }
+                Some(s) if INLINE_STRING_SEPARATOR.contains(s) => {
+                    break;
+                }
+                Some(c) => {
+                    content.push(c);
+                    self.advance();
                 }
                 None => {
                     break; // inline string is always terminating
@@ -324,7 +481,7 @@ impl Lexer {
         let lexeme: String = self.input[start..self.current].iter().collect();
 
         Ok(Token::new(
-            TokenType::String(lexeme[1..].to_string()),
+            TokenType::String(content),
             lexeme,
             self.line,
             start_column,

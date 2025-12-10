@@ -4,6 +4,9 @@ pub mod print;
 pub mod keywords;
 pub mod branching;
 pub mod macros;
+pub mod file;
+pub mod string;
+pub mod list;
 
 use crate::eval::{value::Value, EvalResult};
 use std::rc::Rc;
