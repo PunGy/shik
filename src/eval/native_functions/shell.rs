@@ -41,9 +41,10 @@ native_op!(Shell, "shell", [cmd], {
     }
 });
 
-// Execute a shell command and return exit code
+
+// Execute a shell command, return exit code and show output in terminal
 // Usage: shell.code "ls -la"
-native_op!(ShellCode, "shell.code", [cmd], {
+native_op!(ShellExec, "shell!", [cmd], {
     let cmd = cmd.expect_string()?;
 
     let status = if cfg!(target_os = "windows") {
@@ -55,6 +56,29 @@ native_op!(ShellCode, "shell.code", [cmd], {
     match status {
         Ok(status) => {
             let code = status.code().unwrap_or(-1) as f64;
+            native_result(Value::Number(code))
+        }
+        Err(e) => Err(ShikError::default_error(format!(
+            "shell command failed: {}",
+            e
+        ))),
+    }
+});
+
+// Execute a shell command and return exit code, discards output
+// Usage: shell.code "ls -la"
+native_op!(ShellCode, "shell.code", [cmd], {
+    let cmd = cmd.expect_string()?;
+
+    let res = if cfg!(target_os = "windows") {
+        Command::new("cmd").args(["/C", cmd]).output()
+    } else {
+        Command::new("sh").args(["-c", cmd]).output()
+    };
+
+    match res {
+        Ok(output) => {
+            let code = output.status.code().unwrap_or(-1) as f64;
             native_result(Value::Number(code))
         }
         Err(e) => Err(ShikError::default_error(format!(
@@ -101,7 +125,7 @@ native_op!(ShellFull, "shell.full", [cmd], {
 
 // Try to execute a shell command, return null on failure
 // Usage: shell.try "ls -la"
-native_op!(ShellTry, "shell.try", [cmd], {
+native_op!(ShellTry, "shell?", [cmd], {
     let cmd = cmd.expect_string()?;
 
     let output = if cfg!(target_os = "windows") {
@@ -121,7 +145,7 @@ native_op!(ShellTry, "shell.try", [cmd], {
 
 // Execute a shell command silently (discard output), return success boolean
 // Usage: shell.ok "mkdir -p /tmp/test"
-native_op!(ShellOk, "shell.ok", [cmd], {
+native_op!(ShellOk, "shell.ok?", [cmd], {
     let cmd = cmd.expect_string()?;
 
     let status = if cfg!(target_os = "windows") {
@@ -175,7 +199,7 @@ native_op!(ShellLines, "shell.lines", [cmd], {
 // Environment Variable Functions
 // ============================================================================
 
-// Get an environment variable, error if not found
+// Get an environment variable, null if not found
 // Usage: shell.env "HOME"
 native_op!(ShellEnv, "shell.env", [name], {
     let name = name.expect_string()?;
@@ -381,12 +405,44 @@ native_op!(ShellArch, "shell.arch", [], {
 });
 
 // ============================================================================
+// Process Control Functions
+// ============================================================================
+
+// Exit the process with a specific exit code
+// Usage: exit 0
+native_op!(ProcessExit, "exit", [code], {
+    let code = code.expect_number()? as i32;
+    std::process::exit(code);
+});
+
+// Exit the process with exit code 0 (success)
+// Usage: exit!
+native_op!(ProcessExitSuccess, "exit!", [], {
+    std::process::exit(0);
+});
+
+// Abort the process immediately (abnormal termination)
+// Usage: process.abort
+native_op!(ProcessAbort, "process.abort", [], {
+    std::process::abort();
+});
+
+// Sleep for specified milliseconds
+// Usage: process.sleep 1000
+native_op!(ProcessSleep, "process.sleep", [ms], {
+    let ms = ms.expect_number()? as u64;
+    std::thread::sleep(std::time::Duration::from_millis(ms));
+    native_result(Value::Null)
+});
+
+// ============================================================================
 // Module Binding
 // ============================================================================
 
 pub fn bind_shell_module(env: &EnvRef, inter: Rc<Interpretator>) {
     // Shell execution
     define_native!(Shell, env, inter);
+    define_native!(ShellExec, env, inter);
     define_native!(ShellCode, env, inter);
     define_native!(ShellFull, env, inter);
     define_native!(ShellTry, env, inter);
@@ -410,9 +466,16 @@ pub fn bind_shell_module(env: &EnvRef, inter: Rc<Interpretator>) {
 
     // Process information
     define_native!(ProcessPid, env, inter);
+    define_native!(ProcessFile, env, inter);
     define_native!(ShellArgs, env, inter);
     define_native!(ProcessArgs, env, inter);
     define_native!(ShellOs, env, inter);
     define_native!(ShellArch, env, inter);
+
+    // Process control
+    define_native!(ProcessExit, env, inter);
+    define_native!(ProcessExitSuccess, env, inter);
+    define_native!(ProcessAbort, env, inter);
+    define_native!(ProcessSleep, env, inter);
 }
 

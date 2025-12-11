@@ -2,8 +2,55 @@
 name = "shik"
 version = "0.1.0"
 edition = "2021"
+authors = ["pungy"]
+description = "A functional scripting language for shell automation"
+license = "MIT"
+repository = "https://github.com/pungy/shik"
+homepage = "https://github.com/pungy/shik"
+readme = "README.md"
+keywords = ["shell", "scripting", "functional", "automation", "language"]
+categories = ["command-line-utilities", "development-tools"]
+
+[[bin]]
+name = "shik"
+path = "src/main.rs"
+
+[lib]
+name = "shik"
+path = "src/lib.rs"
 
 [dependencies]
 thiserror = "2.0.17"
 glob = "0.3.3"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
+# Configuration for cargo-deb (Debian/Ubuntu packages)
+[package.metadata.deb]
+maintainer = "Shik Contributors"
+copyright = "2024, Shik Contributors"
+extended-description = """
+Shik is a functional, dynamically-typed scripting language designed for
+shell automation. It features a minimalist syntax inspired by Haskell and
+Lisp, with pipeline operators for function composition, first-class
+functions, and a rich standard library for system operations."""
+section = "utils"
+priority = "optional"
+assets = [
+    ["target/release/shik", "usr/bin/", "755"],
+    ["README.md", "usr/share/doc/shik/README", "644"],
+    ["LICENSE", "usr/share/doc/shik/LICENSE", "644"],
+]
+
+# Configuration for cargo-generate-rpm (RPM packages for Fedora/RHEL/etc)
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/shik", dest = "/usr/bin/shik", mode = "755" },
+    { source = "README.md", dest = "/usr/share/doc/shik/README.md", mode = "644" },
+    { source = "LICENSE", dest = "/usr/share/doc/shik/LICENSE", mode = "644" },
+]
 

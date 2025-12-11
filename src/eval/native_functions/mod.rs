@@ -9,6 +9,7 @@ pub mod string;
 pub mod list;
 pub mod variables;
 pub mod shell;
+pub mod misc;
 
 use crate::eval::{value::Value, EvalResult};
 use std::rc::Rc;
