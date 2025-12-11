@@ -1,0 +1,41 @@
+var version $ list.at 0 process.args $ or? :0.1.0
+var release-dir :releases
+var project-name :shik
+
+print "=========================================="
+print "Building Shik v${VERSION} release"
+print "=========================================="
+
+file.mkdir release-dir
+
+var os $ call shell.os
+var arch $ vall shell.arch
+
+print "Current platform: {os} {arch}"
+
+print "Building optimized release binary..."
+
+shell! "cargo build --release"
+
+var bin-size $ file.list :target/release/shik $> list.map file.size $> list.sum $> bytes->string
+print "Binary size: {bin-size}\n"
+
+var platform $ match "{os}-{arch}" {
+  :Darwin-arm64 :macos-aarch64
+  :Darwin-x86_64 :macos-x86_64
+  :Linux-x86_64 :macos-x86_64
+  :Linux-aarch64 :linux-aarch64
+  pl pl
+}
+
+var archive-name "{project-name}-v{version}-{platform}"
+
+print "Creating tar.xz archive..."
+
+shell-cmd [:tar :-cJf "${RELEASE_DIR}/${ARCHIVE_NAME}.tar.xz"
+    :-C :target/release :shik
+    :--transform "'s,^,shik-v'\"{VERSION}\"'/,'"
+    :2>/dev/null :||]
+shell-cmd [:tar :-cJf "{RELEASE_DIR}/{ARCHIVE_NAME}.tar.xz" :-C :target/release :shik]
+
+

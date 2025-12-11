@@ -1,20 +1,32 @@
 use crate::{
-    count_args,
+    count_args, define_native,
     eval::{
         error::RuntimeError,
         evaluator::Interpretator,
         native_functions::native_result,
-        value::{EnvRef, NativeContext, NativeClosure, NativeFn, Value, ValueRef},
+        value::{EnvRef, NativeClosure, NativeContext, NativeFn, Value, ValueRef},
         EvalResult,
     },
     native_op,
-    define_native,
 };
 use std::rc::Rc;
 
 native_op!(ListLen, "list.len", [lst], {
     let lst = lst.expect_list()?;
     native_result(Value::Number(lst.len() as f64))
+});
+
+native_op!(ListAt, "list.at", [inx, lst], {
+    let inx = inx.expect_number()?;
+    let inx = inx as usize;
+
+    let lst = lst.expect_list()?;
+
+    if lst.len() <= inx {
+        return native_result(Value::Null);
+    }
+
+    Ok(Rc::clone(&lst[inx]))
 });
 
 native_op!(ListSum, "list.sum", [lst], {
@@ -56,7 +68,7 @@ native_op!(ListInit, "list.init", [lst], {
     if lst.is_empty() {
         native_result(Value::List(vec![]))
     } else {
-        native_result(Value::List(lst[..lst.len()-1].to_vec()))
+        native_result(Value::List(lst[..lst.len() - 1].to_vec()))
     }
 });
 
@@ -180,6 +192,7 @@ native_op!(ListFind, "list.find", [func, lst], ctx, {
 });
 
 pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
+    define_native!(ListAt, env, inter);
     define_native!(ListLen, env, inter);
     define_native!(ListSum, env, inter);
     define_native!(ListHead, env, inter);
