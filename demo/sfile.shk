@@ -1,7 +1,7 @@
 file.glob "./*" $>
-  filter file.is-file $>
-  filter (fn [f] file.read f $> string.has "- links") $>
-  iterate (fn [f] file.move f :topics)
+  list.filter file.is-file $>
+  list.filter (fn [f] file.read f $> string.has "- links") $>
+  list.foreach (fn [f] file.move f :topics)
 
 
 ;; analog

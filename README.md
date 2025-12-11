@@ -41,14 +41,32 @@ shik
 
 ## Example
 ```shik
-;; get all files in lang-dev with ext name .dk
-;; Any string without whitespaces could be written with `:` symbol in the start
-glob :../lang-dev/**/*.dk $>
-  ;; Redirect it to function list mapping function.
-  ;; Replace all :src/file.dk with ["src/file.dk", "src/file.ts"].
-  map (fn [f] [f, ext.replace f :ts]) $>
-  ;; Iterate each entry, and for each file copy if the file exists to "./"
-  iterate (iterate (fn [f] copy.if-exists f :./))
+
+;; 1. Make file
+file.write :sample.txt "some text"
+
+;; 2. Read file, make content upper case, write back
+file.read :sample.txt $> string.upper $> file.write :sample.txt
+print (file.read :sample.txt) ;; SOME TEXT HERE
+
+;; 3. Make curried writer and reader
+let file.reader (fn [name] (fn [] file.read name))
+
+let write (file.write :sample.txt)
+let read (file.reader :sample.txt)
+
+write :hello
+call read ;; (zero args function must be called via `call` fn) "hello"
+
+call read $> string.upper $> write $> call read ;; HELLO
+
+;; 4. Count of lines in all *.rs files in src
+file.glob :./src/**/*.rs $>
+  list.map file.read $>
+  list.map (fn [c] string.lines c $> list.len) $>
+  list.sum $>
+  print
+
 ```
 
 ## Building for Distribution

@@ -69,10 +69,37 @@ macro_rules! native_op {
 }
 
 #[macro_export]
+macro_rules! special_op {
+    ($name:ident, $fn_title:expr, $args:ident, $ctx:ident, $body:block) => {
+        #[derive(Debug)]
+        pub struct $name;
+
+        impl SpecialFn for $name {
+            fn exec(&self, $args: &Vec<Expression>, $ctx: &NativeContext) -> EvalResult {
+                $body
+            }
+        }
+
+        impl $name {
+            pub fn define(env: &EnvRef, inter: Rc<Interpretator>) {
+                env.define(
+                    ($fn_title).to_string(),
+                    Rc::new(Value::SpecialForm(SpecialClosure::new(
+                        Rc::new($name),
+                        inter,
+                        Rc::clone(env),
+                    ))),
+                );
+            }
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! define_native {
     ($name:ident, $env:ident, $inter:ident) => {
         $name::define(&$env, Rc::clone(&$inter));
-    }
+    };
 }
 
 #[macro_export]

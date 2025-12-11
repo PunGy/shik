@@ -1,16 +1,50 @@
 use crate::{
-    count_args,
+    count_args, define_native,
     eval::{
         error::RuntimeError,
         evaluator::Interpretator,
         native_functions::native_result,
-        value::{EnvRef, NativeContext, NativeClosure, NativeFn, Value, ValueRef},
+        value::{EnvRef, NativeClosure, NativeContext, NativeFn, Value, ValueRef},
         EvalResult,
     },
     native_op,
-    define_native,
 };
 use std::rc::Rc;
+
+native_op!(Bool, "bool", [val], {
+    native_result(match val.as_ref() {
+        Value::Number(val) => {
+            if *val == 0.0 {
+                Value::Bool(false)
+            } else {
+                Value::Bool(true)
+            }
+        }
+        Value::Null => Value::Bool(false),
+        Value::String(val) => {
+            if val.is_empty() {
+                Value::Bool(false)
+            } else {
+                Value::Bool(true)
+            }
+        }
+        Value::List(val) => {
+            if val.is_empty() {
+                Value::Bool(false)
+            } else {
+                Value::Bool(true)
+            }
+        }
+        Value::Object(val) => {
+            if val.is_empty() {
+                Value::Bool(false)
+            } else {
+                Value::Bool(true)
+            }
+        }
+        _ => Value::Bool(true)
+    })
+});
 
 native_op!(Or, "or", [x, y], {
     let x = x.expect_bool()?;
@@ -59,4 +93,5 @@ pub fn bind_bool_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_native!(Not, env, inter);
     define_native!(Or, env, inter);
     define_native!(And, env, inter);
+    define_native!(Bool, env, inter);
 }

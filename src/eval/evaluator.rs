@@ -3,7 +3,10 @@ use crate::{
     eval::{
         error::RuntimeError,
         native_functions::{
-            bool::bind_bool_module, branching::bind_special_module, file::bind_file_module, keywords::bind_keywords_module, list::bind_list_module, math::bind_math_module, misc::bind_misc_module, print::bind_print_module, shell::bind_shell_module, string::bind_string_module, variables::bind_variable_module
+            bool::bind_bool_module, branching::bind_special_module, file::bind_file_module,
+            keywords::bind_keywords_module, list::bind_list_module, math::bind_math_module,
+            misc::bind_misc_module, print::bind_print_module, shell::bind_shell_module,
+            string::bind_string_module, variables::bind_variable_module,
         },
         value::{Closure, Env, EnvRef, NativeClosure, SpecialClosure, Value, ValueRef},
         EvalResult,
@@ -84,10 +87,27 @@ impl Interpretator {
                 Ok(Rc::new(Value::Object(res)))
             }
             Expression::Pipe { left, right } => {
-                let a = self.expand(self.eval_expr(left.as_ref(), ctx)?)?;
                 let f = self.eval_expr(right.as_ref(), ctx)?;
 
-                self.apply_fn(&f, &a)
+                match f.as_ref() {
+                    Value::SpecialForm(closure) => {
+                        let mut curried = SpecialClosure::new(
+                            Rc::clone(&closure.logic),
+                            Rc::clone(&closure.interpretator),
+                            Rc::clone(&ctx),
+                        );
+                        curried.params.extend_from_slice(&closure.params);
+                        curried.params.push(*left.clone());
+                        let f = Value::SpecialForm(curried);
+
+                        Ok(Rc::new(f))
+                    }
+                    _ => {
+                        let a = self.expand(self.eval_expr(left.as_ref(), ctx)?)?;
+
+                        self.apply_fn(&f, &a)
+                    }
+                }
             }
             Expression::Chain { left, right } => {
                 let f = self.eval_expr(left.as_ref(), ctx)?;

@@ -45,38 +45,8 @@ pub struct NativeContext<'a> {
 }
 
 impl<'a> NativeContext<'a> {
-    /// Apply a function (Lambda or NativeLambda) to an argument
     pub fn apply(&self, f: &ValueRef, arg: &ValueRef) -> Result<ValueRef, RuntimeError> {
-        match f.as_ref() {
-            Value::Lambda(closure) => {
-                let mut curried = closure.clone();
-                curried.binded.push(arg.clone());
-
-                if curried.binded.len() == curried.params.len() {
-                    curried.bind_variables();
-                    self.inter.eval_expr(&closure.body, &closure.env)
-                } else {
-                    Ok(Rc::new(Value::Lambda(curried)))
-                }
-            }
-            Value::NativeLambda(closure) => {
-                let mut curried = NativeClosure::new(
-                    closure.params_count,
-                    Rc::clone(&closure.logic),
-                    Rc::clone(&closure.inter),
-                    Rc::clone(&closure.env),
-                );
-                curried.binded.extend_from_slice(&closure.binded);
-                curried.binded.push(arg.clone());
-
-                if curried.binded.len() == closure.params_count {
-                    curried.exec()
-                } else {
-                    Ok(Rc::new(Value::NativeLambda(curried)))
-                }
-            }
-            _ => Err(RuntimeError::InvalidApplication),
-        }
+        self.inter.apply_fn(f, arg)
     }
 }
 
@@ -85,7 +55,7 @@ pub trait NativeFn: Debug {
 }
 
 pub trait SpecialFn: Debug {
-    fn exec(&self, args: &Vec<Expression>, inter: &Interpretator, env: &EnvRef) -> Result<ValueRef, RuntimeError>;
+    fn exec(&self, args: &Vec<Expression>, ctx: &NativeContext) -> Result<ValueRef, RuntimeError>;
 }
 
 #[derive(Debug)]
@@ -127,7 +97,11 @@ impl NativeClosure {
 
 impl SpecialClosure {
     pub fn exec(&self) -> Result<Rc<Value>, RuntimeError> {
-        self.logic.exec(&self.params, &self.interpretator, &self.env)
+        let ctx = NativeContext {
+            inter: &self.interpretator,
+            env: &self.env,
+        };
+        self.logic.exec(&self.params, &ctx)
     }
 
     pub fn new(logic: Rc<dyn SpecialFn>, interpretator: Rc<Interpretator>, env: EnvRef) -> Self {
@@ -158,10 +132,6 @@ impl Closure {
         }
     }
     pub fn bind_variables(&self) {
-        // println!("-][-");
-        // println!("vars: {:?}", self.params);
-        // println!("bind: {:?}", self.binded);
-        // println!("-][-");
         for (p, v) in self
             .params
             .iter()
@@ -207,7 +177,7 @@ impl Value {
             Value::Bool(x) => Ok(*x),
             _ => Err(RuntimeError::MissmatchedTypes {
                 got: self.get_type(),
-                expected: ValueType::Number,
+                expected: ValueType::Bool,
             }),
         }
     }
@@ -216,7 +186,7 @@ impl Value {
             Value::String(s) => Ok(s),
             _ => Err(RuntimeError::MissmatchedTypes {
                 got: self.get_type(),
-                expected: ValueType::Number,
+                expected: ValueType::String,
             }),
         }
     }
@@ -225,7 +195,7 @@ impl Value {
             Value::List(lst) => Ok(lst),
             _ => Err(RuntimeError::MissmatchedTypes {
                 got: self.get_type(),
-                expected: ValueType::Number,
+                expected: ValueType::List,
             }),
         }
     }
@@ -234,7 +204,7 @@ impl Value {
             Value::Object(obj) => Ok(obj),
             _ => Err(RuntimeError::MissmatchedTypes {
                 got: self.get_type(),
-                expected: ValueType::Number,
+                expected: ValueType::Object,
             }),
         }
     }

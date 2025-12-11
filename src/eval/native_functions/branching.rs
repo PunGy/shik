@@ -2,10 +2,10 @@ use crate::{
     eval::{
         error::RuntimeError,
         evaluator::Interpretator,
-        value::{EnvRef, SpecialClosure, SpecialFn, Value},
+        value::{EnvRef, SpecialClosure, SpecialFn, Value, NativeContext},
         EvalResult,
     },
-    parser::Expression,
+    parser::Expression, special_op,
 };
 use std::{rc::Rc};
 
@@ -33,11 +33,7 @@ if predicate
     3 ; else
 */
 
-#[derive(Debug)]
-pub struct If;
-
-impl SpecialFn for If {
-    fn exec(&self, args: &Vec<Expression>, inter: &Interpretator, env: &EnvRef) -> EvalResult {
+special_op!(If, "if", args, ctx, {
         let args_count = args.len();
         if args_count < 2 {
             return Err(RuntimeError::InvalidApplication);
@@ -45,12 +41,12 @@ impl SpecialFn for If {
 
         let mut args_it = args.iter().peekable();
         let predicate = args_it.next().ok_or(RuntimeError::InvalidApplication)?;
-        let mut predicate = inter.eval_expr(predicate, &env)?.expect_bool()?;
+        let mut predicate = ctx.inter.eval_expr(predicate, &ctx.env)?.expect_bool()?;
 
         if args_count == 2 {
             // Simple if without else
             if predicate {
-                inter.eval_expr(&args_it.next().unwrap(), &env)
+                ctx.inter.eval_expr(&args_it.next().unwrap(), &ctx.env)
             } else {
                 Ok(Rc::new(Value::Null))
             }
@@ -62,12 +58,12 @@ impl SpecialFn for If {
                 if next == None {
                     break;
                 }
-                predicate = inter.eval_expr(next.unwrap(), &env)?.expect_bool()?;
+                predicate = ctx.inter.eval_expr(next.unwrap(), &ctx.env)?.expect_bool()?;
             }
 
             if predicate {
                 let next = args_it.next().ok_or(RuntimeError::InvalidApplication)?;
-                inter.eval_expr(next, &env)
+                ctx.inter.eval_expr(next, &ctx.env)
             } else {
                 Ok(Rc::new(Value::Null))
             }
@@ -81,7 +77,7 @@ impl SpecialFn for If {
                 if args_it.peek() == None {
                     break;
                 }
-                predicate = inter.eval_expr(next.unwrap(), &env)?.expect_bool()?;
+                predicate = ctx.inter.eval_expr(next.unwrap(), &ctx.env)?.expect_bool()?;
                 if predicate {
                     // next body
                     next = args_it.next();
@@ -93,20 +89,9 @@ impl SpecialFn for If {
 
             // the next would be the desired body for sure, either `elseif` block, or `else`
             let next = next.ok_or(RuntimeError::InvalidApplication)?;
-            inter.eval_expr(next, &env)
+            ctx.inter.eval_expr(next, &ctx.env)
         }
-    }
-}
-
-impl If {
-    pub fn define(env: &EnvRef, inter: Rc<Interpretator>) {
-        let ctx = Rc::clone(&env);
-        env.define(
-            "if".to_string(),
-            Rc::new(Value::SpecialForm(SpecialClosure::new(Rc::new(If), inter, ctx))),
-        );
-    }
-}
+});
 
 pub fn bind_special_module(env: &EnvRef, interpretator: Rc<Interpretator>) {
     If::define(env, interpretator);

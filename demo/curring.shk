@@ -1,0 +1,19 @@
+let file.reader (fn [name] (fn [] file.read name))
+
+let write (file.write :sample.txt)
+let read (file.reader :sample.txt)
+
+write :hello
+call read ;; (zero args function must be called via `call` fn) "hello"
+
+call read $> string.upper $> write $> call read ;; HELLO
+
+{*
+;; minimalistic variable defining:
+
+let file.reader fn [name] fn [] file.read name
+
+var write $ file.write :sample.txt
+var read $ file.reader :sample.txt
+
+*}

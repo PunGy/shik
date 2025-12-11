@@ -26,7 +26,7 @@ native_op!(FileRead, "file.read", [path], {
     let path = path.expect_string()?;
 
     let content = fs::read_to_string(path)
-        .map_err(|e| ShikError::default_error(format!("Cannot open file: {}", e)))?;
+        .map_err(|e| ShikError::default_error(format!("cannot open file - {}", e)))?;
 
     native_result(Value::String(content))
 });
@@ -48,7 +48,7 @@ native_op!(FileReadBytes, "file.read-bytes", [path], {
     let path = path.expect_string()?;
 
     let bytes = fs::read(path)
-        .map_err(|e| ShikError::default_error(format!("cannot read file: {}", e)))?;
+        .map_err(|e| ShikError::default_error(format!("cannot read file - {}", e)))?;
 
     let result: Vec<ValueRef> = bytes
         .into_iter()
@@ -64,7 +64,7 @@ native_op!(FileLines, "file.read-lines", [path], {
     let path = path.expect_string()?;
 
     let content = fs::read_to_string(path)
-        .map_err(|e| ShikError::default_error(format!("cannot read file: {}", e)))?;
+        .map_err(|e| ShikError::default_error(format!("cannot read file - {}", e)))?;
 
     let lines: Vec<ValueRef> = content
         .lines()

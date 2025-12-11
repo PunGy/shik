@@ -3,19 +3,30 @@ use crate::{
     eval::{
         error::{RuntimeError},
         evaluator::Interpretator,
-        value::{EnvRef, NativeContext, NativeClosure, NativeFn, Value, ValueRef},
+        value::{EnvRef, NativeContext, SpecialClosure, NativeClosure, NativeFn, Value, ValueRef, SpecialFn},
         EvalResult,
     },
+    parser::{Expression},
     native_op,
     define_native,
+    special_op,
 };
 use std::rc::Rc;
 
-native_op!(Var, "var", [name, val], ctx, {
-    let name = name.expect_string()?;
+special_op!(Var, "var", args, ctx, {
+    let mut args_it = args.into_iter();
+    let name = args_it.next().ok_or(RuntimeError::InvalidApplication)?;
 
-    ctx.env.define(name.to_string(), Rc::clone(&val));
-    Ok(Rc::clone(&val))
+    let val = args_it.next().ok_or(RuntimeError::InvalidApplication)?;
+
+    match name {
+        Expression::Identifier(name) => {
+            let val = ctx.inter.eval_expr(val, &ctx.env)?;
+            ctx.env.define(name.to_string(), Rc::clone(&val));
+            Ok(val)
+        }
+        _ => return Err(RuntimeError::InvalidApplication)
+    }
 });
 
 native_op!(Set, "set", [name, val], ctx, {
