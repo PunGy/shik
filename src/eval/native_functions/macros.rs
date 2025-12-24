@@ -1,70 +1,63 @@
 #[macro_export]
 macro_rules! native_op {
-    ($name:ident, $fn_title:expr, [$($arg:ident),*], $ctx:ident, $body:block) => {
+    ($name:ident, $fn_title:tt, [$($arg:ident),* $(,)?] $(, $ctx:ident)? , $body:block) => {
         #[derive(Debug)]
         pub struct $name;
 
         impl NativeFn for $name {
             #[allow(unused_variables)]
-            fn exec(&self, args: &Vec<ValueRef>, $ctx: &NativeContext) -> EvalResult {
-                if args.len() != count_args!($($arg),*) {
-                    return Err(RuntimeError::InvalidApplication)
+            fn exec(&self, args: &Vec<ValueRef>, __native_ctx: &NativeContext) -> EvalResult {
+                if args.len() != $crate::count_args!($($arg),*) {
+                    return Err(RuntimeError::InvalidApplication);
                 }
+
                 #[allow(unused_mut)]
                 let mut iter = args.iter();
-                $(let $arg = iter.next().unwrap();)*
+                $(let $arg: &ValueRef = iter.next().unwrap();)*
 
-                $body
+                $crate::native_op!(@bind_ctx __native_ctx $(, $ctx)?);
+
+                paste::paste! {
+                    Self::run($($arg),* $(, $ctx)?)
+                }
             }
         }
 
-        impl $name {
-            pub fn define(env: &EnvRef, inter: Rc<Interpretator>) {
-                env.define(
-                    ($fn_title).to_string(),
-                    Rc::new(Value::NativeLambda(NativeClosure::new(
-                        count_args!($($arg),*),
+        paste::paste! {
+            impl $name {
+                // This is where the user-provided $body goes.
+                pub fn run(
+                    $($arg: &ValueRef),*
+                    $(, $ctx: &NativeContext)?
+                ) -> EvalResult {
+                    $body
+                }
+
+                pub fn define(env: &EnvRef, inter: Rc<Interpretator>) {
+                    let val = Rc::new(Value::NativeLambda(NativeClosure::new(
+                        $crate::count_args!($($arg),*),
                         Rc::new($name),
                         inter,
                         Rc::clone(env),
-                    ))),
-                );
+                    )));
+                    $crate::native_op!(@define_titles env, val, $fn_title);
+                }
             }
         }
     };
-    // Pattern without ctx for simple functions that don't need it
-    // Pattern: name, [arg1, arg2...], body
-    ($name:ident, $fn_title:expr, [$($arg:ident),*], $body:block) => {
-        #[derive(Debug)]
-        pub struct $name;
 
-        impl NativeFn for $name {
-            #[allow(unused_variables)]
-            fn exec(&self, args: &Vec<ValueRef>, ctx: &NativeContext) -> EvalResult {
-                if args.len() != count_args!($($arg),*) {
-                    return Err(RuntimeError::InvalidApplication)
-                }
-                #[allow(unused_mut)]
-                let mut iter = args.iter();
-                $(let $arg = iter.next().unwrap();)*
+    (@bind_ctx $native_ctx:ident, $ctx:ident) => { let $ctx = $native_ctx; };
+    (@bind_ctx $native_ctx:ident) => {};
 
-                $body
-            }
-        }
+    (@define_titles $env:ident, $val:ident, [$($title:expr),+ $(,)?]) => {
+        $(
+            $env.define(($title).to_string(), Rc::clone(&$val));
+        )+
+    };
 
-        impl $name {
-            pub fn define(env: &EnvRef, inter: Rc<Interpretator>) {
-                env.define(
-                    ($fn_title).to_string(),
-                    Rc::new(Value::NativeLambda(NativeClosure::new(
-                        count_args!($($arg),*),
-                        Rc::new($name),
-                        inter,
-                        Rc::clone(env),
-                    ))),
-                );
-            }
-        }
+    // One title SECOND (more general)
+    (@define_titles $env:ident, $val:ident, $title:expr) => {
+        $env.define(($title).to_string(), Rc::clone(&$val));
     };
 }
 

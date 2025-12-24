@@ -1,14 +1,13 @@
 use crate::{
-    count_args,
+    count_args, define_native,
     eval::{
         error::RuntimeError,
         evaluator::Interpretator,
         native_functions::native_result,
-        value::{EnvRef, NativeContext, NativeClosure, NativeFn, Value, ValueRef},
+        value::{EnvRef, NativeClosure, NativeContext, NativeFn, Value, ValueRef, ValueType},
         EvalResult,
     },
     native_op,
-    define_native,
 };
 use std::rc::Rc;
 
@@ -38,10 +37,17 @@ native_op!(StringSplit, "string.split", [with, str], {
     native_result(Value::List(res))
 });
 
-native_op!(StringConcat, "string.concat", [a, b], {
+native_op!(StringConcat, "string.+", [a, b], {
     let a = a.expect_string()?;
     let b = b.expect_string()?;
     native_result(Value::String(format!("{}{}", a, b)))
+});
+
+native_op!(StringEq, "string.=", [a, b], {
+    let a = a.expect_string()?;
+    let b = b.expect_string()?;
+
+    native_result(Value::Bool(a == b))
 });
 
 native_op!(StringTrim, "string.trim", [s], {
@@ -146,10 +152,121 @@ native_op!(StringLines, "string.lines", [s], {
     native_result(Value::List(lines))
 });
 
+const UNITS: [&str; 7] = ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"];
+native_op!(StringBytes, "string.bytes", [b], {
+    let bytes = b.expect_number()?;
+
+    if bytes < 1024.0 {
+        return native_result(Value::String("{bytes} B".to_string()));
+    }
+
+    let mut value = bytes;
+    let mut unit = 0;
+
+    while value >= 1024.0 && unit < UNITS.len() - 1 {
+        value /= 1024.0;
+        unit += 1;
+    }
+
+    // Use one decimal place for small values, no decimals for larger ones.
+    if value < 10.0 {
+        return native_result(Value::String(format!("{value:.1} {}", UNITS[unit])));
+    } else {
+        return native_result(Value::String(format!("{value:.0} {}", UNITS[unit])));
+    }
+});
+
+// Helper: convert a *character index* into a UTF-8 byte range (start..end)
+fn char_byte_range(s: &str, char_index: usize) -> Option<(usize, usize)> {
+    let mut it = s.char_indices();
+    let (start, _) = it.nth(char_index)?;
+    let end = it.next().map(|(i, _)| i).unwrap_or_else(|| s.len());
+    Some((start, end))
+}
+
+native_op!(StringSet, "string.set", [inx, s, content], {
+    let inx = inx.expect_number()? as usize;
+    let replacement = content.expect_string()?; // must be a string
+
+    let s_ptr = Rc::as_ptr(s) as *mut Value;
+
+    unsafe {
+        match &mut *s_ptr {
+            Value::String(st) => {
+                // Replace the single character at `inx` with `replacement`
+                let (start, end) = char_byte_range(st, inx)
+                    .ok_or(RuntimeError::IndexOutOfBounds { index: inx })?;
+
+                st.replace_range(start..end, replacement);
+                Ok(Rc::clone(&content))
+            }
+            _ => Err(RuntimeError::MissmatchedTypes {
+                got: s.get_type(),
+                expected: ValueType::String,
+            }),
+        }
+    }
+});
+
+native_op!(
+    StringPush,
+    ["string.push", "string.push>", "string.push-right"],
+    [s, content],
+    {
+        let suffix = content.expect_string()?; // must be a string
+
+        let s_ptr = Rc::as_ptr(s) as *mut Value;
+
+        unsafe {
+            match &mut *s_ptr {
+                Value::String(st) => {
+                    st.push_str(suffix);
+                    Ok(Rc::clone(&content))
+                }
+                _ => Err(RuntimeError::MissmatchedTypes {
+                    got: s.get_type(),
+                    expected: ValueType::String,
+                }),
+            }
+        }
+    }
+);
+
+native_op!(
+    StringPushLeft,
+    ["string.<push", "string.push-left"],
+    [s, content],
+    {
+        let prefix = content.expect_string()?; // must be a string
+
+        let s_ptr = Rc::as_ptr(s) as *mut Value;
+
+        unsafe {
+            match &mut *s_ptr {
+                Value::String(st) => {
+                    // Efficient prepend without repeated shifting:
+                    let suffix = std::mem::take(st);
+                    let mut new = String::with_capacity(prefix.len() + suffix.len());
+                    new.push_str(prefix);
+                    new.push_str(&suffix);
+                    *st = new;
+
+                    Ok(Rc::clone(&content))
+                }
+                _ => Err(RuntimeError::MissmatchedTypes {
+                    got: s.get_type(),
+                    expected: ValueType::String,
+                }),
+            }
+        }
+    }
+);
+
 pub fn bind_string_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_native!(MakeString, env, inter);
     define_native!(StringSplit, env, inter);
     define_native!(StringConcat, env, inter);
+    define_native!(StringEq, env, inter);
     define_native!(StringTrim, env, inter);
     define_native!(StringTrimStart, env, inter);
     define_native!(StringTrimEnd, env, inter);
@@ -165,4 +282,8 @@ pub fn bind_string_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_native!(StringIndexOf, env, inter);
     define_native!(StringJoin, env, inter);
     define_native!(StringLines, env, inter);
+    define_native!(StringBytes, env, inter);
+    define_native!(StringSet, env, inter);
+    define_native!(StringPush, env, inter);
+    define_native!(StringPushLeft, env, inter);
 }

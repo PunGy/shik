@@ -4,7 +4,7 @@ use crate::{
         error::RuntimeError,
         evaluator::Interpretator,
         native_functions::native_result,
-        value::{EnvRef, NativeClosure, NativeContext, NativeFn, Value, ValueRef},
+        value::{EnvRef, NativeClosure, NativeContext, NativeFn, Value, ValueRef, ValueType},
         EvalResult,
     },
     native_op,
@@ -14,19 +14,6 @@ use std::rc::Rc;
 native_op!(ListLen, "list.len", [lst], {
     let lst = lst.expect_list()?;
     native_result(Value::Number(lst.len() as f64))
-});
-
-native_op!(ListAt, "list.at", [inx, lst], {
-    let inx = inx.expect_number()?;
-    let inx = inx as usize;
-
-    let lst = lst.expect_list()?;
-
-    if lst.len() <= inx {
-        return native_result(Value::Null);
-    }
-
-    Ok(Rc::clone(&lst[inx]))
 });
 
 native_op!(ListSum, "list.sum", [lst], {
@@ -86,7 +73,7 @@ native_op!(ListConcat, "list.concat", [a, b], {
     native_result(Value::List(result))
 });
 
-native_op!(ListNth, "list.nth", [idx, lst], {
+native_op!(ListAt, "list.at", [idx, lst], {
     let lst = lst.expect_list()?;
     let idx = idx.expect_number()? as usize;
     match lst.get(idx) {
@@ -191,7 +178,82 @@ native_op!(ListFind, "list.find", [func, lst], ctx, {
     native_result(Value::Null)
 });
 
+native_op!(ListFindIndex, "list.find-index", [func, lst], ctx, {
+    let lst = lst.expect_list()?;
+    for (inx, item) in lst.iter().enumerate() {
+        let result = ctx.apply(func, item)?;
+        if result.expect_bool()? {
+            return native_result(Value::Number(inx as f64));
+        }
+    }
+    native_result(Value::Number(-1.0))
+});
+
+native_op!(ListSet, "list.set", [inx, lst, content], {
+    let inx = inx.expect_number()?;
+    let inx = inx as usize;
+
+    let lst_ptr = Rc::as_ptr(lst) as *mut Value;
+
+    unsafe {
+        match &mut *lst_ptr {
+            Value::List(lst) => {
+                lst[inx] = Rc::clone(&content);
+                return Ok(Rc::clone(content));
+            }
+            _ => {
+                return Err(RuntimeError::MissmatchedTypes {
+                    got: lst.get_type(),
+                    expected: ValueType::List,
+                })
+            }
+        }
+    }
+
+});
+
+native_op!(ListPush, ["list.push", "list.push>", "list.push-right"], [lst, content], {
+    let lst_ptr = Rc::as_ptr(lst) as *mut Value;
+
+    unsafe {
+        match &mut *lst_ptr {
+            Value::List(lst) => {
+                lst.push(Rc::clone(&content));
+                return Ok(Rc::clone(content));
+            }
+            _ => {
+                return Err(RuntimeError::MissmatchedTypes {
+                    got: lst.get_type(),
+                    expected: ValueType::List,
+                })
+            }
+        }
+    }
+});
+
+native_op!(ListPushLeft, ["list.<push", "list.push-left"], [lst, content], {
+    let lst_ptr = Rc::as_ptr(lst) as *mut Value;
+
+    unsafe {
+        match &mut *lst_ptr {
+            Value::List(lst) => {
+                lst.insert(0, Rc::clone(&content));
+                return Ok(Rc::clone(content));
+            }
+            _ => {
+                return Err(RuntimeError::MissmatchedTypes {
+                    got: lst.get_type(),
+                    expected: ValueType::List,
+                })
+            }
+        }
+    }
+});
+
 pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
+    define_native!(ListSet, env, inter);
+    define_native!(ListPush, env, inter);
+    define_native!(ListPushLeft, env, inter);
     define_native!(ListAt, env, inter);
     define_native!(ListLen, env, inter);
     define_native!(ListSum, env, inter);
@@ -201,7 +263,6 @@ pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_native!(ListInit, env, inter);
     define_native!(ListReverse, env, inter);
     define_native!(ListConcat, env, inter);
-    define_native!(ListNth, env, inter);
     define_native!(ListIsEmpty, env, inter);
     define_native!(ListRange, env, inter);
     define_native!(ListTake, env, inter);
@@ -213,4 +274,5 @@ pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_native!(ListAny, env, inter);
     define_native!(ListAll, env, inter);
     define_native!(ListFind, env, inter);
+    define_native!(ListFindIndex, env, inter);
 }

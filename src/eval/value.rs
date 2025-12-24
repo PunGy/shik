@@ -208,6 +208,19 @@ impl Value {
             }),
         }
     }
+    pub fn expect_native_lambda(&self) -> Result<&NativeClosure, RuntimeError> {
+        match self {
+            Value::NativeLambda(l) => Ok(l),
+            _ => Err(RuntimeError::MissmatchedTypes {
+                got: self.get_type(),
+                expected: ValueType::Lambda,
+            }),
+        }
+    }
+
+    pub fn into_string(&self) -> Rc<Value> {
+        Rc::new(Value::String(self.to_string()))
+    }
 
     pub fn get_type(&self) -> ValueType {
         match self {

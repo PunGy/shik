@@ -1,5 +1,6 @@
 pub mod bool;
-pub mod math;
+pub mod number;
+pub mod polymorphic;
 pub mod print;
 pub mod keywords;
 pub mod branching;

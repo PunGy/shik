@@ -36,9 +36,8 @@ shik
 ## Language Features
 - Pipeline operator (`$>`) for function composition
 - First-class functions and lambdas
-- Pattern matching capabilities
+- Pattern matching capabilities (in progress)
 - Rich standard library for working with system
-- Lazy evaluation where appropriate
 
 ## Example
 
@@ -64,9 +63,9 @@ let write (file.write :sample.txt)
 let read (file.reader :sample.txt)
 
 write :hello
-call read ;; (zero args function must be called via `call` fn) "hello"
+read ;; "hello"
 
-call read $> string.upper $> write $> call read ;; HELLO
+read $> string.upper $> write $> read ;; HELLO
 ```
 
 ### Count of lines in all *.rs files in src
@@ -78,6 +77,88 @@ file.glob :./src/**/*.rs $>
   list.sum $>
   print
 
+```
+
+### String interpolation
+
+```shik
+var greet (fn [name] "Hello, {string.upper name}!")
+
+print $ greet :max
+```
+
+## Application operators
+
+### Pipe with `$>`
+
+Piping - left-to-right application:
+
+```
+(f a b) == (b $> f a)
+```
+
+Example:
+
+```shik
+var files (file.list "./") ;; [ "a.txt"  "b.txt" ]
+list.map (fn [path] file.read path) (files) ;; [ 5012 3024 ]
+
+;; Same with piping
+
+file.list "./" $> var files
+files $> list.map (fn [path] file.read path)
+
+;; Same but one line and minimalistic strings and without new function
+
+file.list :./ $> list.map file.read
+```
+
+`$>` operator can also continue application on the next line (must be at the end of the line):
+
+```shik
+file.glob :./**/*.txt $> list.map file.size $> list.sum
+
+;; Same as
+
+file.glob :./**/*.txt $>
+  list.map file.size $>
+  list.sum
+```
+
+### Less priority apply with `$`
+
+`$` is the same right-to-left application as usual, but with lesser priority, which allows to avoid grouping functions with parantesis in some cases.
+
+```
+(f (a b)) == (f $ a b)
+```
+
+```shik
+var files (file.list :./)
+print (list.map string.upper files)
+
+;; Same with $
+
+var files $ file.list :./
+print $ list.map string.upper files
+```
+
+```shik
+let lst [10 20 30 40]
+
+list.map (+ "number: ") lst ;; ["number: 10" "number: 20" ...]
+
+;; Same with $
+
+list.map $ + "number: " $ lst
+```
+
+It is also allow you to extend the function application to the next line:
+
+```shik
+if (= shell.cwd :/) $
+    print "You are on the root!" $
+    print "nah"
 ```
 
 ## Building for Distribution

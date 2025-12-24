@@ -3,7 +3,7 @@ use crate::{
     eval::{
         error::RuntimeError,
         evaluator::Interpretator,
-        native_functions::native_result,
+        native_functions::{native_result, string::StringEq},
         value::{EnvRef, NativeClosure, NativeContext, NativeFn, Value, ValueRef},
         EvalResult,
     },
@@ -42,7 +42,7 @@ native_op!(Bool, "bool", [val], {
                 Value::Bool(true)
             }
         }
-        _ => Value::Bool(true)
+        _ => Value::Bool(true),
     })
 });
 
@@ -64,9 +64,14 @@ native_op!(Eq, "=", [x, y], {
     native_result(Value::Bool(match (x.as_ref(), y.as_ref()) {
         (Value::Number(x), Value::Number(y)) => x == y,
         (Value::Bool(x), Value::Bool(y)) => x == y,
+        (Value::String(_), Value::String(_)) => return StringEq::run(x, y),
         (Value::Null, Value::Null) => true,
         _ => false,
     }))
+});
+native_op!(NotEq, "!=", [x, y], {
+    let res = Eq::run(x, y)?.expect_bool()?;
+    native_result(Value::Bool(!res))
 });
 native_op!(Not, "not", [x], {
     let x = x.expect_bool()?;
@@ -88,6 +93,7 @@ native_op!(Lt, "<", [x, y], {
 
 pub fn bind_bool_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_native!(Eq, env, inter);
+    define_native!(NotEq, env, inter);
     define_native!(Gt, env, inter);
     define_native!(Lt, env, inter);
     define_native!(Not, env, inter);

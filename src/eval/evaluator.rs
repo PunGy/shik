@@ -4,9 +4,9 @@ use crate::{
         error::RuntimeError,
         native_functions::{
             bool::bind_bool_module, branching::bind_special_module, file::bind_file_module,
-            keywords::bind_keywords_module, list::bind_list_module, math::bind_math_module,
-            misc::bind_misc_module, print::bind_print_module, shell::bind_shell_module,
-            string::bind_string_module, variables::bind_variable_module,
+            keywords::bind_keywords_module, list::bind_list_module, misc::bind_misc_module,
+            number::bind_number_module, polymorphic::bind_poly_module, print::bind_print_module,
+            shell::bind_shell_module, string::bind_string_module, variables::bind_variable_module,
         },
         value::{Closure, Env, EnvRef, NativeClosure, SpecialClosure, Value, ValueRef},
         EvalResult,
@@ -32,10 +32,11 @@ impl Interpretator {
         let inter = Rc::new(inter);
 
         // Bind all modules with access to interpretator
-        bind_math_module(&env, Rc::clone(&inter));
+        bind_number_module(&env, Rc::clone(&inter));
         bind_bool_module(&env, Rc::clone(&inter));
         bind_string_module(&env, Rc::clone(&inter));
         bind_list_module(&env, Rc::clone(&inter));
+        bind_poly_module(&env, Rc::clone(&inter));
         bind_print_module(&env, Rc::clone(&inter));
         bind_keywords_module(&env, Rc::clone(&inter));
         bind_file_module(&env, Rc::clone(&inter));
@@ -64,6 +65,22 @@ impl Interpretator {
         match expr {
             Expression::Number(x) => Ok(Rc::new(Value::Number(*x))),
             Expression::String(s) => Ok(Rc::new(Value::String(s.clone()))),
+            Expression::StringInterpolation(si) => {
+                let mut str = si.string.clone();
+                let entries = &si.entries;
+
+                for inter in entries.into_iter().rev() {
+                    let i = inter.position;
+                    let val = self.expand(self.eval_expr(&inter.expression, &ctx)?)?;
+                    let val_str = match val.as_ref() {
+                        Value::String(s) => s,
+                        val => &val.to_string(),
+                    };
+                    str.replace_range(i..i + 1, val_str);
+                }
+
+                return Ok(Rc::new(Value::String(str)));
+            }
             Expression::List(lst) => {
                 let mut res: Vec<ValueRef> = Vec::new();
 
@@ -181,9 +198,27 @@ impl Interpretator {
                 }
                 _ => Err(RuntimeError::NotYetImplemented(expr.clone())),
             },
-            Expression::Identifier(name) => ctx
-                .lookup(name)
-                .map_or(Err(RuntimeError::UndefinedVariable(name.clone())), Ok),
+            Expression::Identifier(name) => {
+                ctx.lookup(name)
+                    .map_or(
+                        Err(RuntimeError::UndefinedVariable(name.clone())),
+                        |val| match val.as_ref() {
+                            Value::Lambda(closure) => {
+                                if closure.params.len() == 0 {
+                                    return self.eval_expr(&closure.body, &closure.env);
+                                }
+                                Ok(val)
+                            }
+                            Value::NativeLambda(closure) => {
+                                if closure.params_count == 0 {
+                                    return closure.exec();
+                                }
+                                Ok(val)
+                            }
+                            _ => Ok(val),
+                        },
+                    )
+            }
             e => Err(RuntimeError::NotYetImplemented(e.clone())),
         }
     }

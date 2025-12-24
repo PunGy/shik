@@ -8,6 +8,7 @@ pub enum TokenType {
 
     // Keywords
     Let,
+    Match,
     Fn,
     Pipe, // $>
     Flow, // #>

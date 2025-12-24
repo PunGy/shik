@@ -7,8 +7,8 @@ fn is_digit(ch: Option<char>) -> bool {
     ch.map_or(false, |ch| ch.is_ascii_digit())
 }
 
-const IDENT_START_CHARSET: &str = "!@%^&*-=_+|?<>.$";
-const IDENT_CHARSET: &str = "!@%^&*-=_+|?<>$'.*#";
+const IDENT_START_CHARSET: &str = "!@%^&*-=_+|?<>.$/";
+const IDENT_CHARSET: &str = "!@%^&*-=_+|?<>$'.*#/";
 
 const INLINE_STRING_SEPARATOR: &str = "\n\r {}()[]";
 
@@ -552,6 +552,7 @@ impl Lexer {
 
         let token = match lexeme.as_str() {
             "let" => Token::new(TokenType::Let, lexeme, self.line, start_column),
+            "match" => Token::new(TokenType::Match, lexeme, self.line, start_column),
             "fn" => Token::new(TokenType::Fn, lexeme, self.line, start_column),
             _ => Token::ident(lexeme, self.line, start_column),
         };

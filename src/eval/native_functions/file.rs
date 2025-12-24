@@ -1,11 +1,10 @@
 use crate::{
-    count_args,
-    define_native,
+    count_args, define_native,
     eval::{
         error::{RuntimeError, ShikError},
         evaluator::Interpretator,
         native_functions::native_result,
-        value::{EnvRef, NativeContext, NativeClosure, NativeFn, Value, ValueRef},
+        value::{EnvRef, NativeClosure, NativeContext, NativeFn, Value, ValueRef},
         EvalResult,
     },
     native_op,
@@ -13,7 +12,8 @@ use crate::{
 use glob::glob;
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
+use std::io;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 // ============================================================================
@@ -32,8 +32,8 @@ native_op!(FileRead, "file.read", [path], {
 });
 
 // Try to read file, return null on failure
-// Usage: file.try-read "path/to/file.txt"
-native_op!(FileTryRead, "file.try-read", [path], {
+// Usage: file.read? "path/to/file.txt"
+native_op!(FileTryRead, "file.read?", [path], {
     let path = path.expect_string()?;
 
     match fs::read_to_string(path) {
@@ -141,7 +141,7 @@ native_op!(FileWriteBytes, "file.write-bytes", [path, bytes], {
 
 // Copy file or directory
 // Usage: file.copy "source" "destination"
-native_op!(FileCopy, "file.copy", [src, dst], {
+native_op!(FileCopy, ["file.copy", "file.cp"], [src, dst], {
     let src = src.expect_string()?;
     let dst = dst.expect_string()?;
 
@@ -158,7 +158,7 @@ native_op!(FileCopy, "file.copy", [src, dst], {
 
 // Move/rename file or directory
 // Usage: file.move "source" "destination"
-native_op!(FileMove, "file.move", [src, dst], {
+native_op!(FileMove, ["file.move", "file.mv"], [src, dst], {
     let src = src.expect_string()?;
     let dst = dst.expect_string()?;
 
@@ -168,13 +168,18 @@ native_op!(FileMove, "file.move", [src, dst], {
     native_result(Value::Null)
 });
 
-// Delete file
-// Usage: file.delete "path/to/file.txt"
-native_op!(FileDelete, "file.delete", [path], {
+// Delete any file or directory(recursively)
+// Usage: file.remove "path/to/file.txt"
+native_op!(FileRm, ["file.remove", "file.rm"], [path], {
     let path = path.expect_string()?;
 
-    fs::remove_file(path)
-        .map_err(|e| ShikError::default_error(format!("cannot delete file: {}", e)))?;
+    if Path::new(path).is_dir() {
+        fs::remove_dir_all(path)
+            .map_err(|e| ShikError::default_error(format!("cannot remove directory: {}", e)))?
+    } else {
+        fs::remove_file(path)
+            .map_err(|e| ShikError::default_error(format!("cannot delete file: {}", e)))?;
+    }
 
     native_result(Value::Null)
 });
@@ -192,7 +197,7 @@ native_op!(FileRmdir, "file.rmdir", [path], {
 
 // Delete directory recursively
 // Usage: file.rmdir-all "path/to/dir"
-native_op!(FileRmdirAll, "file.rmdir-all", [path], {
+native_op!(FileRmdirAll, "file.rmdir!", [path], {
     let path = path.expect_string()?;
 
     fs::remove_dir_all(path)
@@ -213,8 +218,8 @@ native_op!(FileMkdir, "file.mkdir", [path], {
 });
 
 // Create directory and all parent directories
-// Usage: file.mkdir-all "path/to/nested/dir"
-native_op!(FileMkdirAll, "file.mkdir-all", [path], {
+// Usage: file.mkdir! "path/to/nested/dir"
+native_op!(FileMkdirAll, "file.mkdir!", [path], {
     let path = path.expect_string()?;
 
     fs::create_dir_all(path)
@@ -266,6 +271,59 @@ native_op!(FileSize, "file.size", [path], {
     native_result(Value::Number(metadata.len() as f64))
 });
 
+/// Compute the size of a directory recursively (in bytes).
+/// - Follows only real directories (symlinks are skipped).
+/// - Counts only regular files.
+fn dir_size(root: &Path) -> io::Result<u64> {
+    let mut total: u64 = 0;
+    let mut stack: Vec<PathBuf> = vec![root.to_path_buf()];
+
+    while let Some(dir) = stack.pop() {
+        for entry_res in fs::read_dir(&dir)? {
+            let entry = entry_res?;
+
+            // Use symlink_metadata so we can see if it's a symlink and skip it.
+            let metadata = fs::symlink_metadata(entry.path())?;
+            let file_type = metadata.file_type();
+
+            if file_type.is_dir() {
+                // Recurse into real directories
+                stack.push(entry.path());
+            } else if file_type.is_file() {
+                // Add file size; saturating_add avoids overflow panics
+                total = total.saturating_add(metadata.len());
+            } else {
+                // Symlinks, sockets, devices, etc. are ignored
+            }
+        }
+    }
+
+    Ok(total)
+}
+
+native_op!(FileSizeDeep, "file.size.deep", [path], {
+    use std::path::Path;
+
+    let path = path.expect_string()?;
+    let path = Path::new(&path);
+
+    // Use symlink_metadata here so we can distinguish symlinks if needed.
+    let metadata = fs::symlink_metadata(path)
+        .map_err(|e| ShikError::default_error(format!("cannot get file metadata: {}", e)))?;
+
+    let size = if metadata.is_file() {
+        metadata.len()
+    } else if metadata.is_dir() {
+        dir_size(path)
+            .map_err(|e| ShikError::default_error(format!("cannot traverse directory: {}", e)))?
+    } else {
+        // For symlinks, devices, etc. we return 0
+        0
+    };
+
+    native_result(Value::Number(size as f64))
+});
+
 // Get file metadata as object
 // Usage: file.stat "path/to/file.txt"
 native_op!(FileStat, "file.stat", [path], {
@@ -275,11 +333,26 @@ native_op!(FileStat, "file.stat", [path], {
         .map_err(|e| ShikError::default_error(format!("cannot get file metadata: {}", e)))?;
 
     let mut result: HashMap<String, ValueRef> = HashMap::new();
-    result.insert("size".to_string(), Rc::new(Value::Number(metadata.len() as f64)));
-    result.insert("is_file".to_string(), Rc::new(Value::Bool(metadata.is_file())));
-    result.insert("is_dir".to_string(), Rc::new(Value::Bool(metadata.is_dir())));
-    result.insert("is_symlink".to_string(), Rc::new(Value::Bool(metadata.is_symlink())));
-    result.insert("readonly".to_string(), Rc::new(Value::Bool(metadata.permissions().readonly())));
+    result.insert(
+        "size".to_string(),
+        Rc::new(Value::Number(metadata.len() as f64)),
+    );
+    result.insert(
+        "is_file".to_string(),
+        Rc::new(Value::Bool(metadata.is_file())),
+    );
+    result.insert(
+        "is_dir".to_string(),
+        Rc::new(Value::Bool(metadata.is_dir())),
+    );
+    result.insert(
+        "is_symlink".to_string(),
+        Rc::new(Value::Bool(metadata.is_symlink())),
+    );
+    result.insert(
+        "readonly".to_string(),
+        Rc::new(Value::Bool(metadata.permissions().readonly())),
+    );
 
     native_result(Value::Object(result))
 });
@@ -298,8 +371,8 @@ native_op!(FileList, "file.list", [path], {
 
     let mut result: Vec<ValueRef> = Vec::new();
     for entry in entries {
-        let entry = entry
-            .map_err(|e| ShikError::default_error(format!("cannot read entry: {}", e)))?;
+        let entry =
+            entry.map_err(|e| ShikError::default_error(format!("cannot read entry: {}", e)))?;
         let name = entry.file_name().to_string_lossy().to_string();
         result.push(Rc::new(Value::String(name)));
     }
@@ -308,8 +381,8 @@ native_op!(FileList, "file.list", [path], {
 });
 
 // List directory contents with full paths
-// Usage: file.list-paths "path/to/dir"
-native_op!(FileListPaths, "file.list-paths", [path], {
+// Usage: file.list! "path/to/dir"
+native_op!(FileListPaths, "file.list!", [path], {
     let path = path.expect_string()?;
 
     let entries = fs::read_dir(path)
@@ -317,8 +390,8 @@ native_op!(FileListPaths, "file.list-paths", [path], {
 
     let mut result: Vec<ValueRef> = Vec::new();
     for entry in entries {
-        let entry = entry
-            .map_err(|e| ShikError::default_error(format!("cannot read entry: {}", e)))?;
+        let entry =
+            entry.map_err(|e| ShikError::default_error(format!("cannot read entry: {}", e)))?;
         let path_str = entry.path().to_string_lossy().to_string();
         result.push(Rc::new(Value::String(path_str)));
     }
@@ -487,8 +560,8 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), RuntimeError> {
     for entry in fs::read_dir(src)
         .map_err(|e| ShikError::default_error(format!("cannot read directory: {}", e)))?
     {
-        let entry = entry
-            .map_err(|e| ShikError::default_error(format!("cannot read entry: {}", e)))?;
+        let entry =
+            entry.map_err(|e| ShikError::default_error(format!("cannot read entry: {}", e)))?;
         let src_path = entry.path();
         let dst_path = dst.join(entry.file_name());
 
@@ -522,7 +595,7 @@ pub fn bind_file_module(env: &EnvRef, inter: Rc<Interpretator>) {
     // File/Directory operations
     define_native!(FileCopy, env, inter);
     define_native!(FileMove, env, inter);
-    define_native!(FileDelete, env, inter);
+    define_native!(FileRm, env, inter);
     define_native!(FileRmdir, env, inter);
     define_native!(FileRmdirAll, env, inter);
     define_native!(FileMkdir, env, inter);
@@ -534,6 +607,7 @@ pub fn bind_file_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_native!(FileIsFile, env, inter);
     define_native!(FileIsSymlink, env, inter);
     define_native!(FileSize, env, inter);
+    define_native!(FileSizeDeep, env, inter);
     define_native!(FileStat, env, inter);
 
     // Directory listing

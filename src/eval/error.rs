@@ -22,6 +22,7 @@ pub enum RuntimeError {
 
     MissmatchedTypes { got: ValueType, expected: ValueType },
     InvalidApplication,
+    IndexOutOfBounds { index: usize },
 
     Custom(ShikError),
 }
@@ -44,6 +45,14 @@ impl std::fmt::Display for RuntimeError {
                     f,
                     "EvaluationError: Feature {:?} still not implemeted",
                     expr
+                )
+            }
+
+            RuntimeError::IndexOutOfBounds {index} => {
+                write!(
+                    f,
+                    "IndexOutOfBounds: the index {} is out of bound",
+                    index
                 )
             }
 
