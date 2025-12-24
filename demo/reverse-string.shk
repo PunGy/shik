@@ -1,0 +1,9 @@
+let str-rev (fn [str] '(
+    let reversed ""
+    let append (string.push reversed)
+    str $> iterate-backward append
+    reversed
+))
+
+str-rev :hello $> print
+

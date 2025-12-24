@@ -130,6 +130,14 @@ native_op!(ListIterate, "list.iterate", [func, lst], ctx, {
     native_result(Value::Null)
 });
 
+native_op!(ListIterateBackward, ["list.iterate-backward", "list.<iterate"], [func, lst], ctx, {
+    let lst = lst.expect_list()?;
+    for item in lst.iter().rev() {
+        ctx.apply(func, item)?;
+    }
+    native_result(Value::Null)
+});
+
 native_op!(ListFilter, "list.filter", [func, lst], ctx, {
     let lst = lst.expect_list()?;
     let mut result: Vec<ValueRef> = Vec::new();
@@ -217,46 +225,55 @@ native_op!(ListSet, "list.set", [inx, lst, content], {
             }
         }
     }
-
 });
 
-native_op!(ListPush, ["list.push", "list.push>", "list.push-right"], [lst, content], {
-    let lst_ptr = Rc::as_ptr(lst) as *mut Value;
+native_op!(
+    ListPush,
+    ["list.push", "list.push>", "list.push-right"],
+    [lst, content],
+    {
+        let lst_ptr = Rc::as_ptr(lst) as *mut Value;
 
-    unsafe {
-        match &mut *lst_ptr {
-            Value::List(lst) => {
-                lst.push(Rc::clone(&content));
-                return Ok(Rc::clone(content));
-            }
-            _ => {
-                return Err(RuntimeError::MissmatchedTypes {
-                    got: lst.get_type(),
-                    expected: ValueType::List,
-                })
+        unsafe {
+            match &mut *lst_ptr {
+                Value::List(lst) => {
+                    lst.push(Rc::clone(&content));
+                    return Ok(Rc::clone(content));
+                }
+                _ => {
+                    return Err(RuntimeError::MissmatchedTypes {
+                        got: lst.get_type(),
+                        expected: ValueType::List,
+                    })
+                }
             }
         }
     }
-});
+);
 
-native_op!(ListPushLeft, ["list.<push", "list.push-left"], [lst, content], {
-    let lst_ptr = Rc::as_ptr(lst) as *mut Value;
+native_op!(
+    ListPushLeft,
+    ["list.<push", "list.push-left"],
+    [lst, content],
+    {
+        let lst_ptr = Rc::as_ptr(lst) as *mut Value;
 
-    unsafe {
-        match &mut *lst_ptr {
-            Value::List(lst) => {
-                lst.insert(0, Rc::clone(&content));
-                return Ok(Rc::clone(content));
-            }
-            _ => {
-                return Err(RuntimeError::MissmatchedTypes {
-                    got: lst.get_type(),
-                    expected: ValueType::List,
-                })
+        unsafe {
+            match &mut *lst_ptr {
+                Value::List(lst) => {
+                    lst.insert(0, Rc::clone(&content));
+                    return Ok(Rc::clone(content));
+                }
+                _ => {
+                    return Err(RuntimeError::MissmatchedTypes {
+                        got: lst.get_type(),
+                        expected: ValueType::List,
+                    })
+                }
             }
         }
     }
-});
+);
 
 pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_native!(ListSet, env, inter);
@@ -284,4 +301,5 @@ pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_native!(ListFind, env, inter);
     define_native!(ListFindIndex, env, inter);
     define_native!(ListIterate, env, inter);
+    define_native!(ListIterateBackward, env, inter);
 }

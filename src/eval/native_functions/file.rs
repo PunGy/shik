@@ -141,7 +141,7 @@ native_op!(FileWriteBytes, "file.write-bytes", [path, bytes], {
 
 // Copy file or directory
 // Usage: file.copy "source" "destination"
-native_op!(FileCopy, ["file.copy", "file.cp"], [src, dst], {
+native_op!(FileCopy, ["file.copy", "file.cp"], [dst, src], {
     let src = src.expect_string()?;
     let dst = dst.expect_string()?;
 
@@ -158,7 +158,7 @@ native_op!(FileCopy, ["file.copy", "file.cp"], [src, dst], {
 
 // Move/rename file or directory
 // Usage: file.move "source" "destination"
-native_op!(FileMove, ["file.move", "file.mv"], [src, dst], {
+native_op!(FileMove, ["file.move", "file.mv"], [dst, src], {
     let src = src.expect_string()?;
     let dst = dst.expect_string()?;
 
@@ -502,7 +502,7 @@ native_op!(FileAbsolute, "path.absolute", [path], {
 
 // Create symbolic link
 // Usage: file.symlink "target" "link_path"
-native_op!(FileSymlink, "file.symlink", [target, link_path], {
+native_op!(FileSymlink, "file.symlink", [link_path, target], {
     let target = target.expect_string()?;
     let link_path = link_path.expect_string()?;
 
