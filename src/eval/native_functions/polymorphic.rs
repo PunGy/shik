@@ -3,7 +3,7 @@ use crate::{
     eval::{
         error::RuntimeError,
         evaluator::Interpretator,
-        native_functions::{list::ListAt, native_result, number::Plus, string::{StringCharAt, StringConcat}},
+        native_functions::{list::{ListAt, ListIterate}, native_result, number::Plus, string::{StringCharAt, StringConcat, StringIterate}},
         value::{EnvRef, NativeClosure, NativeContext, NativeFn, Value, ValueRef},
         EvalResult,
     },
@@ -35,7 +35,16 @@ native_op!(At, "at", [inx, s], {
     }
 });
 
+native_op!(Iterate, "iterate", [func, s], ctx, {
+    match s.as_ref() {
+        Value::String(_) => StringIterate::run(func, s, ctx),
+        Value::List(_) => ListIterate::run(func, s, ctx),
+        _ => Err(RuntimeError::InvalidApplication),
+    }
+});
+
 pub fn bind_poly_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_native!(PPlus, env, inter);
     define_native!(At, env, inter);
+    define_native!(Iterate, env, inter);
 }

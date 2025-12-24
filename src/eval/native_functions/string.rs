@@ -176,6 +176,15 @@ native_op!(StringBytes, "string.bytes", [b], {
     }
 });
 
+native_op!(StringIterate, "string.iterate", [func, str], ctx, {
+    let str = str.expect_string()?;
+    for char in str.chars() {
+        let char = Rc::new(Value::String(char.to_string()));
+        ctx.apply(func, &char)?;
+    }
+    native_result(Value::Null)
+});
+
 // Helper: convert a *character index* into a UTF-8 byte range (start..end)
 fn char_byte_range(s: &str, char_index: usize) -> Option<(usize, usize)> {
     let mut it = s.char_indices();
@@ -286,4 +295,5 @@ pub fn bind_string_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_native!(StringSet, env, inter);
     define_native!(StringPush, env, inter);
     define_native!(StringPushLeft, env, inter);
+    define_native!(StringIterate, env, inter);
 }

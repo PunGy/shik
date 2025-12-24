@@ -122,6 +122,14 @@ native_op!(ListMap, "list.map", [func, lst], ctx, {
     native_result(Value::List(result))
 });
 
+native_op!(ListIterate, "list.iterate", [func, lst], ctx, {
+    let lst = lst.expect_list()?;
+    for item in lst.iter() {
+        ctx.apply(func, item)?;
+    }
+    native_result(Value::Null)
+});
+
 native_op!(ListFilter, "list.filter", [func, lst], ctx, {
     let lst = lst.expect_list()?;
     let mut result: Vec<ValueRef> = Vec::new();
@@ -275,4 +283,5 @@ pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_native!(ListAll, env, inter);
     define_native!(ListFind, env, inter);
     define_native!(ListFindIndex, env, inter);
+    define_native!(ListIterate, env, inter);
 }
