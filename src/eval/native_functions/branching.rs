@@ -1,9 +1,6 @@
 use crate::{
     eval::{
-        error::RuntimeError,
-        evaluator::Interpretator,
-        value::{EnvRef, SpecialClosure, SpecialFn, Value, NativeContext},
-        EvalResult,
+        error::RuntimeError, evaluator::Interpretator, native_functions::native_result, value::{EnvRef, NativeContext, SpecialClosure, SpecialFn, Value}, EvalResult
     },
     parser::Expression, special_op,
 };
@@ -93,6 +90,19 @@ special_op!(If, "if", args, ctx, {
         }
 });
 
-pub fn bind_special_module(env: &EnvRef, interpretator: Rc<Interpretator>) {
-    If::define(env, interpretator);
+special_op!(While, "while", args, ctx, {
+    let pred_fn = ctx.inter.eval_expr(&args[0], &ctx.env)?;
+
+    let void = Rc::new(Value::Null);
+    loop {
+        let should_continue = ctx.inter.apply_fn(&pred_fn, &void)?.expect_bool()?;
+        if !should_continue {
+            return native_result(Value::Null);
+        }
+    }
+});
+
+pub fn bind_special_module(env: &EnvRef, inter: Rc<Interpretator>) {
+    If::define(&env, Rc::clone(&inter));
+    While::define(env, inter);
 }

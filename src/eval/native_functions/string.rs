@@ -15,13 +15,7 @@ native_op!(MakeString, "string", [x], {
     native_result(match x.as_ref() {
         Value::Number(n) => Value::String(n.to_string()),
         Value::String(s) => Value::String(s.clone()),
-        Value::Object(_) => Value::String("[object]".to_string()),
-        Value::List(_) => Value::String("[list]".to_string()),
-        Value::Null => Value::String("[null]".to_string()),
-        Value::Lambda(_) | Value::SpecialForm(_) | Value::NativeLambda(_) => {
-            Value::String("[lambda]".to_string())
-        }
-        _ => Value::String("".to_string()),
+        _ => Value::String(x.to_string()),
     })
 });
 
@@ -102,7 +96,7 @@ native_op!(StringReplace, "string.replace", [from, to, s], {
 
 native_op!(StringLength, "string.len", [s], {
     let s = s.expect_string()?;
-    native_result(Value::Number(s.len() as f64))
+    native_result(Value::Number(s.chars().count() as f64))
 });
 
 native_op!(StringCharAt, "string.at", [idx, s], {

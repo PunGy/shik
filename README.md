@@ -161,6 +161,90 @@ if (= shell.cwd :/) $
     print "nah"
 ```
 
+## Function arguments position rule
+
+Argument position is always a controversary topic. In `shik`, argument position plays crucial role, since everything is a function, and everything automatically curried.
+
+The ultimate goal of `shik` is to write minimal amount of code. So, the agrument position designed to utilize currying at a maximum. In order to achieve it, the following rules applied:
+
+### Mutation: into the PLACE put SOMETHING
+
+When `mutation` is applied, first comes the destination of the mutation, and next is the payload. In case if `place` have a parts (`index` in `list`). The argument sequence is:
+
+```
+PLACE: from MOST specific, to LEAST specific
+
+;; SET: INDEX , LIST , VALUE
+list.set 0 lst 10
+```
+
+Examples:
+
+```shik
+;; LIST
+
+var lst [ 0 1 2 3 ]
+
+list.push lst 4
+list.set 0 lst -1
+
+;; FILES
+
+var dir :./copy-dest
+
+; PLACE , CONTENT
+file.copy dir :local-file.txt
+file.write :local-file.txt "new content"
+
+;;;; why?
+
+let files (file.glob ./src/**.ts)
+
+files $> list.iterate (file.copy dir) ;; copy each file from files to `dir`
+```
+
+### Numeric operations: apply MUTATOR to the BASE
+
+The most unintuitive and controversal decicion, but tho I made it: for all non-associative operations (`-`, `/`, `%`, etc), the first goes the `mutation` part, and then the `base`:
+
+```shik
+print $ - 1 5  ; 4
+
+print $ / 2 10 ; 5
+
+print $ ^ 3 5  ; 125
+```
+
+The reason is again the ease of use with currying: **associative** and **non-associative** must be written in the **same way** with currying.
+
+```shik
+let lst [ 1 2 3 4 ]
+
+lst $> list.map $ + 1 ; [ 2 3 4  5 ]
+lst $> list.map $ - 1 ; [ 0 1 2  3 ]
+lst $> list.map $ ^ 2 ; [ 1 4 9 16 ]
+lst $> list.map $ * 2 ; [ 2 4 6  8 ]
+```
+
+### Read value: read HOW from WHERE
+
+When we want to read something, we use an opposite logic from the mutation: first come is `HOW` we want to read, then from `WHERE` we want to read it:
+
+```shik
+let lst [ 1 2 3 4 ]
+
+list.at 0 lst
+
+;; HOW to iterate LST
+list.iterate print lst
+
+string.has :a :bbaa
+
+;; Although it might be correct to suppose the `map` should be in a `mutate` field of rules, since it generates something from something, the primary here is PEEKING the content, and only then the application
+list.map (+ 1) lst
+```
+
+
 ## Building for Distribution
 
 See [DISTRIBUTION.md](DISTRIBUTION.md) for detailed instructions on building release binaries for multiple platforms.

@@ -217,7 +217,10 @@ mod tests {
                         }
                         // function should be App(x, y)
                         match &**function {
-                            Expression::Application { function: inner_fn, argument: inner_arg } => {
+                            Expression::Application {
+                                function: inner_fn,
+                                argument: inner_arg,
+                            } => {
                                 match &**inner_fn {
                                     Expression::Identifier(name) => assert_eq!(name, "x"),
                                     _ => panic!("Expected identifier x"),
@@ -565,16 +568,16 @@ mod tests {
         //
         // NOT as:
         // Application { function: if, argument: Chain { left: true, right: Application(print, 1) } }
-        
+
         let input = "'(\n  if true $\n    print 1\n)";
         let result = parse(input).unwrap();
-        
+
         assert_eq!(result.statements.len(), 1);
-        
+
         match &result.statements[0].expression {
             Expression::Block(exprs) => {
                 assert_eq!(exprs.len(), 1);
-                
+
                 match &exprs[0] {
                     Expression::Chain { left, right } => {
                         // Left side should be: Application(if, true)
@@ -589,9 +592,11 @@ mod tests {
                                     _ => panic!("Expected 'true' identifier as argument"),
                                 }
                             }
-                            _ => panic!("Expected Application on left side of Chain, got {:?}", left),
+                            _ => {
+                                panic!("Expected Application on left side of Chain, got {:?}", left)
+                            }
                         }
-                        
+
                         // Right side should be: Application(print, 1)
                         match &**right {
                             Expression::Application { function, argument } => {
@@ -604,7 +609,10 @@ mod tests {
                                     _ => panic!("Expected number 1 as argument"),
                                 }
                             }
-                            _ => panic!("Expected Application on right side of Chain, got {:?}", right),
+                            _ => panic!(
+                                "Expected Application on right side of Chain, got {:?}",
+                                right
+                            ),
                         }
                     }
                     _ => panic!("Expected Chain expression in block, got {:?}", exprs[0]),
@@ -619,13 +627,13 @@ mod tests {
         // Same test but on a single line within the block
         let input = "'(\n  a b $ c d\n)";
         let result = parse(input).unwrap();
-        
+
         assert_eq!(result.statements.len(), 1);
-        
+
         match &result.statements[0].expression {
             Expression::Block(exprs) => {
                 assert_eq!(exprs.len(), 1);
-                
+
                 match &exprs[0] {
                     Expression::Chain { left, right } => {
                         // Left: Application(a, b)
@@ -642,7 +650,7 @@ mod tests {
                             }
                             _ => panic!("Expected Application on left"),
                         }
-                        
+
                         // Right: Application(c, d)
                         match &**right {
                             Expression::Application { function, argument } => {
@@ -670,13 +678,13 @@ mod tests {
         // Same test for lazy blocks
         let input = "#(\n  if true $\n    print 1\n)";
         let result = parse(input).unwrap();
-        
+
         assert_eq!(result.statements.len(), 1);
-        
+
         match &result.statements[0].expression {
             Expression::Lazy(exprs) => {
                 assert_eq!(exprs.len(), 1);
-                
+
                 match &exprs[0] {
                     Expression::Chain { left, right } => {
                         match &**left {
@@ -701,13 +709,13 @@ mod tests {
         // Should parse as: Pipe { left: Chain { left: App(a,b), right: App(c,d) }, right: App(e,f) }
         let input = "'(\n  a b $ c d $> e f\n)";
         let result = parse(input).unwrap();
-        
+
         assert_eq!(result.statements.len(), 1);
-        
+
         match &result.statements[0].expression {
             Expression::Block(exprs) => {
                 assert_eq!(exprs.len(), 1);
-                
+
                 match &exprs[0] {
                     Expression::Pipe { left, right } => {
                         // Left should be Chain { left: App(a,b), right: App(c,d) }

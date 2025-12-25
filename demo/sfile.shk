@@ -1,13 +1,13 @@
 file.glob "./*" $>
   list.filter file.is-file $>
   list.filter (fn [f] file.read f $> string.has "- links") $>
-  list.foreach (fn [f] file.move f :topics)
+  list.iterate (file.move :topics)
 
 
 ;; analog
 
-  filter (fn [f] and (file.is-file f) (file.read f $> string.has "- links" f))
+;;  filter (fn [f] and (file.is-file f) (file.read f $> string.has "- links" f))
 
 ;; analog 2 (#{number} syntax)
 
-  filter #(and (file.is-file #1) (file.read #1 $> string))
+;;  filter #(and (file.is-file #1) (file.read #1 $> string))

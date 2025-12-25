@@ -1,7 +1,23 @@
-if false $
-    (print 1) $
-   false  $
-    (print 2) $
-   false $
-   (print 3)
-   (print "nothing")
+let name (shell.ask "Enter the name: ")
+let name-len (string.len name)
+
+print name-len
+
+if (< name-len 4) $
+     (print "Such a short name!") $
+   (< name-len 8)  $
+     (print "Mid size name, okay") $
+   (< name-len 11) $
+     (print "Whoah, big name you have") $
+     (print "What?? Is that a name?")
+
+print "\n---\n"
+
+let x 10
+print "iterate from 10 to 0 with `while`"
+
+while (fn [] '(
+  set x (- 1 x)
+  print "x: {x}"
+  > x 0
+))

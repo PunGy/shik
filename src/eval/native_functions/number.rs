@@ -18,7 +18,7 @@ native_op!(Plus, "number.+", [x, y], {
     native_result(Value::Number(x + y))
 });
 
-native_op!(Minus, ["-", "number.-"], [x, y], {
+native_op!(Minus, ["-", "number.-"], [y, x], {
     let x = x.expect_number()?;
     let y = y.expect_number()?;
 
@@ -32,14 +32,14 @@ native_op!(Multiply, ["*", "number.*"], [x, y], {
     native_result(Value::Number(x * y))
 });
 
-native_op!(Divide, ["/", "number./"], [x, y], {
+native_op!(Divide, ["/", "number./"], [y, x], {
     let x = x.expect_number()?;
     let y = y.expect_number()?;
 
     native_result(Value::Number(x / y))
 });
 
-native_op!(Mod, ["%", "number.%"], [x, y], {
+native_op!(Mod, ["%", "number.%"], [y, x], {
     let x = x.expect_number()?;
     let y = y.expect_number()?;
     native_result(Value::Number(x % y))
@@ -77,7 +77,7 @@ native_op!(Max, "number.max", [x, y], {
     native_result(Value::Number(x.max(y)))
 });
 
-native_op!(Pow, ["^", "number.pow"], [base, exp], {
+native_op!(Pow, ["^", "number.pow"], [exp, base], {
     let base = base.expect_number()?;
     let exp = exp.expect_number()?;
     native_result(Value::Number(base.powf(exp)))

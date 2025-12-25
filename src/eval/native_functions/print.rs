@@ -12,7 +12,7 @@ use crate::{
 use std::rc::Rc;
 
 native_op!(Print, "print", [arg], {
-    println!("{}", arg);
+    println!("{}", arg.to_string());
 
     native_result(Value::Null)
 });

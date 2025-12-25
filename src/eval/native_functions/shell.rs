@@ -4,11 +4,17 @@ use crate::{
         error::{RuntimeError, ShikError},
         evaluator::Interpretator,
         native_functions::native_result,
-        value::{EnvRef, NativeClosure, NativeContext, NativeFn, Value, ValueRef},
+        value::{
+            EnvRef, NativeClosure, NativeContext, NativeFn, SpecialClosure, SpecialFn, Value,
+            ValueRef, ValueType,
+        },
         EvalResult,
     },
     native_op,
+    parser::Expression,
+    special_op,
 };
+use std::io::{self, Write};
 use std::collections::HashMap;
 use std::env;
 use std::process::{Command, Stdio};
@@ -40,7 +46,6 @@ native_op!(Shell, "shell", [cmd], {
         ))),
     }
 });
-
 
 // Execute a shell command, return exit code and show output in terminal
 // Usage: shell.code "ls -la"
@@ -193,6 +198,44 @@ native_op!(ShellLines, "shell.lines", [cmd], {
             e
         ))),
     }
+});
+
+// ============================================================================
+// Input/Output
+// ============================================================================
+
+special_op!(ShellRead, "shell.ask", args, ctx, {
+    if args.len() > 1 {
+        return Err(ShikError::default_error(
+            "shell.read expects 0 or 1 arguments".to_string(),
+        ));
+    }
+
+    // Optional prompt
+    if args.len() == 1 {
+        let prompt_val = ctx.inter.eval_expr(&args[0], &ctx.env)?;
+        let prompt = prompt_val.expect_string()?;
+
+        print!("{prompt}");
+        io::stdout()
+            .flush()
+            .map_err(|e| ShikError::default_error(format!("cannot write prompt: {}", e)))?;
+    }
+
+    // Read input
+    let mut line = String::new();
+    let n = io::stdin()
+        .read_line(&mut line)
+        .map_err(|e| ShikError::default_error(format!("cannot read from stdin: {}", e)))?;
+
+    // EOF
+    if n == 0 {
+        return native_result(Value::Null);
+    }
+
+    // Strip trailing newline(s)
+    let line = line.trim_end_matches(&['\r', '\n'][..]).to_string();
+    native_result(Value::String(line))
 });
 
 // ============================================================================
@@ -355,8 +398,8 @@ native_op!(ShellHas, "shell.has", [name], {
 // ============================================================================
 
 // Get current process ID
-// Usage: shell.pid
-native_op!(ProcessPid, "proccess.pid", [], {
+// Usage: process.pid
+native_op!(ProcessPid, "process.pid", [], {
     native_result(Value::Number(std::process::id() as f64))
 });
 
@@ -455,6 +498,9 @@ pub fn bind_shell_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_native!(ShellUnsetEnv, env, inter);
     define_native!(ShellEnvAll, env, inter);
 
+    // IO
+    ShellRead::define(env, Rc::clone(&inter));
+
     // Working directory
     define_native!(ShellCwd, env, inter);
     define_native!(ShellCd, env, inter);
@@ -478,4 +524,3 @@ pub fn bind_shell_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_native!(ProcessAbort, env, inter);
     define_native!(ProcessSleep, env, inter);
 }
-

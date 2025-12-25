@@ -2,7 +2,7 @@
 
 use crate::eval::error::RuntimeError;
 use crate::eval::evaluator::Interpretator;
-use crate::eval::value::ValueRef;
+use crate::eval::value::{Value, ValueRef};
 use crate::parser::{parse, ParseError};
 use thiserror::Error;
 
@@ -26,7 +26,10 @@ pub fn print(input: Result<ValueRef, EvalError>, silent: bool) {
     match input {
         Ok(res) => {
             if !silent {
-                println!("{}", res);
+                match res.as_ref() {
+                    Value::String(str) => println!("\"{}\"", str),
+                    _ => println!("{}", res),
+                };
             }
         }
         Err(e) => println!("{}", e),

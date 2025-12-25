@@ -4,10 +4,15 @@ use crate::{
         error::RuntimeError,
         evaluator::Interpretator,
         native_functions::native_result,
-        value::{EnvRef, NativeClosure, NativeContext, NativeFn, Value, ValueRef, ValueType},
+        value::{
+            EnvRef, NativeClosure, NativeContext, NativeFn, SpecialClosure, SpecialFn, Value,
+            ValueRef, ValueType,
+        },
         EvalResult,
     },
     native_op,
+    parser::Expression,
+    special_op,
 };
 use std::rc::Rc;
 
@@ -87,10 +92,29 @@ native_op!(ListIsEmpty, "list.empty?", [lst], {
     native_result(Value::Bool(lst.is_empty()))
 });
 
-native_op!(ListRange, "list.range", [start, end], {
-    let start = start.expect_number()? as i64;
-    let end = end.expect_number()? as i64;
+special_op!(ListRange, "list.range", args, ctx, {
+    let mut start = 0;
+    let mut end = 0;
+    let mut step = 1;
+
+    match args.len() {
+        1 => {
+            end = ctx.inter.eval_expr(&args[0], &ctx.env)?.expect_number()? as i64;
+        }
+        2 => {
+            start = ctx.inter.eval_expr(&args[0], &ctx.env)?.expect_number()? as i64;
+            end = ctx.inter.eval_expr(&args[1], &ctx.env)?.expect_number()? as i64;
+        }
+        3 => {
+            start = ctx.inter.eval_expr(&args[0], &ctx.env)?.expect_number()? as i64;
+            end = ctx.inter.eval_expr(&args[1], &ctx.env)?.expect_number()? as i64;
+            step = ctx.inter.eval_expr(&args[2], &ctx.env)?.expect_number()? as usize;
+        }
+        _ => return Err(RuntimeError::InvalidApplication),
+    }
+
     let result: Vec<ValueRef> = (start..end)
+        .step_by(step)
         .map(|n| Rc::new(Value::Number(n as f64)))
         .collect();
     native_result(Value::List(result))
@@ -130,13 +154,19 @@ native_op!(ListIterate, "list.iterate", [func, lst], ctx, {
     native_result(Value::Null)
 });
 
-native_op!(ListIterateBackward, ["list.iterate-backward", "list.<iterate"], [func, lst], ctx, {
-    let lst = lst.expect_list()?;
-    for item in lst.iter().rev() {
-        ctx.apply(func, item)?;
+native_op!(
+    ListIterateBackward,
+    ["list.iterate-backward", "list.<iterate"],
+    [func, lst],
+    ctx,
+    {
+        let lst = lst.expect_list()?;
+        for item in lst.iter().rev() {
+            ctx.apply(func, item)?;
+        }
+        native_result(Value::Null)
     }
-    native_result(Value::Null)
-});
+);
 
 native_op!(ListFilter, "list.filter", [func, lst], ctx, {
     let lst = lst.expect_list()?;
