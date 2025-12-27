@@ -38,7 +38,7 @@
                     "kind": "bin"
                 }
             },
-            "args": ["demo/factorial.shk"],
+            "args": ["invoke.shk"],
             "cwd": "${workspaceFolder}"
         },
         {

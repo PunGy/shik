@@ -6,7 +6,7 @@ use crate::{
         native_functions::native_result,
         value::{
             EnvRef, NativeClosure, NativeContext, NativeFn, SpecialClosure, SpecialFn, Value,
-            ValueRef, ValueType,
+            ValueRef,
         },
         EvalResult,
     },

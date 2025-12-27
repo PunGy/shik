@@ -94,7 +94,7 @@ native_op!(ListIsEmpty, "list.empty?", [lst], {
 
 special_op!(ListRange, "list.range", args, ctx, {
     let mut start = 0;
-    let mut end = 0;
+    let end;
     let mut step = 1;
 
     match args.len() {

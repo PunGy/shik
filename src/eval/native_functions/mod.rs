@@ -11,6 +11,7 @@ pub mod list;
 pub mod variables;
 pub mod shell;
 pub mod misc;
+pub mod function;
 
 use crate::eval::{value::Value, EvalResult};
 use std::rc::Rc;

@@ -3,7 +3,7 @@ use crate::{
     eval::{
         error::RuntimeError,
         evaluator::Interpretator,
-        native_functions::{list::{ListAt, ListIterate, ListIterateBackward}, native_result, number::Plus, string::{StringCharAt, StringConcat, StringIterate, StringIterateBackward}},
+        native_functions::{list::{ListAt, ListIterate, ListIterateBackward}, number::Plus, string::{StringCharAt, StringConcat, StringIterate, StringIterateBackward}},
         value::{EnvRef, NativeClosure, NativeContext, NativeFn, Value, ValueRef},
         EvalResult,
     },

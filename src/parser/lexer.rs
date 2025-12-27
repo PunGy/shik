@@ -7,7 +7,7 @@ fn is_digit(ch: Option<char>) -> bool {
     ch.map_or(false, |ch| ch.is_ascii_digit())
 }
 
-const IDENT_START_CHARSET: &str = "!@%^&*-=_+|?<>.$/";
+const IDENT_START_CHARSET: &str = "'!@%^&*-=_+|?<>.$/";
 const IDENT_CHARSET: &str = "!@%^&*-=_+|?<>$'.*#/";
 
 const INLINE_STRING_SEPARATOR: &str = "\n\r {}()[]";
@@ -104,11 +104,7 @@ impl Lexer {
                     self.advance(); // skip (
                     Token::open_block(line, start_column)
                 } else {
-                    return Err(ParseError::UnexpectedChar {
-                        char: ch,
-                        line,
-                        column: start_column,
-                    });
+                    return self.ident(start_column);
                 }
             }
 

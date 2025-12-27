@@ -32,6 +32,7 @@ pub enum Value {
 
     NativeLambda(NativeClosure),
     SpecialForm(SpecialClosure),
+    SpecialBoundForm(SpecialBoundClosure),
 
     Null,
 }
@@ -75,6 +76,15 @@ pub struct SpecialClosure {
     pub logic: Rc<dyn SpecialFn>,
 }
 
+#[derive(Debug)]
+pub struct SpecialBoundClosure {
+    pub params_count: usize,
+    pub binded: Vec<Expression>,
+    pub logic: Rc<dyn SpecialFn>,
+    pub inter: Rc<Interpretator>,
+    pub env: EnvRef,
+}
+
 impl NativeClosure {
     pub fn exec(&self) -> Result<Rc<Value>, RuntimeError> {
         let ctx = NativeContext {
@@ -109,6 +119,26 @@ impl SpecialClosure {
             params: Vec::new(),
             logic,
             interpretator,
+            env,
+        }
+    }
+}
+
+impl SpecialBoundClosure {
+    pub fn exec(&self) -> Result<Rc<Value>, RuntimeError> {
+        let mut ctx = NativeContext {
+            inter: &self.inter,
+            env: &self.env,
+        };
+        self.logic.exec(&self.binded, &mut ctx)
+    }
+
+    pub fn new(params_count: usize, logic: Rc<dyn SpecialFn>, inter: Rc<Interpretator>, env: EnvRef) -> Self {
+        Self {
+            params_count,
+            binded: Vec::new(),
+            logic,
+            inter,
             env,
         }
     }
@@ -228,7 +258,7 @@ impl Value {
             Value::String(_) => ValueType::String,
             Value::List(_) => ValueType::List,
             Value::Object(_) => ValueType::Object,
-            Value::Lambda(_) | Value::NativeLambda(_) | Value::SpecialForm(_) => ValueType::Lambda,
+            Value::Lambda(_) | Value::NativeLambda(_) | Value::SpecialForm(_) | Value::SpecialBoundForm(_) => ValueType::Lambda,
             Value::Bool(_) => ValueType::Bool,
             Value::Null => ValueType::Null,
         }
@@ -282,7 +312,7 @@ impl std::fmt::Display for Value {
                 }
                 write!(f, "}}")
             }
-            Value::NativeLambda(_) | Value::Lambda(_) | Value::SpecialForm(_) => {
+            Value::NativeLambda(_) | Value::Lambda(_) | Value::SpecialForm(_) | Value::SpecialBoundForm(_) => {
                 write!(f, "Lambda function")
             }
 

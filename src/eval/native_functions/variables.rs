@@ -1,13 +1,7 @@
 use crate::{
-    define_native,
-    eval::{
-        error::RuntimeError,
-        evaluator::Interpretator,
-        value::{EnvRef, NativeContext, SpecialClosure, SpecialFn, Value},
-        EvalResult,
-    },
-    parser::Expression,
-    special_op,
+    count_args, define_native, eval::{
+        error::RuntimeError, evaluator::Interpretator, native_functions::native_result, value::{EnvRef, NativeClosure, NativeContext, NativeFn, SpecialClosure, SpecialFn, Value, ValueRef}, EvalResult
+    }, native_op, parser::Expression, special_op
 };
 use std::rc::Rc;
 
@@ -24,6 +18,18 @@ special_op!(Var, "var", args, ctx, {
             Ok(val)
         }
         _ => return Err(RuntimeError::InvalidApplication),
+    }
+});
+
+native_op!(VarGet, "var.get", [name], ctx, {
+    let name = name.expect_string()?;
+    let var = ctx.env.lookup(name);
+
+    match var {
+        Some(var) => {
+            Ok(var)
+        }
+        _ => native_result(Value::Null),
     }
 });
 
@@ -46,4 +52,5 @@ special_op!(Set, "set", args, ctx, {
 pub fn bind_variable_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_native!(Var, env, inter);
     define_native!(Set, env, inter);
+    define_native!(VarGet, env, inter);
 }

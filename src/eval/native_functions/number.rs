@@ -10,6 +10,7 @@ use crate::{
     native_op,
 };
 use std::rc::Rc;
+use rand::prelude::*;
 
 native_op!(Plus, "number.+", [x, y], {
     let x = x.expect_number()?;
@@ -111,6 +112,12 @@ native_op!(Log, "number.log", [x], {
 native_op!(Log10, "number.log10", [x], {
     let x = x.expect_number()?;
     native_result(Value::Number(x.log10()))
+});
+
+native_op!(RandNumber, "number.rand", [], {
+    let mut rng = rand::rng();
+    let n = rng.random::<f64>();
+    native_result(Value::Number(n))
 });
 
 pub fn bind_number_module(env: &EnvRef, inter: Rc<Interpretator>) {

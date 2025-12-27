@@ -62,6 +62,69 @@ macro_rules! native_op {
 }
 
 #[macro_export]
+macro_rules! special_b_op {
+    ($name:ident, $fn_title:tt, [$($arg:ident),* $(,)?] $(, $ctx:ident)? , $body:block) => {
+        #[derive(Debug)]
+        pub struct $name;
+
+        impl SpecialFn for $name {
+            #[allow(unused_variables)]
+            fn exec(&self, args: &Vec<Expression>, __native_ctx: &NativeContext) -> EvalResult {
+                if args.len() != $crate::count_args!($($arg),*) {
+                    return Err(RuntimeError::InvalidApplication);
+                }
+
+                #[allow(unused_mut)]
+                let mut iter = args.iter();
+                $(let $arg: &Expression = iter.next().unwrap();)*
+
+                $crate::native_op!(@bind_ctx __native_ctx $(, $ctx)?);
+
+                paste::paste! {
+                    Self::run($($arg),* $(, $ctx)?)
+                }
+            }
+        }
+
+        paste::paste! {
+            impl $name {
+                // This is where the user-provided $body goes.
+                pub fn run(
+                    $($arg: &Expression),*
+                    $(, $ctx: &NativeContext)?
+                ) -> EvalResult {
+                    $body
+                }
+
+                pub fn define(env: &EnvRef, inter: Rc<Interpretator>) {
+                    let val = Rc::new(Value::SpecialBoundForm(SpecialBoundClosure::new(
+                        $crate::count_args!($($arg),*),
+                        Rc::new($name),
+                        inter,
+                        Rc::clone(env),
+                    )));
+                    $crate::special_b_op!(@define_titles env, val, $fn_title);
+                }
+            }
+        }
+    };
+
+    (@bind_ctx $native_ctx:ident, $ctx:ident) => { let $ctx = $native_ctx; };
+    (@bind_ctx $native_ctx:ident) => {};
+
+    (@define_titles $env:ident, $val:ident, [$($title:expr),+ $(,)?]) => {
+        $(
+            $env.define(($title).to_string(), Rc::clone(&$val));
+        )+
+    };
+
+    // One title SECOND (more general)
+    (@define_titles $env:ident, $val:ident, $title:expr) => {
+        $env.define(($title).to_string(), Rc::clone(&$val));
+    };
+}
+
+#[macro_export]
 macro_rules! special_op {
     ($name:ident, $fn_title:expr, $args:ident, $ctx:ident, $body:block) => {
         #[derive(Debug)]
