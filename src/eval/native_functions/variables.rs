@@ -5,7 +5,7 @@ use crate::{
 };
 use std::rc::Rc;
 
-special_op!(Var, "var", args, ctx, {
+special_op!(Let, "let", args, ctx, {
     let mut args_it = args.into_iter();
     let name = args_it.next().ok_or(RuntimeError::InvalidApplication)?;
 
@@ -50,7 +50,7 @@ special_op!(Set, "set", args, ctx, {
 });
 
 pub fn bind_variable_module(env: &EnvRef, inter: Rc<Interpretator>) {
-    define_native!(Var, env, inter);
+    define_native!(Let, env, inter);
     define_native!(Set, env, inter);
     define_native!(VarGet, env, inter);
 }

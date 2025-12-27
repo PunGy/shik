@@ -57,7 +57,7 @@ print (file.read :sample.txt) ;; SOME TEXT HERE
 ### Make curried writer and reader
 
 ```shik
-let file.reader (fn [name] (fn [] file.read name))
+let file.reader fn [name] (fn [] file.read name)
 
 let write (file.write :sample.txt)
 let read (file.reader :sample.txt)
@@ -82,7 +82,7 @@ file.glob :./src/**/*.rs $>
 ### String interpolation
 
 ```shik
-var greet (fn [name] "Hello, {string.upper name}!")
+let greet fn [name] "Hello, {string.upper name}!"
 
 print $ greet :max
 ```
@@ -100,12 +100,12 @@ Piping - left-to-right application:
 Example:
 
 ```shik
-var files (file.list "./") ;; [ "a.txt"  "b.txt" ]
+let files (file.list "./") ;; [ "a.txt"  "b.txt" ]
 list.map (fn [path] file.read path) (files) ;; [ 5012 3024 ]
 
 ;; Same with piping
 
-file.list "./" $> var files
+file.list "./" $> let files
 files $> list.map (fn [path] file.read path)
 
 ;; Same but one line and minimalistic strings and without new function
@@ -134,12 +134,12 @@ file.glob :./**/*.txt $>
 ```
 
 ```shik
-var files (file.list :./)
+let files (file.list :./)
 print (list.map string.upper files)
 
 ;; Same with $
 
-var files $ file.list :./
+let files $ file.list :./
 print $ list.map string.upper files
 ```
 
@@ -183,14 +183,14 @@ Examples:
 ```shik
 ;; LIST
 
-var lst [ 0 1 2 3 ]
+let lst [ 0 1 2 3 ]
 
 list.push lst 4
 list.set 0 lst -1
 
 ;; FILES
 
-var dir :./copy-dest
+let dir :./copy-dest
 
 ; PLACE , CONTENT
 file.copy dir :local-file.txt

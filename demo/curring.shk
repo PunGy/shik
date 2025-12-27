@@ -13,7 +13,7 @@ call read $> string.upper $> write $> call read ;; HELLO
 
 let file.reader fn [name] fn [] file.read name
 
-var write $ file.write :sample.txt
-var read $ file.reader :sample.txt
+let write $ file.write :sample.txt
+let read $ file.reader :sample.txt
 
 *}

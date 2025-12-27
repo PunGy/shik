@@ -547,7 +547,7 @@ impl Lexer {
         let lexeme: String = self.input[start..self.current].iter().collect();
 
         let token = match lexeme.as_str() {
-            "let" => Token::new(TokenType::Let, lexeme, self.line, start_column),
+            "let$" => Token::new(TokenType::Let, lexeme, self.line, start_column),
             "match" => Token::new(TokenType::Match, lexeme, self.line, start_column),
             "fn" => Token::new(TokenType::Fn, lexeme, self.line, start_column),
             _ => Token::ident(lexeme, self.line, start_column),
