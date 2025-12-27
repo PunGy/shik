@@ -5,6 +5,7 @@ use std::iter;
 use std::rc::Rc;
 
 use crate::eval::evaluator::Interpretator;
+use crate::eval::utils::pattern_match;
 use crate::{
     eval::error::RuntimeError,
     parser::{Expression, MatchPattern},
@@ -101,7 +102,12 @@ impl NativeClosure {
         self.logic.exec(&self.binded, &ctx)
     }
 
-    pub fn new(params_count: usize, logic: Rc<dyn NativeFn>, inter: Rc<Interpretator>, env: EnvRef) -> Self {
+    pub fn new(
+        params_count: usize,
+        logic: Rc<dyn NativeFn>,
+        inter: Rc<Interpretator>,
+        env: EnvRef,
+    ) -> Self {
         Self {
             params_count,
             binded: Vec::new(),
@@ -140,7 +146,12 @@ impl SpecialBoundClosure {
         self.logic.exec(&self.binded, &mut ctx)
     }
 
-    pub fn new(params_count: usize, logic: Rc<dyn SpecialFn>, inter: Rc<Interpretator>, env: EnvRef) -> Self {
+    pub fn new(
+        params_count: usize,
+        logic: Rc<dyn SpecialFn>,
+        inter: Rc<Interpretator>,
+        env: EnvRef,
+    ) -> Self {
         Self {
             params_count,
             binded: Vec::new(),
@@ -154,34 +165,37 @@ impl SpecialBoundClosure {
 #[derive(Clone, Debug)]
 pub struct Closure {
     pub params: Vec<MatchPattern>,
+    pub rest: Option<String>,
     pub binded: Vec<ValueRef>,
     pub body: Box<Expression>,
     pub env: EnvRef,
 }
 
 impl Closure {
-    pub fn new(params: Vec<MatchPattern>, body: Box<Expression>, env: EnvRef) -> Self {
+    pub fn new(
+        params: Vec<MatchPattern>,
+        rest: Option<String>,
+        body: Box<Expression>,
+        env: EnvRef,
+    ) -> Self {
         Self {
             params,
+            rest,
             binded: Vec::new(),
             body,
             env,
         }
     }
-    pub fn bind_variables(&self) {
-        for (p, v) in self
+    pub fn bind_variables(&self) -> Result<(), RuntimeError> {
+        for (pattern, val) in self
             .params
             .iter()
             .zip(self.binded.iter())
             .collect::<Vec<_>>()
         {
-            match &p {
-                MatchPattern::Identifier(id) => {
-                    self.env.define(id.clone(), Rc::clone(v));
-                }
-                _ => panic!("not support pattern matching yet"),
-            }
+            pattern_match(pattern, val, &self.env, &MatchContext::Lambda)?;
         }
+        return Ok(());
     }
 }
 
@@ -265,7 +279,10 @@ impl Value {
             Value::String(_) => ValueType::String,
             Value::List(_) => ValueType::List,
             Value::Object(_) => ValueType::Object,
-            Value::Lambda(_) | Value::NativeLambda(_) | Value::SpecialForm(_) | Value::SpecialBoundForm(_) => ValueType::Lambda,
+            Value::Lambda(_)
+            | Value::NativeLambda(_)
+            | Value::SpecialForm(_)
+            | Value::SpecialBoundForm(_) => ValueType::Lambda,
             Value::Bool(_) => ValueType::Bool,
             Value::Null => ValueType::Null,
         }
@@ -319,7 +336,10 @@ impl std::fmt::Display for Value {
                 }
                 write!(f, "}}")
             }
-            Value::NativeLambda(_) | Value::Lambda(_) | Value::SpecialForm(_) | Value::SpecialBoundForm(_) => {
+            Value::NativeLambda(_)
+            | Value::Lambda(_)
+            | Value::SpecialForm(_)
+            | Value::SpecialBoundForm(_) => {
                 write!(f, "Lambda function")
             }
 

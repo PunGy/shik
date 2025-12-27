@@ -1,0 +1,14 @@
+let lst1 [5 5 5
+          5 5 5]
+
+let lst2 [
+  5
+  5
+  5
+  5
+  5
+]
+
+print $ lst1 $> list.sum $> = (* 5 6)
+print $ lst2 $> list.sum $> = (* 5 5)
+
