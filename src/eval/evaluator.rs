@@ -10,12 +10,12 @@ use crate::{
             variables::bind_variable_module,
         },
         value::{
-            Closure, Env, EnvRef, NativeClosure, SpecialBoundClosure, SpecialClosure, Value,
-            ValueRef,
+            Closure, Env, EnvRef, MatchContext, NativeClosure, SpecialBoundClosure, SpecialClosure,
+            Value, ValueRef,
         },
         EvalResult,
     },
-    parser::{Expression, LetPattern, Program},
+    parser::{Expression, MatchPattern, Program},
 };
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
@@ -225,14 +225,10 @@ impl Interpretator {
                 body.clone(),
                 Rc::new(Env::new(Some(Rc::clone(env)))),
             )))),
-            Expression::Let { pattern, value } => match pattern {
-                LetPattern::Identifier(name) => {
-                    let val = self.expand(self.eval_expr(value, env)?)?;
-                    env.define(name.to_string(), Rc::clone(&val));
-                    Ok(val)
-                }
-                _ => Err(RuntimeError::NotYetImplemented(expr.clone())),
-            },
+            Expression::Let { pattern, value } => {
+                let val = self.expand(self.eval_expr(value, env)?)?;
+                self.pattern_match(pattern, &val, &env, &MatchContext::Let)
+            }
             Expression::Identifier(name) => {
                 env.lookup(name)
                     .map_or(
@@ -310,5 +306,53 @@ impl Interpretator {
             Value::SpecialForm(closure) => closure.exec(),
             _ => Ok(v),
         }
+    }
+
+    fn pattern_match(
+        &self,
+        pattern: &MatchPattern,
+        val: &ValueRef,
+        env: &EnvRef,
+        match_context: &MatchContext,
+    ) -> EvalResult {
+        match pattern {
+            MatchPattern::Identifier(name) => {
+                env.define(name.to_string(), Rc::clone(&val));
+            }
+            MatchPattern::List { patterns, rest } => {
+                let val_list = val.expect_list()?;
+
+                let mut last_inx = 0;
+                for (inx, pattern) in patterns.iter().enumerate() {
+                    last_inx = inx;
+                    let inner_val = val_list
+                        .get(inx)
+                        .ok_or_else(|| RuntimeError::InvalidPatternMatching)?;
+                    self.pattern_match(pattern, inner_val, env, &match_context)?;
+                }
+
+                match rest {
+                    Some(rest_name) => env.define(
+                        rest_name.clone(),
+                        Rc::new(Value::List(
+                            val_list[last_inx + 1..]
+                                .iter()
+                                .map(|v| Rc::clone(&v))
+                                .collect(),
+                        )),
+                    ),
+                    _ => (),
+                };
+            }
+            MatchPattern::Literal(literal_pattern) => match match_context {
+                MatchContext::Let => {
+                    return Err(RuntimeError::InvalidPatternMatching);
+                }
+                _ => (),
+            },
+            _ => (),
+        }
+
+        Ok(Rc::new(Value::Null))
     }
 }

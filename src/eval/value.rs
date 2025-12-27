@@ -37,6 +37,13 @@ pub enum Value {
     Null,
 }
 
+#[derive(Debug)]
+pub enum MatchContext {
+    Let,
+    Match,
+    Lambda,
+}
+
 pub type ValueRef = Rc<Value>;
 
 /// Context passed to native functions, providing access to the interpretator and environment

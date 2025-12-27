@@ -22,6 +22,7 @@ pub enum RuntimeError {
 
     MissmatchedTypes { got: ValueType, expected: ValueType },
     InvalidApplication,
+    InvalidPatternMatching,
     IndexOutOfBounds { index: usize },
 
     Custom(ShikError),
@@ -60,6 +61,12 @@ impl std::fmt::Display for RuntimeError {
                 write!(
                     f,
                     "EvaluationError: The application you are trying perform for some reason invalid..."
+                )
+            }
+            RuntimeError::InvalidPatternMatching => {
+                write!(
+                    f,
+                    "PatternMatching: Unable to match the pattern"
                 )
             }
             RuntimeError::Custom(err) => {

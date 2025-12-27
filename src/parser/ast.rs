@@ -42,7 +42,7 @@ pub enum Expression {
 
     // Special forms
     Let {
-        pattern: LetPattern,
+        pattern: MatchPattern,
         value: Box<Expression>,
     },
     Lambda {
@@ -77,15 +77,6 @@ pub struct Interpolation {
 pub struct ObjectItem {
     pub key: Expression,
     pub value: Expression,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum LetPattern {
-    Identifier(String),
-    List {
-        patterns: Vec<LetPattern>,
-        rest: Option<String>,
-    },
 }
 
 #[derive(Debug, Clone, PartialEq)]

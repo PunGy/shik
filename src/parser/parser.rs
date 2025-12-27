@@ -238,44 +238,10 @@ impl Parser {
     }
 
     fn parse_let_expression(&mut self) -> ParseResult<Expression> {
-        let pattern = self.parse_let_pattern()?;
+        let pattern = self.parse_match_pattern()?;
         let value = Box::new(self.parse_expression(Precedence::Lowest)?);
 
         Ok(Expression::Let { pattern, value })
-    }
-
-    fn parse_let_pattern(&mut self) -> ParseResult<LetPattern> {
-        match self.current_token_type_ref() {
-            Some(TokenType::Ident) => {
-                let name = self.current_lexeme().to_string();
-                self.advance();
-                Ok(LetPattern::Identifier(name))
-            }
-            Some(TokenType::LeftBracket) => {
-                self.advance();
-                let mut patterns = Vec::new();
-                let mut rest = None;
-
-                while !self.check_token(&TokenType::RightBracket) {
-                    if self.check_token(&TokenType::Hash) {
-                        self.advance();
-                        rest = Some(self.expect_identifier()?);
-                        break;
-                    }
-                    patterns.push(self.parse_let_pattern()?);
-                }
-
-                self.expect_token(TokenType::RightBracket)?;
-                Ok(LetPattern::List { patterns, rest })
-            }
-            _ => {
-                let token = self.current_token_cloned()?;
-                Err(ParseError::unexpected_token(
-                    token,
-                    "let pattern".to_string(),
-                ))
-            }
-        }
     }
 
     fn parse_lambda(&mut self) -> ParseResult<Expression> {
