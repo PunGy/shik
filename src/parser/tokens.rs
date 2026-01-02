@@ -23,7 +23,7 @@ pub enum TokenType {
     RightCurlyBracket, // }
 
     // Comment
-    BlockComment,
+    BlockComment,      // {* ... *}
     SingleLineComment, // ;
 
     OpenBlock, // '(

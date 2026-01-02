@@ -1,6 +1,13 @@
+{* without flow operator
 file.glob :./src/**/*.rs $>
   list.map file.read $>
   list.map (fn [c] string.lines c $> list.len) $>
+  list.sum $>
+  print
+*}
+
+file.glob :./src/**/*.rs $>
+  list.map (file.read #> string.lines #> list.len) $>
   list.sum $>
   print
 

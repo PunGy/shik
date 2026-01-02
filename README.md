@@ -34,8 +34,10 @@ shik
 ```
 
 ## Language Features
-- Pipeline operator (`$>`) for function composition
-- First-class functions and lambdas
+
+- Clear application rules with whitespace
+- First-class functions
+- Operators for arguments piping, function compositions and more
 - Pattern matching capabilities (in progress)
 - Rich standard library for working with system
 
@@ -159,6 +161,26 @@ It is also allow you to extend the function application to the next line:
 if (= shell.cwd :/) $
     print "You are on the root!" $
     print "nah"
+```
+
+## Composition operator
+
+TBD
+
+```shik
+let inc $ + 1
+
+let inc3 (inc #> inc #> inc)
+
+print $ inc  0 ;; 1
+print $ inc3 0 ;; 3
+
+
+let read-lines (file.read #> string.lines)
+;; same for
+; let read-lines (fn [path] file.read path $> string.lines)
+
+read-lines :.gitignore ;; [ :target :docs :releases ]
 ```
 
 ## Prescedence

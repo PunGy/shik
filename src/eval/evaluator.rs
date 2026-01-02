@@ -1,18 +1,22 @@
 /// Tree-walk interpretator
 use crate::{
     eval::{
-        error::RuntimeError, native_functions::{
+        error::RuntimeError,
+        native_functions::{
             bool::bind_bool_module, branching::bind_special_module, file::bind_file_module,
             function::bind_function_module, keywords::bind_keywords_module, list::bind_list_module,
             misc::bind_misc_module, number::bind_number_module, polymorphic::bind_poly_module,
             print::bind_print_module, shell::bind_shell_module, string::bind_string_module,
             variables::bind_variable_module,
-        }, utils::pattern_match, value::{
+        },
+        utils::pattern_match,
+        value::{
             Closure, Env, EnvRef, MatchContext, NativeClosure, SpecialBoundClosure, SpecialClosure,
             Value, ValueRef,
-        }, EvalResult
+        },
+        EvalResult,
     },
-    parser::{Expression, Program},
+    parser::{Expression, MatchPattern, Program},
 };
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
@@ -247,6 +251,30 @@ impl Interpretator {
                             _ => Ok(val),
                         },
                     )
+            }
+            Expression::Flow { left, right } => {
+                let mut params: Vec<MatchPattern> = Vec::new();
+                let param = MatchPattern::Identifier("x".to_string());
+                params.push(param);
+
+                // Flow { left: Identifier("inc"), right: Identifier("inc") }
+                // Lambda { parameters: [Identifier("x")], rest: None, body: Application { function: Identifier("inc"), argument: Application { function: Identifier("inc"), argument: Identifier("x") } } }
+                let body = Expression::Application {
+                    function: right.clone(),
+                    argument: Box::new(Expression::Application {
+                        function: left.clone(),
+                        argument: Box::new(Expression::Identifier("x".to_string())),
+                    }),
+                };
+
+                let composed = Value::Lambda(Closure {
+                    params,
+                    rest: None,
+                    binded: Vec::new(),
+                    body: Box::new(body),
+                    env: Rc::clone(&env),
+                });
+                Ok(Rc::new(composed))
             }
             e => Err(RuntimeError::NotYetImplemented(e.clone())),
         }

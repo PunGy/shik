@@ -3,7 +3,7 @@
 use crate::eval::error::RuntimeError;
 use crate::eval::evaluator::Interpretator;
 use crate::eval::value::{Value, ValueRef};
-use crate::parser::{parse, ParseError};
+use crate::parser::{parse, ParseError, Program};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -36,7 +36,18 @@ pub fn print(input: Result<ValueRef, EvalError>, silent: bool) {
     }
 }
 
-pub fn run_repl() {
+pub fn print_ast(input: Result<Program, ParseError>) {
+    match input {
+        Ok(res) => {
+            println!("{:?}", res);
+        },
+        Err(err) => {
+            println!("Error: {:?}", err);
+        }
+    }
+}
+
+pub fn run_repl(mode: Option<String>) {
     use std::io::{self, Write};
 
     println!("=== SHIK ===");
@@ -71,7 +82,12 @@ pub fn run_repl() {
             "" => {
                 // Empty input, just continue
             }
-            _ => print(evaluate(input, &interpretator), false),
+            _ => match mode.as_deref() {
+                Some("ast") => {
+                    print_ast(parse(input));
+                },
+                _ => print(evaluate(input, &interpretator), false),
+            },
         }
     }
 }
