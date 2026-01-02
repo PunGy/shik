@@ -13,3 +13,6 @@ let obj1 {
 
 print $ [ lst1 lst2 obj1 ]
 
+[1 2 3] $>
+    list.iterate fn [n] print "number: {n}"
+

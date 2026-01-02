@@ -82,9 +82,9 @@ file.glob :./src/**/*.rs $>
 ### String interpolation
 
 ```shik
-let greet fn [name] "Hello, {string.upper name}!"
+let greet (fn [name] "Hello, {string.upper name}!")
 
-print $ greet :max
+print $ greet :max ;; Hello, MAX!
 ```
 
 ## Application operators
@@ -101,16 +101,16 @@ Example:
 
 ```shik
 let files (file.list "./") ;; [ "a.txt"  "b.txt" ]
-list.map (fn [path] file.read path) (files) ;; [ 5012 3024 ]
+list.map (fn [path] file.size path) (files) ;; [ 5012 3024 ]
 
 ;; Same with piping
 
 file.list "./" $> let files
-files $> list.map (fn [path] file.read path)
+files $> list.map (fn [path] file.size path)
 
 ;; Same but one line and minimalistic strings and without new function
 
-file.list :./ $> list.map file.read
+file.list :./ $> list.map file.size
 ```
 
 `$>` operator can also continue application on the next line (must be at the end of the line):
@@ -159,6 +159,26 @@ It is also allow you to extend the function application to the next line:
 if (= shell.cwd :/) $
     print "You are on the root!" $
     print "nah"
+```
+
+## Prescedence
+
+From lowest to highest:
+
+- `$>` operator: lowest prescedence
+- `$` operator
+- ` `: function application via whitespace
+- `#>`: function composition, highest prescedence
+
+### Special notes
+
+Declaration of the labmda with `fn` is not a usual function, and it is always tighten together and treated as a single value, so, there is no need to wrap `fn [] ...` with parantesis:
+
+```shik
+let say-hello fn [name] "hello my neighbour {name}!"
+
+[1 2 3] $>
+    list.iterate fn [n] print "number: {n}"
 ```
 
 ## Function arguments position rule
