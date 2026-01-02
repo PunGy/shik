@@ -227,6 +227,10 @@ impl Parser {
                 self.advance();
                 self.parse_object()
             }
+            Some(TokenType::Newline) => {
+                self.advance();
+                self.parse_primary()
+            }
             _ => {
                 let token = self.current_token_cloned()?;
                 Err(ParseError::unexpected_token(
@@ -447,6 +451,10 @@ impl Parser {
         let mut items = Vec::new();
 
         while !self.check_token(&TokenType::RightBracket) && !self.is_at_end() {
+            if self.is_newline() {
+                self.advance();
+                continue;
+            }
             items.push(self.parse_primary()?);
         }
 
@@ -458,6 +466,10 @@ impl Parser {
         let mut items = Vec::new();
 
         while !self.check_token(&TokenType::RightCurlyBracket) && !self.is_at_end() {
+            if self.is_newline() {
+                self.advance();
+                continue;
+            }
             let key = self.parse_primary()?;
             let value = self.parse_primary()?;
             items.push(ObjectItem { key, value });
