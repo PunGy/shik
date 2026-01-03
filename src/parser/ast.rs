@@ -50,6 +50,7 @@ pub enum Expression {
         rest: Option<String>,
         body: Box<Expression>,
     },
+    Match(Vec<MatchItem>),
 
     // Grouping
     Parenthesized(Box<Expression>),
@@ -77,6 +78,12 @@ pub struct Interpolation {
 pub struct ObjectItem {
     pub key: Expression,
     pub value: Expression,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MatchItem {
+    pub pattern: MatchPattern,
+    pub resolve: Expression,
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -205,6 +205,10 @@ impl Parser {
                 self.advance();
                 self.parse_lambda()
             }
+            Some(TokenType::Match) => {
+                self.advance();
+                self.parse_match_expression()
+            }
             Some(TokenType::LeftParen) => {
                 self.advance();
                 let expr = self.parse_expression(Precedence::Lowest)?;
@@ -246,6 +250,28 @@ impl Parser {
         let value = Box::new(self.parse_expression(Precedence::Lowest)?);
 
         Ok(Expression::Let { pattern, value })
+    }
+
+    fn parse_match_expression(&mut self) -> ParseResult<Expression> {
+        let mut items: Vec<MatchItem> = Vec::new();
+
+        self.expect_token(TokenType::LeftCurlyBracket)?;
+
+        while !self.check_token(&TokenType::RightCurlyBracket) && !self.is_at_end() {
+            if self.is_newline() {
+                self.advance();
+                continue;
+            }
+
+            let pattern = self.parse_match_pattern()?;
+            let resolve = self.parse_primary()?;
+
+            items.push(MatchItem { pattern, resolve });
+        }
+
+        self.expect_token(TokenType::RightCurlyBracket)?;
+
+        Ok(Expression::Match(items))
     }
 
     fn parse_lambda(&mut self) -> ParseResult<Expression> {
