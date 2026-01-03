@@ -253,7 +253,9 @@ impl Parser {
     }
 
     fn parse_match_expression(&mut self) -> ParseResult<Expression> {
-        let mut items: Vec<MatchItem> = Vec::new();
+        let item = Box::new(self.parse_primary()?);
+
+        let mut entries: Vec<MatchItem> = Vec::new();
 
         self.expect_token(TokenType::LeftCurlyBracket)?;
 
@@ -266,12 +268,12 @@ impl Parser {
             let pattern = self.parse_match_pattern()?;
             let resolve = self.parse_primary()?;
 
-            items.push(MatchItem { pattern, resolve });
+            entries.push(MatchItem { pattern, resolve });
         }
 
         self.expect_token(TokenType::RightCurlyBracket)?;
 
-        Ok(Expression::Match(items))
+        Ok(Expression::Match { item, entries })
     }
 
     fn parse_lambda(&mut self) -> ParseResult<Expression> {
@@ -339,6 +341,13 @@ impl Parser {
 
                 self.expect_token(TokenType::RightBracket)?;
                 Ok(MatchPattern::List { patterns, rest })
+            }
+            Some(TokenType::Hash) => {
+                self.advance();
+                let token = self.expect_token(TokenType::Ident)?;
+                let name = token.lexeme.to_string();
+
+                Ok(MatchPattern::NamedWildcard(name))
             }
             _ => {
                 let token = self.current_token_cloned()?;

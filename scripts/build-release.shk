@@ -25,7 +25,7 @@ var platform $ match "{os}-{arch}" {
   :Darwin-x86_64 :macos-x86_64
   :Linux-x86_64 :macos-x86_64
   :Linux-aarch64 :linux-aarch64
-  pl pl
+  #pl pl
 }
 
 var archive-name "{project-name}-v{version}-{platform}"

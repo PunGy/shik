@@ -5,7 +5,7 @@ use std::iter;
 use std::rc::Rc;
 
 use crate::eval::evaluator::Interpretator;
-use crate::eval::utils::pattern_match;
+use crate::eval::utils::define_match;
 use crate::{
     eval::error::RuntimeError,
     parser::{Expression, MatchPattern},
@@ -41,7 +41,6 @@ pub enum Value {
 #[derive(Debug)]
 pub enum MatchContext {
     Let,
-    Match,
     Lambda,
 }
 
@@ -193,7 +192,7 @@ impl Closure {
             .zip(self.binded.iter())
             .collect::<Vec<_>>()
         {
-            pattern_match(pattern, val, &self.env, &MatchContext::Lambda)?;
+            define_match(pattern, val, &self.env, &MatchContext::Lambda)?;
         }
         return Ok(());
     }

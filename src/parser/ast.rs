@@ -50,7 +50,10 @@ pub enum Expression {
         rest: Option<String>,
         body: Box<Expression>,
     },
-    Match(Vec<MatchItem>),
+    Match {
+        item: Box<Expression>,
+        entries: Vec<MatchItem>,
+    },
 
     // Grouping
     Parenthesized(Box<Expression>),
@@ -94,6 +97,7 @@ pub enum MatchPattern {
         patterns: Vec<MatchPattern>,
         rest: Option<String>,
     },
+    NamedWildcard(String),
     Wildcard,
 }
 

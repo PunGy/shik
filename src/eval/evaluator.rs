@@ -3,13 +3,21 @@ use crate::{
     eval::{
         error::RuntimeError,
         native_functions::{
-            bool::bind_bool_module, branching::bind_special_module, file::bind_file_module,
-            function::bind_function_module, keywords::bind_keywords_module, list::bind_list_module,
-            misc::bind_misc_module, number::bind_number_module, polymorphic::bind_poly_module,
-            print::bind_print_module, shell::bind_shell_module, string::bind_string_module,
+            bool::{bind_bool_module, Eq},
+            branching::bind_special_module,
+            file::bind_file_module,
+            function::bind_function_module,
+            keywords::bind_keywords_module,
+            list::bind_list_module,
+            misc::bind_misc_module,
+            number::bind_number_module,
+            polymorphic::bind_poly_module,
+            print::bind_print_module,
+            shell::bind_shell_module,
+            string::bind_string_module,
             variables::bind_variable_module,
         },
-        utils::pattern_match,
+        utils::{define_match, pattern_match},
         value::{
             Closure, Env, EnvRef, MatchContext, NativeClosure, SpecialBoundClosure, SpecialClosure,
             Value, ValueRef,
@@ -228,30 +236,35 @@ impl Interpretator {
             )))),
             Expression::Let { pattern, value } => {
                 let val = self.expand(self.eval_expr(value, env)?)?;
-                pattern_match(pattern, &val, &env, &MatchContext::Let)
+                define_match(pattern, &val, &env, &MatchContext::Let)
             }
-            Expression::Identifier(name) => {
-                env.lookup(name)
-                    .map_or(
-                        Err(RuntimeError::UndefinedVariable(name.clone())),
-                        |val| match val.as_ref() {
-                            Value::Lambda(closure) => {
-                                let quoted = self.ctx.borrow().quoted;
-                                if closure.params.len() == 0 && !quoted {
-                                    return self.eval_expr(&closure.body, &closure.env);
-                                }
-                                Ok(val)
+            Expression::Match { item, entries } => {
+                let item_val = self.eval_expr(item, &env)?;
+
+                for entry in entries {
+                    let pattern = &entry.pattern;
+                    match pattern {
+                        MatchPattern::Identifier(ident) => {
+                            let val = self.lookup(&ident, &env)?;
+                            if self.val_compare(&item_val, &val)? {
+                                return self.eval_expr(&entry.resolve, &env);
                             }
-                            Value::NativeLambda(closure) => {
-                                if closure.params_count == 0 {
-                                    return closure.exec();
-                                }
-                                Ok(val)
+                        }
+                        MatchPattern::NamedWildcard(ident) => {
+                            env.define(ident.to_string(), Rc::clone(&item_val));
+                            return self.eval_expr(&entry.resolve, &env);
+                        }
+                        _ => {
+                            if pattern_match(pattern, &item_val, &env)? {
+                                return self.eval_expr(&entry.resolve, &env);
                             }
-                            _ => Ok(val),
-                        },
-                    )
+                        }
+                    }
+                }
+
+                Ok(Rc::new(Value::Null))
             }
+            Expression::Identifier(name) => self.lookup(name, &env),
             Expression::Flow { left, right } => {
                 let mut params: Vec<MatchPattern> = Vec::new();
                 let param = MatchPattern::Identifier("x".to_string());
@@ -330,5 +343,31 @@ impl Interpretator {
             Value::SpecialForm(closure) => closure.exec(),
             _ => Ok(v),
         }
+    }
+
+    fn lookup(&self, name: &String, env: &EnvRef) -> EvalResult {
+        env.lookup(name).map_or(
+            Err(RuntimeError::UndefinedVariable(name.clone())),
+            |val| match val.as_ref() {
+                Value::Lambda(closure) => {
+                    let quoted = self.ctx.borrow().quoted;
+                    if closure.params.len() == 0 && !quoted {
+                        return self.eval_expr(&closure.body, &closure.env);
+                    }
+                    Ok(val)
+                }
+                Value::NativeLambda(closure) => {
+                    if closure.params_count == 0 {
+                        return closure.exec();
+                    }
+                    Ok(val)
+                }
+                _ => Ok(val),
+            },
+        )
+    }
+
+    fn val_compare(&self, val1: &ValueRef, val2: &ValueRef) -> Result<bool, RuntimeError> {
+        Eq::run(val1, val2)?.expect_bool()
     }
 }
