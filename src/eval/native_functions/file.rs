@@ -1,5 +1,5 @@
 use crate::{
-    count_args, define_native, define_help,
+    count_args, define_help, define_native,
     eval::{
         error::{RuntimeError, ShikError},
         evaluator::Interpretator,
@@ -140,16 +140,28 @@ native_op!(FileWriteBytes, "file.write-bytes", [path, bytes], {
 // ============================================================================
 
 // Copy file or directory
-// Usage: file.copy "source" "destination"
+// Usage: file.copy "destination" "source"
 native_op!(FileCopy, ["file.copy", "file.cp"], [dst, src], {
     let src = src.expect_string()?;
     let dst = dst.expect_string()?;
 
     let src_path = Path::new(src);
-    if src_path.is_dir() {
-        copy_dir_recursive(src_path, Path::new(dst))?;
+    let dst_path = Path::new(dst);
+
+    // if destination is an existing directory, move source into it
+    let final_dst = if dst_path.is_dir() {
+        match src_path.file_name() {
+            Some(name) => dst_path.join(name),
+            None => return Err(ShikError::default_error("invalid source path".to_string())),
+        }
     } else {
-        fs::copy(src, dst)
+        dst_path.to_path_buf()
+    };
+
+    if src_path.is_dir() {
+        copy_dir_recursive(src_path, &final_dst)?;
+    } else {
+        fs::copy(src_path, &final_dst)
             .map_err(|e| ShikError::default_error(format!("cannot copy file: {}", e)))?;
     }
 
@@ -162,7 +174,20 @@ native_op!(FileMove, ["file.move", "file.mv"], [dst, src], {
     let src = src.expect_string()?;
     let dst = dst.expect_string()?;
 
-    fs::rename(src, dst)
+    let src_path = Path::new(src);
+    let dst_path = Path::new(dst);
+
+    // if destination is an existing directory, move source into it
+    let final_dst = if dst_path.is_dir() {
+        match src_path.file_name() {
+            Some(name) => dst_path.join(name),
+            None => return Err(ShikError::default_error("invalid source path".to_string())),
+        }
+    } else {
+        dst_path.to_path_buf()
+    };
+
+    fs::rename(src_path, &final_dst)
         .map_err(|e| ShikError::default_error(format!("cannot move file: {}", e)))?;
 
     native_result(Value::Null)
@@ -582,7 +607,9 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), RuntimeError> {
 
 pub fn bind_file_module(env: &EnvRef, inter: Rc<Interpretator>) {
     // Module help
-    env.define_help("file.".to_string(), "file module:
+    env.define_help(
+        "file.".to_string(),
+        "file module:
 
 Reading:
 - file.read: reads file as string
@@ -623,77 +650,135 @@ Symlinks:
 - file.read-link: reads symlink target
 
 Other:
-- file.temp-dir: returns temp directory".to_string());
+- file.temp-dir: returns temp directory"
+            .to_string(),
+    );
 
-    env.define_help("path.".to_string(), "path module:
+    env.define_help(
+        "path.".to_string(),
+        "path module:
 
 - path.name: extracts file name
 - path.stem: extracts name without extension
 - path.ext: extracts extension
 - path.parent: extracts parent directory
 - path.join: joins path components
-- path.absolute: converts to absolute path".to_string());
+- path.absolute: converts to absolute path"
+            .to_string(),
+    );
 
     // Reading
     define_native!(FileRead, env, inter);
-    define_help!(FileRead, env, "[string]: reads file contents as string\n\nfile.read \"config.txt\"");
+    define_help!(
+        FileRead,
+        env,
+        "[string]: reads file contents as string\n\nfile.read \"config.txt\""
+    );
 
     define_native!(FileTryRead, env, inter);
-    define_help!(FileTryRead, env, "[string]: tries to read file, returns null on failure\n\nfile.read? \"maybe.txt\"");
+    define_help!(
+        FileTryRead,
+        env,
+        "[string]: tries to read file, returns null on failure\n\nfile.read? \"maybe.txt\""
+    );
 
     define_native!(FileReadBytes, env, inter);
     define_help!(FileReadBytes, env, "[string]: reads file as binary, returns list of numbers 0-255\n\nfile.read-bytes \"image.png\"");
 
     define_native!(FileLines, env, inter);
-    define_help!(FileLines, env, "[string]: reads file lines as a list of strings\n\nfile.read-lines \"data.txt\"");
+    define_help!(
+        FileLines,
+        env,
+        "[string]: reads file lines as a list of strings\n\nfile.read-lines \"data.txt\""
+    );
 
     // Writing
     define_native!(FileWrite, env, inter);
     define_help!(FileWrite, env, "[string string]: writes string to file (overwrites existing)\n\nfile.write \"out.txt\" \"hello\"");
 
     define_native!(FileAppend, env, inter);
-    define_help!(FileAppend, env, "[string string]: appends string to file\n\nfile.append \"log.txt\" \"new line\"");
+    define_help!(
+        FileAppend,
+        env,
+        "[string string]: appends string to file\n\nfile.append \"log.txt\" \"new line\""
+    );
 
     define_native!(FileWriteBytes, env, inter);
     define_help!(FileWriteBytes, env, "[string list]: writes bytes (list of numbers 0-255) to file\n\nfile.write-bytes \"out.bin\" [72 101 108 108 111]");
 
     // File/Directory operations
     define_native!(FileCopy, env, inter);
-    define_help!(FileCopy, env, "[string string]: copies file or directory\n\nfile.copy \"dest.txt\" \"src.txt\"");
+    define_help!(FileCopy, env, "[string string]: copies file or directory (bash-like: if dest is a directory, copies into it)\n\nfile.copy \"dest.txt\" \"src.txt\"\nfile.copy \"./dir\" \"file.txt\"  ; copies file.txt into ./dir/");
 
     define_native!(FileMove, env, inter);
-    define_help!(FileMove, env, "[string string]: moves/renames file or directory\n\nfile.move \"new.txt\" \"old.txt\"");
+    define_help!(FileMove, env, "[string string]: moves/renames file or directory (bash-like: if dest is a directory, moves into it)\n\nfile.move \"new.txt\" \"old.txt\"\nfile.move \"./dir\" \"file.txt\"  ; moves file.txt into ./dir/");
 
     define_native!(FileRm, env, inter);
-    define_help!(FileRm, env, "[string]: deletes file or directory (recursively)\n\nfile.remove \"unwanted.txt\"");
+    define_help!(
+        FileRm,
+        env,
+        "[string]: deletes file or directory (recursively)\n\nfile.remove \"unwanted.txt\""
+    );
 
     define_native!(FileRmdir, env, inter);
-    define_help!(FileRmdir, env, "[string]: removes empty directory\n\nfile.rmdir \"empty-dir\"");
+    define_help!(
+        FileRmdir,
+        env,
+        "[string]: removes empty directory\n\nfile.rmdir \"empty-dir\""
+    );
 
     define_native!(FileRmdirAll, env, inter);
-    define_help!(FileRmdirAll, env, "[string]: removes directory recursively\n\nfile.rmdir! \"dir-with-contents\"");
+    define_help!(
+        FileRmdirAll,
+        env,
+        "[string]: removes directory recursively\n\nfile.rmdir! \"dir-with-contents\""
+    );
 
     define_native!(FileMkdir, env, inter);
-    define_help!(FileMkdir, env, "[string]: creates directory\n\nfile.mkdir \"new-dir\"");
+    define_help!(
+        FileMkdir,
+        env,
+        "[string]: creates directory\n\nfile.mkdir \"new-dir\""
+    );
 
     define_native!(FileMkdirAll, env, inter);
     define_help!(FileMkdirAll, env, "[string]: creates directory and all parent directories\n\nfile.mkdir! \"path/to/nested/dir\"");
 
     // File information
     define_native!(FileExists, env, inter);
-    define_help!(FileExists, env, "[string]: checks if path exists\n\nfile.exists \"config.txt\"");
+    define_help!(
+        FileExists,
+        env,
+        "[string]: checks if path exists\n\nfile.exists \"config.txt\""
+    );
 
     define_native!(FileIsDir, env, inter);
-    define_help!(FileIsDir, env, "[string]: checks if path is a directory\n\nfile.is-dir \"src\"");
+    define_help!(
+        FileIsDir,
+        env,
+        "[string]: checks if path is a directory\n\nfile.is-dir \"src\""
+    );
 
     define_native!(FileIsFile, env, inter);
-    define_help!(FileIsFile, env, "[string]: checks if path is a file\n\nfile.is-file \"main.rs\"");
+    define_help!(
+        FileIsFile,
+        env,
+        "[string]: checks if path is a file\n\nfile.is-file \"main.rs\""
+    );
 
     define_native!(FileIsSymlink, env, inter);
-    define_help!(FileIsSymlink, env, "[string]: checks if path is a symlink\n\nfile.is-symlink \"link\"");
+    define_help!(
+        FileIsSymlink,
+        env,
+        "[string]: checks if path is a symlink\n\nfile.is-symlink \"link\""
+    );
 
     define_native!(FileSize, env, inter);
-    define_help!(FileSize, env, "[string]: returns file size in bytes\n\nfile.size \"data.bin\"");
+    define_help!(
+        FileSize,
+        env,
+        "[string]: returns file size in bytes\n\nfile.size \"data.bin\""
+    );
 
     define_native!(FileSizeDeep, env, inter);
     define_help!(FileSizeDeep, env, "[string]: returns total size of file or directory (recursive) in bytes\n\nfile.size.deep \"project\"");
@@ -703,41 +788,77 @@ Other:
 
     // Directory listing
     define_native!(FileList, env, inter);
-    define_help!(FileList, env, "[string]: lists directory contents (names only)\n\nfile.list \".\"");
+    define_help!(
+        FileList,
+        env,
+        "[string]: lists directory contents (names only)\n\nfile.list \".\""
+    );
 
     define_native!(FileListPaths, env, inter);
-    define_help!(FileListPaths, env, "[string]: lists directory contents with full paths\n\nfile.list! \"src\"");
+    define_help!(
+        FileListPaths,
+        env,
+        "[string]: lists directory contents with full paths\n\nfile.list! \"src\""
+    );
 
     define_native!(FileGlob, env, inter);
     define_help!(FileGlob, env, "[string]: finds files matching glob pattern\n\nfile.glob \"*.txt\"\nfile.glob \"src/**/*.rs\"");
 
     // Path manipulation
     define_native!(FileName, env, inter);
-    define_help!(FileName, env, "[string]: extracts file name from path\n\npath.name \"/path/to/file.txt\"  ; \"file.txt\"");
+    define_help!(
+        FileName,
+        env,
+        "[string]: extracts file name from path\n\npath.name \"/path/to/file.txt\"  ; \"file.txt\""
+    );
 
     define_native!(FileStem, env, inter);
     define_help!(FileStem, env, "[string]: extracts file name without extension\n\npath.stem \"/path/to/file.txt\"  ; \"file\"");
 
     define_native!(FileExt, env, inter);
-    define_help!(FileExt, env, "[string]: extracts file extension\n\npath.ext \"file.txt\"  ; \"txt\"");
+    define_help!(
+        FileExt,
+        env,
+        "[string]: extracts file extension\n\npath.ext \"file.txt\"  ; \"txt\""
+    );
 
     define_native!(FileParent, env, inter);
-    define_help!(FileParent, env, "[string]: extracts parent directory\n\npath.parent \"/path/to/file.txt\"  ; \"/path/to\"");
+    define_help!(
+        FileParent,
+        env,
+        "[string]: extracts parent directory\n\npath.parent \"/path/to/file.txt\"  ; \"/path/to\""
+    );
 
     define_native!(FileJoin, env, inter);
     define_help!(FileJoin, env, "[string string]: joins path components\n\npath.join \"/path/to\" \"file.txt\"  ; \"/path/to/file.txt\"");
 
     define_native!(FileAbsolute, env, inter);
-    define_help!(FileAbsolute, env, "[string]: converts to absolute path\n\npath.absolute \"./relative\"");
+    define_help!(
+        FileAbsolute,
+        env,
+        "[string]: converts to absolute path\n\npath.absolute \"./relative\""
+    );
 
     // Symlinks
     define_native!(FileSymlink, env, inter);
-    define_help!(FileSymlink, env, "[string string]: creates symbolic link\n\nfile.symlink \"link\" \"target\"");
+    define_help!(
+        FileSymlink,
+        env,
+        "[string string]: creates symbolic link\n\nfile.symlink \"link\" \"target\""
+    );
 
     define_native!(FileReadLink, env, inter);
-    define_help!(FileReadLink, env, "[string]: reads symlink target\n\nfile.read-link \"link\"");
+    define_help!(
+        FileReadLink,
+        env,
+        "[string]: reads symlink target\n\nfile.read-link \"link\""
+    );
 
     // Temp
     define_native!(FileTempDir, env, inter);
-    define_help!(FileTempDir, env, "[]: returns system temp directory path\n\nfile.temp-dir");
+    define_help!(
+        FileTempDir,
+        env,
+        "[]: returns system temp directory path\n\nfile.temp-dir"
+    );
 }
