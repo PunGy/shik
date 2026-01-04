@@ -2,7 +2,7 @@ use crate::{
     eval::{
         error::RuntimeError, evaluator::Interpretator, native_functions::native_result, value::{EnvRef, NativeContext, SpecialClosure, SpecialFn, Value}, EvalResult
     },
-    parser::Expression, special_op,
+    parser::Expression, special_op, define_help,
 };
 use std::{rc::Rc};
 
@@ -103,6 +103,17 @@ special_op!(While, "while", args, ctx, {
 });
 
 pub fn bind_special_module(env: &EnvRef, inter: Rc<Interpretator>) {
+    env.define_help("branching.".to_string(), "branching functions:
+
+- if: conditional branching
+- while: loops while predicate function returns true
+- match: match the value against a pattern".to_string());
+
     If::define(&env, Rc::clone(&inter));
-    While::define(env, inter);
+    define_help!(If, env, "[predicate body ...]: conditional branching. Supports if, if-else, and if-elseif-else patterns\n\nif (> x 5) \"big\"\nif (> x 5) \"big\" \"small\"\nif (> x 10) \"huge\" (> x 5) \"big\" \"small\"");
+
+    While::define(env, Rc::clone(&inter));
+    define_help!(While, env, "[predicate-fn]: loops while predicate function returns true\n\nlet i 0\nwhile (fn [] (set i (+ i 1)) (< i 10))");
+
+    env.define_help("match".to_string(), "[value pattern-object]: match the valuae against a pattern.\n\nmatch 1 {\n  -1 :minus\n  0 :zero\n  1 :positive\n} ; \"positive\"".to_string());
 }

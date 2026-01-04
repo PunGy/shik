@@ -3,19 +3,7 @@ use crate::{
     eval::{
         error::RuntimeError,
         native_functions::{
-            bool::{bind_bool_module, Eq},
-            branching::bind_special_module,
-            file::bind_file_module,
-            function::bind_function_module,
-            keywords::bind_keywords_module,
-            list::bind_list_module,
-            misc::bind_misc_module,
-            number::bind_number_module,
-            polymorphic::bind_poly_module,
-            print::bind_print_module,
-            shell::bind_shell_module,
-            string::bind_string_module,
-            variables::bind_variable_module,
+            bool::{bind_bool_module, Eq}, branching::bind_special_module, file::bind_file_module, function::bind_function_module, help::bind_help_module, keywords::bind_keywords_module, list::bind_list_module, misc::bind_misc_module, number::bind_number_module, polymorphic::bind_poly_module, shell::bind_shell_module, string::bind_string_module, variables::bind_variable_module
         },
         utils::{define_match, pattern_match},
         value::{
@@ -58,7 +46,6 @@ impl Interpretator {
         bind_string_module(&env, Rc::clone(&inter));
         bind_list_module(&env, Rc::clone(&inter));
         bind_poly_module(&env, Rc::clone(&inter));
-        bind_print_module(&env, Rc::clone(&inter));
         bind_keywords_module(&env, Rc::clone(&inter));
         bind_file_module(&env, Rc::clone(&inter));
         bind_shell_module(&env, Rc::clone(&inter));
@@ -66,6 +53,7 @@ impl Interpretator {
         bind_special_module(&env, Rc::clone(&inter));
         bind_misc_module(&env, Rc::clone(&inter));
         bind_function_module(&env, Rc::clone(&inter));
+        bind_help_module(&env, Rc::clone(&inter));
 
         inter
     }

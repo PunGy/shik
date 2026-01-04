@@ -42,6 +42,9 @@ macro_rules! native_op {
                     )));
                     $crate::native_op!(@define_titles env, val, $fn_title);
                 }
+                pub fn define_help(env: &EnvRef, msg: &str) {
+                    $crate::native_op!(@define_help env, "native-lambda", msg, $fn_title);
+                }
             }
         }
     };
@@ -58,6 +61,26 @@ macro_rules! native_op {
     // One title SECOND (more general)
     (@define_titles $env:ident, $val:ident, $title:expr) => {
         $env.define(($title).to_string(), Rc::clone(&$val));
+    };
+
+    // Define help for multiple names
+    (@define_help $env:ident, $kind:expr, $msg:expr, [$($title:expr),+ $(,)?]) => {
+        {
+            let names: Vec<&str> = vec![$($title),+];
+            let names_str = names.join(", ");
+            let formatted = format!("{}: {}\n{}", $kind, names_str, $msg);
+            $(
+                $env.define_help(($title).to_string(), formatted.clone());
+            )+
+        }
+    };
+
+    // Define help for single name
+    (@define_help $env:ident, $kind:expr, $msg:expr, $title:expr) => {
+        {
+            let formatted = format!("{}: {}\n{}", $kind, $title, $msg);
+            $env.define_help(($title).to_string(), formatted);
+        }
     };
 }
 
@@ -105,6 +128,10 @@ macro_rules! special_b_op {
                     )));
                     $crate::special_b_op!(@define_titles env, val, $fn_title);
                 }
+
+                pub fn define_help(env: &EnvRef, msg: &str) {
+                    $crate::special_b_op!(@define_help env, "special-lambda", msg, $fn_title);
+                }
             }
         }
     };
@@ -122,10 +149,31 @@ macro_rules! special_b_op {
     (@define_titles $env:ident, $val:ident, $title:expr) => {
         $env.define(($title).to_string(), Rc::clone(&$val));
     };
+
+    // Define help for multiple names
+    (@define_help $env:ident, $kind:expr, $msg:expr, [$($title:expr),+ $(,)?]) => {
+        {
+            let names: Vec<&str> = vec![$($title),+];
+            let names_str = names.join(", ");
+            let formatted = format!("{}: {}\n{}", $kind, names_str, $msg);
+            $(
+                $env.define_help(($title).to_string(), formatted.clone());
+            )+
+        }
+    };
+
+    // Define help for single name
+    (@define_help $env:ident, $kind:expr, $msg:expr, $title:expr) => {
+        {
+            let formatted = format!("{}: {}\n{}", $kind, $title, $msg);
+            $env.define_help(($title).to_string(), formatted);
+        }
+    };
 }
 
 #[macro_export]
 macro_rules! special_op {
+    // Single name variant
     ($name:ident, $fn_title:expr, $args:ident, $ctx:ident, $body:block) => {
         #[derive(Debug)]
         pub struct $name;
@@ -147,6 +195,11 @@ macro_rules! special_op {
                     ))),
                 );
             }
+
+            pub fn define_help(env: &EnvRef, msg: &str) {
+                let formatted = format!("{}: {}\n{}", "special-form", $fn_title, msg);
+                env.define_help(($fn_title).to_string(), formatted);
+            }
         }
     };
 }
@@ -155,6 +208,12 @@ macro_rules! special_op {
 macro_rules! define_native {
     ($name:ident, $env:ident, $inter:ident) => {
         $name::define(&$env, Rc::clone(&$inter));
+    };
+}
+#[macro_export]
+macro_rules! define_help {
+    ($name:ident, $env:ident, $msg:expr) => {
+        $name::define_help(&$env, $msg);
     };
 }
 

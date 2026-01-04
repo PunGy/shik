@@ -8,6 +8,7 @@ use crate::{
     parser::Expression,
     special_op,
     define_native,
+    define_help,
 };
 use std::rc::Rc;
 
@@ -35,6 +36,9 @@ special_op!(IfNull, "or?", args, ctx, {
 // ============================================================================
 
 pub fn bind_misc_module(env: &EnvRef, inter: Rc<Interpretator>) {
-    // Shell execution
+    env.define_help("misc.".to_string(), "miscelanios functions:
+
+- or?: returns second value if first is null".to_string());
     define_native!(IfNull, env, inter);
+    define_help!(IfNull, env, "[value value]: returns second value if first is null, otherwise returns first\n\nnull $> or? 10  ; 10\n5 $> or? 10  ; 5");
 }

@@ -202,6 +202,7 @@ impl Closure {
 pub struct Env {
     pub parent: Option<EnvRef>,
     pub vars: RefCell<HashMap<String, ValueRef>>,
+    pub help: RefCell<HashMap<String, String>>
 }
 
 pub type EnvRef = Rc<Env>;
@@ -293,11 +294,20 @@ impl Env {
         Self {
             parent,
             vars: RefCell::new(HashMap::new()),
+            help: RefCell::new(HashMap::new()),
         }
     }
 
     pub fn define(&self, name: String, value: ValueRef) {
         self.vars.borrow_mut().insert(name, value);
+    }
+    pub fn define_help(&self, name: String, message: String) {
+        self.help.borrow_mut().insert(name, message);
+    }
+
+    pub fn lookup_help(&self, key: &str) -> Option<String> {
+        iter::successors(Some(self), |env| env.parent.as_deref())
+            .find_map(|env| env.help.borrow().get(key).cloned())
     }
 
     pub fn lookup(&self, key: &str) -> Option<ValueRef> {

@@ -1,5 +1,5 @@
 use crate::{
-    count_args, define_native, eval::{
+    count_args, define_native, define_help, eval::{
         error::RuntimeError, evaluator::Interpretator, native_functions::native_result, value::{EnvRef, NativeClosure, NativeContext, NativeFn, SpecialClosure, SpecialFn, Value, ValueRef}, EvalResult
     }, native_op, parser::Expression, special_op
 };
@@ -50,7 +50,20 @@ special_op!(Set, "set", args, ctx, {
 });
 
 pub fn bind_variable_module(env: &EnvRef, inter: Rc<Interpretator>) {
+    // Module help
+    env.define_help("var.".to_string(), "variable module:
+
+- let: define variable
+- let$: define variable with pattern matching
+- set: mutate value of the variable
+- var.get: gets variable value by name string".to_string());
+
     define_native!(Let, env, inter);
+    define_help!(Let, env, "[identifier value]: defines a new variable in current scope\n\nlet x 42\nlet name :Alice\nlet files $ file.list :./");
+
     define_native!(Set, env, inter);
+    define_help!(Set, env, "[identifier value]: assigns new value to existing variable\n\nlet x 1\nset x 2");
+
     define_native!(VarGet, env, inter);
+    define_help!(VarGet, env, "[string]: gets variable value by name string, returns null if not found\n\nvar.get \"x\"");
 }

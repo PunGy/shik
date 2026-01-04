@@ -16,7 +16,6 @@ pub enum EvalError {
 
 pub fn evaluate(input: &str, interpretator: &Interpretator) -> Result<ValueRef, EvalError> {
     let program = parse(input)?;
-    // println!("parsing: {:#?}", program);
     let result = interpretator.interpretate(&program)?;
 
     Ok(result)
@@ -27,8 +26,8 @@ pub fn print(input: Result<ValueRef, EvalError>, silent: bool) {
         Ok(res) => {
             if !silent {
                 match res.as_ref() {
-                    Value::String(str) => println!("\"{}\"", str),
-                    _ => println!("{}", res),
+                    Value::String(str) => println!("\n⋖ \"{}\"", str),
+                    _ => println!("\n⋖ {}", res),
                 };
             }
         }
@@ -73,12 +72,6 @@ pub fn run_repl(mode: Option<String>) {
                 println!("Goodbye!");
                 break;
             }
-            // "help" => {
-            //     print_help();
-            // }
-            // "table" => {
-            //     parser.print_table();
-            // }
             "" => {
                 // Empty input, just continue
             }

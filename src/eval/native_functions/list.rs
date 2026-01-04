@@ -1,5 +1,5 @@
 use crate::{
-    count_args, define_native,
+    count_args, define_help, define_native,
     eval::{
         error::RuntimeError,
         evaluator::Interpretator,
@@ -306,30 +306,164 @@ native_op!(
 );
 
 pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
+    // Module help
+    env.define_help("list.".to_string(), "list module:
+
+- list.set: sets element at index (mutates list)
+- list.push, list.push>, list.push-right: appends value to end (mutates list)
+- list.<push, list.push-left: prepends value to start (mutates list)
+- list.at: gets element at index
+- list.len: returns length
+- list.sum: sums all numbers
+- list.head: first element
+- list.tail: all but first element
+- list.last: last element
+- list.init: all but last element
+- list.reverse: reverses list
+- list.concat: concatenates two lists
+- list.empty?: checks if empty
+- list.range: creates range list
+- list.take: takes first n elements
+- list.drop: drops first n elements
+- list.map: transforms each element
+- list.filter: keeps elements matching predicate
+- list.fold: reduces to single value
+- list.any: true if any matches
+- list.all: true if all match
+- list.find: finds first matching element
+- list.find-index: finds index of first match
+- list.iterate: iterates forward
+- list.<iterate, list.iterate-backward: iterates backward".to_string());
+
     define_native!(ListSet, env, inter);
+    define_help!(
+        ListSet,
+        env,
+        "[number list value]: sets element at index (mutates list)\n\nlist.set 0 mylist \"new\""
+    );
+
     define_native!(ListPush, env, inter);
+    define_help!(
+        ListPush,
+        env,
+        "[list value]: appends value to end of list (mutates list)\n\nlist.push mylist 42"
+    );
+
     define_native!(ListPushLeft, env, inter);
+    define_help!(
+        ListPushLeft,
+        env,
+        "[list value]: prepends value to start of list (mutates list)\n\nlist.<push mylist 42"
+    );
+
     define_native!(ListAt, env, inter);
+    define_help!(ListAt, env, "[number list]: returns element at index, or null if out of bounds\n\nlist.at 0 [1 2 3]  ; 1");
+
     define_native!(ListLen, env, inter);
+    define_help!(
+        ListLen,
+        env,
+        "[list]: returns length of list\n\nlist.len [1 2 3]  ; 3"
+    );
+
     define_native!(ListSum, env, inter);
+    define_help!(
+        ListSum,
+        env,
+        "[list]: returns sum of all numbers in list\n\nlist.sum [1 2 3]  ; 6"
+    );
+
     define_native!(ListHead, env, inter);
+    define_help!(
+        ListHead,
+        env,
+        "[list]: returns first element, or null if empty\n\nlist.head [1 2 3]  ; 1"
+    );
+
     define_native!(ListTail, env, inter);
+    define_help!(
+        ListTail,
+        env,
+        "[list]: returns list without first element\n\nlist.tail [1 2 3]  ; [2 3]"
+    );
+
     define_native!(ListLast, env, inter);
+    define_help!(
+        ListLast,
+        env,
+        "[list]: returns last element, or null if empty\n\nlist.last [1 2 3]  ; 3"
+    );
+
     define_native!(ListInit, env, inter);
+    define_help!(
+        ListInit,
+        env,
+        "[list]: returns list without last element\n\nlist.init [1 2 3]  ; [1 2]"
+    );
+
     define_native!(ListReverse, env, inter);
+    define_help!(
+        ListReverse,
+        env,
+        "[list]: returns reversed list\n\nlist.reverse [1 2 3]  ; [3 2 1]"
+    );
+
     define_native!(ListConcat, env, inter);
+    define_help!(
+        ListConcat,
+        env,
+        "[list list]: concatenates two lists\n\nlist.concat [1 2] [3 4]  ; [1 2 3 4]"
+    );
+
     define_native!(ListIsEmpty, env, inter);
+    define_help!(
+        ListIsEmpty,
+        env,
+        "[list]: returns true if list is empty\n\nlist.empty? []  ; true"
+    );
+
     define_native!(ListRange, env, inter);
+    define_help!(ListRange, env, "[number] or [number number] or [number number number]: creates range list\n\nlist.range 5  ; [0 1 2 3 4]\nlist.range 2 5  ; [2 3 4]\nlist.range 0 10 2  ; [0 2 4 6 8]");
+
     define_native!(ListTake, env, inter);
+    define_help!(
+        ListTake,
+        env,
+        "[number list]: takes first n elements\n\nlist.take 2 [1 2 3 4]  ; [1 2]"
+    );
+
     define_native!(ListDrop, env, inter);
+    define_help!(
+        ListDrop,
+        env,
+        "[number list]: drops first n elements\n\nlist.drop 2 [1 2 3 4]  ; [3 4]"
+    );
+
     // Higher-order functions
     define_native!(ListMap, env, inter);
+    define_help!(ListMap, env, "[lambda list]: applies function to each element, returns new list\n\nlist.map (fn [x] (* x 2)) [1 2 3]  ; [2 4 6]");
+
     define_native!(ListFilter, env, inter);
+    define_help!(ListFilter, env, "[lambda list]: keeps elements where predicate returns true\n\nlist.filter (fn [x] (> x 2)) [1 2 3 4]  ; [3 4]");
+
     define_native!(ListFold, env, inter);
+    define_help!(ListFold, env, "[value lambda list]: reduces list to single value using accumulator\n\nlist.fold 0 + [1 2 3]  ; 6");
+
     define_native!(ListAny, env, inter);
+    define_help!(ListAny, env, "[lambda list]: returns true if any element satisfies predicate\n\nlist.any (fn [x] (> x 5)) [1 2 6]  ; true");
+
     define_native!(ListAll, env, inter);
+    define_help!(ListAll, env, "[lambda list]: returns true if all elements satisfy predicate\n\nlist.all (fn [x] (> x 0)) [1 2 3]  ; true");
+
     define_native!(ListFind, env, inter);
+    define_help!(ListFind, env, "[lambda list]: returns first element satisfying predicate, or null\n\nlist.find (fn [x] (> x 2)) [1 2 3 4]  ; 3");
+
     define_native!(ListFindIndex, env, inter);
+    define_help!(ListFindIndex, env, "[lambda list]: returns index of first element satisfying predicate, or -1\n\nlist.find-index (fn [x] (> x 2)) [1 2 3 4]  ; 2");
+
     define_native!(ListIterate, env, inter);
+    define_help!(ListIterate, env, "[lambda list]: calls function for each element (for side effects)\n\nlist.iterate print [1 2 3]");
+
     define_native!(ListIterateBackward, env, inter);
+    define_help!(ListIterateBackward, env, "[lambda list]: iterates list in reverse order\n\nlist.<iterate print [1 2 3]  ; prints 3, 2, 1");
 }

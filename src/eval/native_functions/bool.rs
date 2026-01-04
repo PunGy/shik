@@ -1,5 +1,5 @@
 use crate::{
-    count_args, define_native,
+    count_args, define_native, define_help,
     eval::{
         error::RuntimeError,
         evaluator::Interpretator,
@@ -93,11 +93,26 @@ native_op!(Lt, "<", [x, y], {
 
 pub fn bind_bool_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_native!(Eq, env, inter);
+    define_help!(Eq, env, "[value value]: checks equality of two values (numbers, bools, strings, or null)\n\n= 5 5  ; true");
+
     define_native!(NotEq, env, inter);
+    define_help!(NotEq, env, "[value value]: checks inequality of two values\n\n!= 5 3  ; true");
+
     define_native!(Gt, env, inter);
+    define_help!(Gt, env, "[number number]: returns true if first number is greater than second\n\n> 5 3  ; true");
+
     define_native!(Lt, env, inter);
+    define_help!(Lt, env, "[number number]: returns true if first number is less than second\n\n< 3 5  ; true");
+
     define_native!(Not, env, inter);
+    define_help!(Not, env, "[bool]: logical negation\n\nnot true  ; false");
+
     define_native!(Or, env, inter);
+    define_help!(Or, env, "[bool bool]: logical OR of two boolean values\n\nor true false  ; true");
+
     define_native!(And, env, inter);
+    define_help!(And, env, "[bool bool]: logical AND of two boolean values\n\nand true false  ; false");
+
     define_native!(Bool, env, inter);
+    define_help!(Bool, env, "[value]: converts value to boolean. 0, null, empty string/list/object are false, everything else is true\n\nbool 0  ; false\nbool \"hello\"  ; true");
 }
