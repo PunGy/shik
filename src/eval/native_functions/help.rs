@@ -31,23 +31,27 @@ MODULES:
 
 
 -- Type modules
-- number.: number operations
-- string.: string operations
-- list.: operations on lists
-- bool.: boolean operations
-- function.: function/lambda operations
+- number.: arithmetic, rounding, comparison, math functions, random
+- string.: string manipulation, conversion, iteration
+- list.: list operations, higher-order functions
+- bool.: comparison, logic, conversion
+
+-- Function modules
+- fn.: function utilities (invoke, quote)
 
 -- System modules
-- file.: file system operations
-- shell.: OS and shell related opeartions
+- file.: file reading, writing, operations, information
+- path.: path manipulation (name, stem, ext, parent, join, absolute)
+- shell.: shell execution, environment variables, I/O
+- process.: process control (pid, args, sleep, exit, abort)
 
 -- Language features
-- branching.: loops, conditionals
-- var.: operations with variables/identifiers
+- branching.: loops, conditionals (if, while, match)
+- var.: variable operations (get by name)
 
 -- Misc
-- polymorphic.: general polymorphic operations for any value
-- misc.: different utility functions";
+- general.: polymorphic operations for any value (+, at, iterate)
+- misc.: utility functions (or?)";
 
 special_op!(Help, "help", args, ctx, {
     let msg: String;

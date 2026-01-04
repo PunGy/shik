@@ -1,0 +1,5 @@
+let lst [ 1 2 3 ]
+
+let lst ( if $ list.empty? lst $ lst $ list.tail lst )
+
+print lst

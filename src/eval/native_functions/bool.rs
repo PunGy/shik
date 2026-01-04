@@ -92,6 +92,23 @@ native_op!(Lt, "<", [x, y], {
 });
 
 pub fn bind_bool_module(env: &EnvRef, inter: Rc<Interpretator>) {
+    // Module help
+    env.define_help("bool.".to_string(), "bool module:
+
+Comparison:
+- =: equality check
+- !=: inequality check
+- >: greater than
+- <: less than
+
+Logic:
+- not: logical negation
+- or: logical OR
+- and: logical AND
+
+Conversion:
+- bool: convert value to boolean".to_string());
+
     define_native!(Eq, env, inter);
     define_help!(Eq, env, "[value value]: checks equality of two values (numbers, bools, strings, or null)\n\n= 5 5  ; true");
 

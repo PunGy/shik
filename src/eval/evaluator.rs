@@ -326,7 +326,7 @@ impl Interpretator {
         }
     }
 
-    fn expand(&self, v: ValueRef) -> EvalResult {
+    pub fn expand(&self, v: ValueRef) -> EvalResult {
         match v.as_ref() {
             Value::SpecialForm(closure) => closure.exec(),
             _ => Ok(v),
