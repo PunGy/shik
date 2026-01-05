@@ -39,8 +39,8 @@ pub fn bind_function_module(env: &EnvRef, inter: Rc<Interpretator>) {
 - ', fn.quote: quotes the lambda (prevents evaluation)".to_string());
 
     define_native!(Id, env, inter);
-    define_help!(Id, env, "[lambda]: invokes a lambda with null argument. Useful for callbacks\n\n[ (fn [] print :hello) (fn [] print :world) ] $> list.iterate fn.invoke");
+    define_help!(Id, env, "[fn:lambda]: invokes a lambda with null argument. Useful for callbacks\n\n[ (fn [] print :hello) (fn [] print :world) ] $> list.iterate fn.invoke");
 
     define_native!(Quote, env, inter);
-    define_help!(Quote, env, "[lambda]: quotes a lambda, preventing evaluation of identifiers\n\nlet say-hi fn [] print :hi\n\nlet hi say-hi ; hi = null, \"hi\" was printed\nlet hi (' say-hi) ; hi = lambda, nothing printed");
+    define_help!(Quote, env, "[fn:lambda]: quotes a lambda, preventing evaluation of identifiers\n\nlet say-hi fn [] print :hi\n\nlet hi say-hi ; hi = null, \"hi\" was printed\nlet hi (' say-hi) ; hi = lambda, nothing printed");
 }

@@ -40,5 +40,5 @@ pub fn bind_misc_module(env: &EnvRef, inter: Rc<Interpretator>) {
 
 - or?: returns second value if first is null".to_string());
     define_native!(IfNull, env, inter);
-    define_help!(IfNull, env, "[value value]: returns second value if first is null, otherwise returns first\n\nnull $> or? 10  ; 10\n5 $> or? 10  ; 5");
+    define_help!(IfNull, env, "[default:value value]: returns second value if first is null, otherwise returns first\n\nnull $> or? 10  ; 10\n5 $> or? 10  ; 5");
 }

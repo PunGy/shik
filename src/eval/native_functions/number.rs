@@ -187,7 +187,7 @@ Random:
     define_help!(Mod, env, "[number number]: returns remainder of division\n\n10 $> % 3  ; 1");
 
     define_native!(Pow, env, inter);
-    define_help!(Pow, env, "[number number]: raises base to exponent power\n\n2 $> ^ 3  ; 8");
+    define_help!(Pow, env, "[exp:number base:number]: raises base to exponent power\n\n2 $> ^ 3  ; 8");
 
     define_native!(Sqrt, env, inter);
     define_help!(Sqrt, env, "[number]: returns square root\n\nnumber.sqrt 16  ; 4");

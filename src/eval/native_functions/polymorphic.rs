@@ -81,13 +81,13 @@ Contains polymorphic functions for values with similar behaviour.
     define_help!(PPlus, env, "[value value]: polymorphic addition - adds numbers or concatenates strings\n\n+ 2 3  ; 5\n+ \"hello\" \" world\"  ; \"hello world\"");
 
     define_native!(At, env, inter);
-    define_help!(At, env, "[number value]: gets element at index from string or list\n\nat 0 \"hello\"  ; \"h\"\nat 1 [1 2 3]  ; 2");
+    define_help!(At, env, "[index:number value]: gets element at index from string or list\n\nat 0 \"hello\"  ; \"h\"\nat 1 [1 2 3]  ; 2");
 
     define_native!(Iterate, env, inter);
-    define_help!(Iterate, env, "[lambda value]: iterates over string (chars) or list (elements)\n\niterate print \"abc\"  ; prints a, b, c");
+    define_help!(Iterate, env, "[callback:lambda value]: iterates over string (chars) or list (elements)\n\niterate print \"abc\"  ; prints a, b, c");
 
     define_native!(IterateBackward, env, inter);
-    define_help!(IterateBackward, env, "[lambda value]: iterates in reverse over string or list\n\n<iterate print [1 2 3]  ; prints 3, 2, 1");
+    define_help!(IterateBackward, env, "[callback:lambda value]: iterates in reverse over string or list\n\n<iterate print [1 2 3]  ; prints 3, 2, 1");
 
     define_native!(Print, env, inter);
     define_help!(Print, env, "[value]: prints value to stdout with newline\n\nprint \"hello world\"");

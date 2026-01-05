@@ -339,7 +339,7 @@ pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_help!(
         ListSet,
         env,
-        "[number list value]: sets element at index (mutates list)\n\nlist.set 0 mylist \"new\""
+        "[index:number list value]: sets element at index (mutates list)\n\nlist.set 0 mylist \"new\""
     );
 
     define_native!(ListPush, env, inter);
@@ -357,7 +357,7 @@ pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
     );
 
     define_native!(ListAt, env, inter);
-    define_help!(ListAt, env, "[number list]: returns element at index, or null if out of bounds\n\nlist.at 0 [1 2 3]  ; 1");
+    define_help!(ListAt, env, "[index:number list]: returns element at index, or null if out of bounds\n\nlist.at 0 [1 2 3]  ; 1");
 
     define_native!(ListLen, env, inter);
     define_help!(
@@ -423,47 +423,47 @@ pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
     );
 
     define_native!(ListRange, env, inter);
-    define_help!(ListRange, env, "[number] or [number number] or [number number number]: creates range list\n\nlist.range 5  ; [0 1 2 3 4]\nlist.range 2 5  ; [2 3 4]\nlist.range 0 10 2  ; [0 2 4 6 8]");
+    define_help!(ListRange, env, "[end:number] or [start:number end:number] or [start:number end:number step:number]: creates range list\n\nlist.range 5  ; [0 1 2 3 4]\nlist.range 2 5  ; [2 3 4]\nlist.range 0 10 2  ; [0 2 4 6 8]");
 
     define_native!(ListTake, env, inter);
     define_help!(
         ListTake,
         env,
-        "[number list]: takes first n elements\n\nlist.take 2 [1 2 3 4]  ; [1 2]"
+        "[count:number list]: takes first n elements\n\nlist.take 2 [1 2 3 4]  ; [1 2]"
     );
 
     define_native!(ListDrop, env, inter);
     define_help!(
         ListDrop,
         env,
-        "[number list]: drops first n elements\n\nlist.drop 2 [1 2 3 4]  ; [3 4]"
+        "[count:number list]: drops first n elements\n\nlist.drop 2 [1 2 3 4]  ; [3 4]"
     );
 
     // Higher-order functions
     define_native!(ListMap, env, inter);
-    define_help!(ListMap, env, "[lambda list]: applies function to each element, returns new list\n\nlist.map (fn [x] (* x 2)) [1 2 3]  ; [2 4 6]");
+    define_help!(ListMap, env, "[mapper:lambda list]: applies function to each element, returns new list\n\nlist.map (fn [x] (* x 2)) [1 2 3]  ; [2 4 6]");
 
     define_native!(ListFilter, env, inter);
-    define_help!(ListFilter, env, "[lambda list]: keeps elements where predicate returns true\n\nlist.filter (fn [x] (> x 2)) [1 2 3 4]  ; [3 4]");
+    define_help!(ListFilter, env, "[predicate:lambda list]: keeps elements where predicate returns true\n\nlist.filter (fn [x] (> x 2)) [1 2 3 4]  ; [3 4]");
 
     define_native!(ListFold, env, inter);
-    define_help!(ListFold, env, "[value lambda list]: reduces list to single value using accumulator\n\nlist.fold 0 + [1 2 3]  ; 6");
+    define_help!(ListFold, env, "[initial:value reducer:lambda list]: reduces list to single value using accumulator\n\nlist.fold 0 + [1 2 3]  ; 6");
 
     define_native!(ListAny, env, inter);
-    define_help!(ListAny, env, "[lambda list]: returns true if any element satisfies predicate\n\nlist.any (fn [x] (> x 5)) [1 2 6]  ; true");
+    define_help!(ListAny, env, "[predicate:lambda list]: returns true if any element satisfies predicate\n\nlist.any (fn [x] (> x 5)) [1 2 6]  ; true");
 
     define_native!(ListAll, env, inter);
-    define_help!(ListAll, env, "[lambda list]: returns true if all elements satisfy predicate\n\nlist.all (fn [x] (> x 0)) [1 2 3]  ; true");
+    define_help!(ListAll, env, "[predicate:lambda list]: returns true if all elements satisfy predicate\n\nlist.all (fn [x] (> x 0)) [1 2 3]  ; true");
 
     define_native!(ListFind, env, inter);
-    define_help!(ListFind, env, "[lambda list]: returns first element satisfying predicate, or null\n\nlist.find (fn [x] (> x 2)) [1 2 3 4]  ; 3");
+    define_help!(ListFind, env, "[predicate:lambda list]: returns first element satisfying predicate, or null\n\nlist.find (fn [x] (> x 2)) [1 2 3 4]  ; 3");
 
     define_native!(ListFindIndex, env, inter);
-    define_help!(ListFindIndex, env, "[lambda list]: returns index of first element satisfying predicate, or -1\n\nlist.find-index (fn [x] (> x 2)) [1 2 3 4]  ; 2");
+    define_help!(ListFindIndex, env, "[predicate:lambda list]: returns index of first element satisfying predicate, or -1\n\nlist.find-index (fn [x] (> x 2)) [1 2 3 4]  ; 2");
 
     define_native!(ListIterate, env, inter);
-    define_help!(ListIterate, env, "[lambda list]: calls function for each element (for side effects)\n\nlist.iterate print [1 2 3]");
+    define_help!(ListIterate, env, "[callback:lambda list]: calls function for each element (for side effects)\n\nlist.iterate print [1 2 3]");
 
     define_native!(ListIterateBackward, env, inter);
-    define_help!(ListIterateBackward, env, "[lambda list]: iterates list in reverse order\n\nlist.<iterate print [1 2 3]  ; prints 3, 2, 1");
+    define_help!(ListIterateBackward, env, "[callback:lambda list]: iterates list in reverse order\n\nlist.<iterate print [1 2 3]  ; prints 3, 2, 1");
 }

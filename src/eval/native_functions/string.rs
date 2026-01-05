@@ -308,7 +308,7 @@ pub fn bind_string_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_help!(MakeString, env, "[value]: converts value to string\n\nstring 42  ; \"42\"");
 
     define_native!(StringSplit, env, inter);
-    define_help!(StringSplit, env, "[string string]: splits string by delimiter, returns list\n\nstring.split \",\" \"a,b,c\"  ; [\"a\" \"b\" \"c\"]");
+    define_help!(StringSplit, env, "[delimiter:string string]: splits string by delimiter, returns list\n\nstring.split \",\" \"a,b,c\"  ; [\"a\" \"b\" \"c\"]");
 
     define_native!(StringConcat, env, inter);
     define_help!(StringConcat, env, "[string string]: concatenates two strings\n\nstring.+ \"hello\" \" world\"  ; \"hello world\"");
@@ -332,50 +332,50 @@ pub fn bind_string_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_help!(StringLowercase, env, "[string]: converts to lowercase\n\nstring.lower \"HELLO\"  ; \"hello\"");
 
     define_native!(StringContains, env, inter);
-    define_help!(StringContains, env, "[string string]: checks if string contains substring\n\nstring.has \"ell\" \"hello\"  ; true");
+    define_help!(StringContains, env, "[needle:string haystack:string]: checks if string contains substring\n\nstring.has \"ell\" \"hello\"  ; true");
 
     define_native!(StringStartsWith, env, inter);
-    define_help!(StringStartsWith, env, "[string string]: checks if string starts with prefix\n\nstring.starts-with \"hel\" \"hello\"  ; true");
+    define_help!(StringStartsWith, env, "[prefix:string string]: checks if string starts with prefix\n\nstring.starts-with \"hel\" \"hello\"  ; true");
 
     define_native!(StringEndsWith, env, inter);
-    define_help!(StringEndsWith, env, "[string string]: checks if string ends with suffix\n\nstring.ends-with \"lo\" \"hello\"  ; true");
+    define_help!(StringEndsWith, env, "[suffix:string string]: checks if string ends with suffix\n\nstring.ends-with \"lo\" \"hello\"  ; true");
 
     define_native!(StringReplace, env, inter);
-    define_help!(StringReplace, env, "[string string string]: replaces all occurrences\n\nstring.replace \"l\" \"L\" \"hello\"  ; \"heLLo\"");
+    define_help!(StringReplace, env, "[from:string to:string string]: replaces all occurrences\n\nstring.replace \"l\" \"L\" \"hello\"  ; \"heLLo\"");
 
     define_native!(StringLength, env, inter);
     define_help!(StringLength, env, "[string]: returns character count\n\nstring.len \"hello\"  ; 5");
 
     define_native!(StringCharAt, env, inter);
-    define_help!(StringCharAt, env, "[number string]: returns character at index, or null\n\nstring.at 0 \"hello\"  ; \"h\"");
+    define_help!(StringCharAt, env, "[index:number string]: returns character at index, or null\n\nstring.at 0 \"hello\"  ; \"h\"");
 
     define_native!(StringSubstring, env, inter);
-    define_help!(StringSubstring, env, "[number number string]: extracts substring from start to end index\n\nstring.slice 1 4 \"hello\"  ; \"ell\"");
+    define_help!(StringSubstring, env, "[start:number end:number string]: extracts substring from start to end index\n\nstring.slice 1 4 \"hello\"  ; \"ell\"");
 
     define_native!(StringIndexOf, env, inter);
-    define_help!(StringIndexOf, env, "[string string]: finds index of substring, -1 if not found\n\nstring.index-of \"ll\" \"hello\"  ; 2");
+    define_help!(StringIndexOf, env, "[needle:string haystack:string]: finds index of substring, -1 if not found\n\nstring.index-of \"ll\" \"hello\"  ; 2");
 
     define_native!(StringJoin, env, inter);
-    define_help!(StringJoin, env, "[string list]: joins list of strings with separator\n\nstring.join \", \" [\"a\" \"b\" \"c\"]  ; \"a, b, c\"");
+    define_help!(StringJoin, env, "[separator:string list]: joins list of strings with separator\n\nstring.join \", \" [\"a\" \"b\" \"c\"]  ; \"a, b, c\"");
 
     define_native!(StringLines, env, inter);
     define_help!(StringLines, env, "[string]: splits string into lines\n\nstring.lines \"a\\nb\\nc\"  ; [\"a\" \"b\" \"c\"]");
 
     define_native!(StringBytes, env, inter);
-    define_help!(StringBytes, env, "[number]: formats bytes as human-readable string\n\nstring.bytes 1536  ; \"1.5 KiB\"");
+    define_help!(StringBytes, env, "[bytes:number]: formats bytes as human-readable string\n\nstring.bytes 1536  ; \"1.5 KiB\"");
 
     define_native!(StringSet, env, inter);
-    define_help!(StringSet, env, "[number string string]: sets character at index (mutates string)\n\nstring.set 0 mystr \"H\"");
+    define_help!(StringSet, env, "[index:number string replacement:string]: sets character at index (mutates string)\n\nstring.set 0 mystr \"H\"");
 
     define_native!(StringPush, env, inter);
-    define_help!(StringPush, env, "[string string]: appends to end of string (mutates string)\n\nstring.push mystr \"!\"");
+    define_help!(StringPush, env, "[string suffix:string]: appends to end of string (mutates string)\n\nstring.push mystr \"!\"");
 
     define_native!(StringPushLeft, env, inter);
-    define_help!(StringPushLeft, env, "[string string]: prepends to start of string (mutates string)\n\nstring.<push mystr \"Hello \"");
+    define_help!(StringPushLeft, env, "[string prefix:string]: prepends to start of string (mutates string)\n\nstring.<push mystr \"Hello \"");
 
     define_native!(StringIterate, env, inter);
-    define_help!(StringIterate, env, "[lambda string]: calls function for each character\n\nstring.iterate print \"abc\"");
+    define_help!(StringIterate, env, "[callback:lambda string]: calls function for each character\n\nstring.iterate print \"abc\"");
 
     define_native!(StringIterateBackward, env, inter);
-    define_help!(StringIterateBackward, env, "[lambda string]: iterates characters in reverse\n\nstring.<iterate print \"abc\"  ; prints c, b, a");
+    define_help!(StringIterateBackward, env, "[callback:lambda string]: iterates characters in reverse\n\nstring.<iterate print \"abc\"  ; prints c, b, a");
 }

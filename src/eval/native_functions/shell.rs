@@ -533,59 +533,59 @@ exit 1  ; failure".to_string());
 
     // Shell execution
     define_native!(Shell, env, inter);
-    define_help!(Shell, env, "[string]: executes shell command, returns stdout as string\n\nshell \"ls -la\"");
+    define_help!(Shell, env, "[cmd:string]: executes shell command, returns stdout as string\n\nshell \"ls -la\"");
 
     define_native!(ShellExec, env, inter);
-    define_help!(ShellExec, env, "[string]: executes shell command with output shown in terminal, returns exit code\n\nshell! \"npm install\"");
+    define_help!(ShellExec, env, "[cmd:string]: executes shell command with output shown in terminal, returns exit code\n\nshell! \"npm install\"");
 
     define_native!(ShellCode, env, inter);
-    define_help!(ShellCode, env, "[string]: executes shell command silently, returns exit code\n\nshell.code \"test -f file.txt\"");
+    define_help!(ShellCode, env, "[cmd:string]: executes shell command silently, returns exit code\n\nshell.code \"test -f file.txt\"");
 
     define_native!(ShellFull, env, inter);
-    define_help!(ShellFull, env, "[string]: executes shell command, returns object with stdout, stderr, code, ok\n\nshell.full \"ls\"");
+    define_help!(ShellFull, env, "[cmd:string]: executes shell command, returns object with stdout, stderr, code, ok\n\nshell.full \"ls\"");
 
     define_native!(ShellTry, env, inter);
-    define_help!(ShellTry, env, "[string]: executes shell command, returns stdout or null on failure\n\nshell? \"cat maybe.txt\"");
+    define_help!(ShellTry, env, "[cmd:string]: executes shell command, returns stdout or null on failure\n\nshell? \"cat maybe.txt\"");
 
     define_native!(ShellOk, env, inter);
-    define_help!(ShellOk, env, "[string]: executes shell command silently, returns true if successful\n\nshell.ok? \"which git\"");
+    define_help!(ShellOk, env, "[cmd:string]: executes shell command silently, returns true if successful\n\nshell.ok? \"which git\"");
 
     define_native!(ShellLines, env, inter);
-    define_help!(ShellLines, env, "[string]: executes shell command, returns stdout lines as list\n\nshell.lines \"ls\"");
+    define_help!(ShellLines, env, "[cmd:string]: executes shell command, returns stdout lines as list\n\nshell.lines \"ls\"");
 
     // Environment variables
     define_native!(ShellEnv, env, inter);
-    define_help!(ShellEnv, env, "[string]: gets environment variable, returns null if not found\n\nshell.env \"HOME\"");
+    define_help!(ShellEnv, env, "[name:string]: gets environment variable, returns null if not found\n\nshell.env \"HOME\"");
 
     define_native!(ShellSetEnv, env, inter);
-    define_help!(ShellSetEnv, env, "[string string]: sets environment variable for current process\n\nshell.env.set \"MY_VAR\" \"value\"");
+    define_help!(ShellSetEnv, env, "[name:string value:string]: sets environment variable for current process\n\nshell.env.set \"MY_VAR\" \"value\"");
 
     define_native!(ShellUnsetEnv, env, inter);
-    define_help!(ShellUnsetEnv, env, "[string]: removes environment variable\n\nshell.env.remove \"MY_VAR\"");
+    define_help!(ShellUnsetEnv, env, "[name:string]: removes environment variable\n\nshell.env.remove \"MY_VAR\"");
 
     define_native!(ShellEnvAll, env, inter);
     define_help!(ShellEnvAll, env, "[]: returns all environment variables as object\n\nshell.env.all");
 
     // IO
     ShellRead::define(&env, Rc::clone(&inter));
-    define_help!(ShellRead, env, "[string?]: reads line from stdin, optional prompt\n\nshell.ask \"Enter name: \"");
+    define_help!(ShellRead, env, "[prompt:string?]: reads line from stdin, optional prompt\n\nshell.ask \"Enter name: \"");
 
     // Working directory
     define_native!(ShellCwd, env, inter);
     define_help!(ShellCwd, env, "[]: returns current working directory\n\nshell.cwd");
 
     define_native!(ShellCd, env, inter);
-    define_help!(ShellCd, env, "[string]: changes current working directory\n\nshell.cd \"/tmp\"");
+    define_help!(ShellCd, env, "[path:string]: changes current working directory\n\nshell.cd \"/tmp\"");
 
     define_native!(ShellHome, env, inter);
     define_help!(ShellHome, env, "[]: returns home directory path\n\nshell.home");
 
     // Path utilities
     define_native!(ShellWhich, env, inter);
-    define_help!(ShellWhich, env, "[string]: finds executable in PATH, returns path or null\n\nshell.which \"git\"");
+    define_help!(ShellWhich, env, "[name:string]: finds executable in PATH, returns path or null\n\nshell.which \"git\"");
 
     define_native!(ShellHas, env, inter);
-    define_help!(ShellHas, env, "[string]: checks if command exists in PATH\n\nshell.has \"git\"");
+    define_help!(ShellHas, env, "[name:string]: checks if command exists in PATH\n\nshell.has \"git\"");
 
     // Process information
     define_native!(ProcessPid, env, inter);
@@ -608,7 +608,7 @@ exit 1  ; failure".to_string());
 
     // Process control
     define_native!(ProcessExit, env, inter);
-    define_help!(ProcessExit, env, "[number]: exits process with given exit code\n\nexit 0");
+    define_help!(ProcessExit, env, "[code:number]: exits process with given exit code\n\nexit 0");
 
     define_native!(ProcessExitSuccess, env, inter);
     define_help!(ProcessExitSuccess, env, "[]: exits process with code 0 (success)\n\nexit!");
@@ -617,5 +617,5 @@ exit 1  ; failure".to_string());
     define_help!(ProcessAbort, env, "[]: aborts process immediately (abnormal termination)\n\nprocess.abort");
 
     define_native!(ProcessSleep, env, inter);
-    define_help!(ProcessSleep, env, "[number]: sleeps for specified milliseconds\n\nprocess.sleep 1000");
+    define_help!(ProcessSleep, env, "[ms:number]: sleeps for specified milliseconds\n\nprocess.sleep 1000");
 }

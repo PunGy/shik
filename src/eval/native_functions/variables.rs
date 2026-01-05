@@ -59,11 +59,11 @@ pub fn bind_variable_module(env: &EnvRef, inter: Rc<Interpretator>) {
 - var.get: gets variable value by name string".to_string());
 
     define_native!(Let, env, inter);
-    define_help!(Let, env, "[identifier value]: defines a new variable in current scope\n\nlet x 42\nlet name :Alice\nlet files $ file.list :./");
+    define_help!(Let, env, "[name:identifier value]: defines a new variable in current scope\n\nlet x 42\nlet name :Alice\nlet files $ file.list :./");
 
     define_native!(Set, env, inter);
-    define_help!(Set, env, "[identifier value]: assigns new value to existing variable\n\nlet x 1\nset x 2");
+    define_help!(Set, env, "[name:identifier value]: assigns new value to existing variable\n\nlet x 1\nset x 2");
 
     define_native!(VarGet, env, inter);
-    define_help!(VarGet, env, "[string]: gets variable value by name string, returns null if not found\n\nvar.get \"x\"");
+    define_help!(VarGet, env, "[name:string]: gets variable value by name string, returns null if not found\n\nvar.get \"x\"");
 }
