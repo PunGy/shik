@@ -8,7 +8,7 @@ use crate::{
         utils::{define_match, pattern_match},
         value::{
             Closure, Env, EnvRef, MatchContext, NativeClosure, SpecialBoundClosure, SpecialClosure,
-            Value, ValueRef,
+            Value, ValueRef, null_value,
         },
         EvalResult,
     },
@@ -59,7 +59,7 @@ impl Interpretator {
     }
 
     pub fn interpretate(&self, program: &Program) -> EvalResult {
-        let mut last = Rc::new(Value::Null);
+        let mut last = null_value();
 
         let env = Rc::clone(&self.ctx.borrow().env);
         for stmt in &program.statements {
@@ -70,9 +70,6 @@ impl Interpretator {
     }
 
     pub fn eval_expr(&self, expr: &Expression, env: &EnvRef) -> EvalResult {
-        // println!("---");
-        // println!("eval expr: {:?}", expr);
-        // println!("With env: {:?}", ctx);
         match expr {
             Expression::Number(x) => Ok(Rc::new(Value::Number(*x))),
             Expression::String(s) => Ok(Rc::new(Value::String(s.clone()))),
@@ -119,9 +116,11 @@ impl Interpretator {
 
                 match f.as_ref() {
                     Value::SpecialForm(closure) => {
+                        // Upgrade weak references for the new closure
+                        let inter = closure.get_inter()?;
                         let mut curried = SpecialClosure::new(
                             Rc::clone(&closure.logic),
-                            Rc::clone(&closure.interpretator),
+                            inter,
                             Rc::clone(&env),
                         );
                         curried.params.extend_from_slice(&closure.params);
@@ -141,9 +140,10 @@ impl Interpretator {
                 let f = self.eval_expr(left.as_ref(), env)?;
                 match f.as_ref() {
                     Value::SpecialForm(closure) => {
+                        let inter = closure.get_inter()?;
                         let mut curried = SpecialClosure::new(
                             Rc::clone(&closure.logic),
-                            Rc::clone(&closure.interpretator),
+                            inter,
                             Rc::clone(&env),
                         );
                         curried.params.extend_from_slice(&closure.params);
@@ -163,9 +163,10 @@ impl Interpretator {
                 let f = self.eval_expr(function.as_ref(), env)?;
                 match f.as_ref() {
                     Value::SpecialForm(closure) => {
+                        let inter = closure.get_inter()?;
                         let mut curried = SpecialClosure::new(
                             Rc::clone(&closure.logic),
-                            Rc::clone(&closure.interpretator),
+                            inter,
                             Rc::clone(&env),
                         );
                         curried.params.extend_from_slice(&closure.params);
@@ -179,12 +180,16 @@ impl Interpretator {
                             return closure.exec();
                         }
 
+                        // Upgrade weak references for the new closure
+                        let inter = closure.get_inter()?;
+                        let closure_env = closure.get_env()?;
+                        
                         // Make a new curried lambda
                         let mut curried = SpecialBoundClosure::new(
                             closure.params_count,
                             Rc::clone(&closure.logic),
-                            Rc::clone(&closure.inter),
-                            Rc::clone(&closure.env),
+                            inter,
+                            closure_env,
                         );
                         curried.binded.extend_from_slice(&closure.binded);
                         curried.binded.push(*argument.clone());
@@ -204,7 +209,7 @@ impl Interpretator {
             }
             Expression::Parenthesized(expr) => self.eval_expr(expr, env),
             Expression::Block(expr_lst) => {
-                let mut last = Rc::new(Value::Null);
+                let mut last = null_value();
 
                 for it in expr_lst.iter() {
                     last = self.expand(self.eval_expr(it, env)?)?;
@@ -216,12 +221,17 @@ impl Interpretator {
                 parameters,
                 rest,
                 body,
-            } => Ok(Rc::new(Value::Lambda(Closure::new(
-                parameters.clone(),
-                rest.clone(),
-                body.clone(),
-                Rc::new(Env::new(Some(Rc::clone(env)))),
-            )))),
+            } => {
+                // Create a new child environment for the lambda
+                // The closure will hold a Weak reference to this environment
+                let child_env = Rc::new(Env::new(Some(Rc::clone(env))));
+                Ok(Rc::new(Value::Lambda(Closure::new(
+                    parameters.clone(),
+                    rest.clone(),
+                    body.clone(),
+                    child_env,
+                ))))
+            }
             Expression::Let { pattern, value } => {
                 let val = self.expand(self.eval_expr(value, env)?)?;
                 define_match(pattern, &val, &env, &MatchContext::Let)
@@ -250,7 +260,7 @@ impl Interpretator {
                     }
                 }
 
-                Ok(Rc::new(Value::Null))
+                Ok(null_value())
             }
             Expression::Identifier(name) => self.lookup(name, &env),
             Expression::Flow { left, right } => {
@@ -258,8 +268,6 @@ impl Interpretator {
                 let param = MatchPattern::Identifier("x".to_string());
                 params.push(param);
 
-                // Flow { left: Identifier("inc"), right: Identifier("inc") }
-                // Lambda { parameters: [Identifier("x")], rest: None, body: Application { function: Identifier("inc"), argument: Application { function: Identifier("inc"), argument: Identifier("x") } } }
                 let body = Expression::Application {
                     function: right.clone(),
                     argument: Box::new(Expression::Application {
@@ -268,13 +276,14 @@ impl Interpretator {
                     }),
                 };
 
-                let composed = Value::Lambda(Closure {
+                // Create environment for the composed function
+                let flow_env = Rc::new(Env::new(Some(Rc::clone(env))));
+                let composed = Value::Lambda(Closure::new(
                     params,
-                    rest: None,
-                    binded: Vec::new(),
-                    body: Box::new(body),
-                    env: Rc::clone(&env),
-                });
+                    None,
+                    Box::new(body),
+                    flow_env,
+                ));
                 Ok(Rc::new(composed))
             }
             e => Err(RuntimeError::NotYetImplemented(e.clone())),
@@ -284,8 +293,11 @@ impl Interpretator {
     pub fn apply_fn(&self, f: &ValueRef, a: &ValueRef) -> EvalResult {
         match f.as_ref() {
             Value::Lambda(closure) => {
+                // Get the closure's environment (strong reference, always available)
+                let closure_env = closure.get_env();
+                
                 if closure.params.len() == 0 {
-                    return self.eval_expr(&closure.body, &closure.env);
+                    return self.eval_expr(&closure.body, &closure_env);
                 }
 
                 let mut curried = closure.clone();
@@ -294,7 +306,8 @@ impl Interpretator {
                 if curried.binded.len() == curried.params.len() {
                     // All params are binded, let's evaluate
                     curried.bind_variables()?;
-
+                    
+                    // Use the curried closure's environment
                     self.eval_expr(&curried.body, &curried.env)
                 } else {
                     // Make a new curried lambda
@@ -306,12 +319,16 @@ impl Interpretator {
                     return closure.exec();
                 }
 
+                // Upgrade weak references for the new closure
+                let inter = closure.get_inter()?;
+                let closure_env = closure.get_env()?;
+                
                 // Make a new curried lambda
                 let mut curried = NativeClosure::new(
                     closure.params_count,
                     Rc::clone(&closure.logic),
-                    Rc::clone(&closure.inter),
-                    Rc::clone(&closure.env),
+                    inter,
+                    closure_env,
                 );
                 curried.binded.extend_from_slice(&closure.binded);
                 curried.binded.push(a.clone());
@@ -340,7 +357,9 @@ impl Interpretator {
                 Value::Lambda(closure) => {
                     let quoted = self.ctx.borrow().quoted;
                     if closure.params.len() == 0 && !quoted {
-                        return self.eval_expr(&closure.body, &closure.env);
+                        // Get the closure's environment (strong reference)
+                        let closure_env = closure.get_env();
+                        return self.eval_expr(&closure.body, &closure_env);
                     }
                     Ok(val)
                 }

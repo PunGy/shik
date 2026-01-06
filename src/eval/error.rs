@@ -24,6 +24,11 @@ pub enum RuntimeError {
     InvalidApplication,
     InvalidPatternMatching,
     IndexOutOfBounds { index: usize },
+    
+    /// Environment was dropped - closure outlived its captured scope.
+    /// This typically indicates a bug in the interpreter or an unusual
+    /// pattern where a closure escapes its defining scope.
+    EnvironmentDropped,
 
     Custom(ShikError),
 }
@@ -67,6 +72,13 @@ impl std::fmt::Display for RuntimeError {
                 write!(
                     f,
                     "PatternMatching: Unable to match the pattern"
+                )
+            }
+            RuntimeError::EnvironmentDropped => {
+                write!(
+                    f,
+                    "EnvironmentDropped: The closure's captured environment was garbage collected. \
+                     This usually means a closure outlived its defining scope."
                 )
             }
             RuntimeError::Custom(err) => {

@@ -1,0 +1,12 @@
+let generate-garbage fn [size] '(
+  list.range size ; generate list, do not assign anywhere
+  0 ; just return zero
+)
+
+process.sleep 5000
+generate-garbage 20000
+process.sleep 5000
+generate-garbage 20000
+process.sleep 5000
+generate-garbage 20000
+process.sleep 5000

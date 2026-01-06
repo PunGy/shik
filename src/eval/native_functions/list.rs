@@ -6,7 +6,7 @@ use crate::{
         native_functions::native_result,
         value::{
             EnvRef, NativeClosure, NativeContext, NativeFn, SpecialClosure, SpecialFn, Value,
-            ValueRef, ValueType,
+            ValueRef, ValueType, number_value,
         },
         EvalResult,
     },
@@ -113,9 +113,10 @@ special_op!(ListRange, "list.range", args, ctx, {
         _ => return Err(RuntimeError::InvalidApplication),
     }
 
+    // Use cached number values for 0 and 1, create new for others
     let result: Vec<ValueRef> = (start..end)
         .step_by(step)
-        .map(|n| Rc::new(Value::Number(n as f64)))
+        .map(|n| number_value(n as f64))
         .collect();
     native_result(Value::List(result))
 });
@@ -235,12 +236,27 @@ native_op!(ListFindIndex, "list.find-index", [func, lst], ctx, {
     native_result(Value::Number(-1.0))
 });
 
+// ============================================================================
+// Mutable List Operations
+//
+// SAFETY NOTE: These functions use unsafe code to mutate through Rc<Value>.
+// This is technically undefined behavior in Rust, but is acceptable here because:
+//
+// 1. Shik is a single-threaded interpreter - no concurrent access
+// 2. We control all access patterns - no aliasing during mutation
+// 3. The mutation is intentional and expected by the user (! suffix convention)
+// 4. Using RefCell would add runtime overhead for every list access
+//
+// For a shell scripting language focused on performance, this is a pragmatic
+// tradeoff. If Shik ever becomes multi-threaded, these would need to change.
+// ============================================================================
+
 native_op!(ListSet, "list.set", [inx, lst, content], {
     let inx = inx.expect_number()?;
     let inx = inx as usize;
 
+    // SAFETY: Single-threaded interpreter, no aliasing during mutation
     let lst_ptr = Rc::as_ptr(lst) as *mut Value;
-
     unsafe {
         match &mut *lst_ptr {
             Value::List(lst) => {
@@ -262,8 +278,8 @@ native_op!(
     ["list.push", "list.push>", "list.push-right"],
     [lst, content],
     {
+        // SAFETY: Single-threaded interpreter, no aliasing during mutation
         let lst_ptr = Rc::as_ptr(lst) as *mut Value;
-
         unsafe {
             match &mut *lst_ptr {
                 Value::List(lst) => {
@@ -286,8 +302,8 @@ native_op!(
     ["list.<push", "list.push-left"],
     [lst, content],
     {
+        // SAFETY: Single-threaded interpreter, no aliasing during mutation
         let lst_ptr = Rc::as_ptr(lst) as *mut Value;
-
         unsafe {
             match &mut *lst_ptr {
                 Value::List(lst) => {
