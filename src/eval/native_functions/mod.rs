@@ -14,7 +14,7 @@ pub mod function;
 pub mod help;
 
 use crate::eval::{
-    value::{Value, ValueRef, null_value, bool_value, number_value},
+    value::{Value, null_value, bool_value, number_value},
     EvalResult,
 };
 use std::rc::Rc;

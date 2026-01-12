@@ -4,7 +4,7 @@ use crate::{
         error::RuntimeError,
         evaluator::Interpretator,
         native_functions::native_result,
-        value::{EnvRef, NativeClosure, NativeContext, NativeFn, Value, ValueRef, ValueType},
+        value::{EnvRef, ListRepr, NativeClosure, NativeContext, NativeFn, Value, ValueRef, ValueType},
         EvalResult,
     },
     native_op,
@@ -28,7 +28,7 @@ native_op!(StringSplit, "string.split", [with, str], {
         .map(|s| Rc::new(Value::String(s.to_string())))
         .collect::<Vec<ValueRef>>();
 
-    native_result(Value::List(res))
+    native_result(Value::List(ListRepr::from_vec(res)))
 });
 
 native_op!(StringConcat, "string.+", [a, b], {
@@ -143,7 +143,7 @@ native_op!(StringLines, "string.lines", [s], {
         .lines()
         .map(|line| Rc::new(Value::String(line.to_string())))
         .collect();
-    native_result(Value::List(lines))
+    native_result(Value::List(ListRepr::from_vec(lines)))
 });
 
 const UNITS: [&str; 7] = ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"];

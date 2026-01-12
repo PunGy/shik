@@ -99,7 +99,7 @@ mod tests {
         match &result.statements[0].expression {
             Expression::Let { pattern, value } => {
                 match pattern {
-                    crate::parser::LetPattern::Identifier(name) => assert_eq!(name, "x"),
+                    crate::parser::MatchPattern::Identifier(name) => assert_eq!(name, "x"),
                     _ => panic!("Expected identifier pattern"),
                 }
                 match &**value {
@@ -333,7 +333,7 @@ mod tests {
         match &result.statements[0].expression {
             Expression::Let { pattern, value } => {
                 match pattern {
-                    crate::parser::LetPattern::Identifier(name) => assert_eq!(name, "result"),
+                    crate::parser::MatchPattern::Identifier(name) => assert_eq!(name, "result"),
                     _ => panic!("Expected identifier pattern"),
                 }
                 match &**value {

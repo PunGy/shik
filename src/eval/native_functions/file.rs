@@ -4,7 +4,7 @@ use crate::{
         error::{RuntimeError, ShikError},
         evaluator::Interpretator,
         native_functions::native_result,
-        value::{EnvRef, NativeClosure, NativeContext, NativeFn, Value, ValueRef},
+        value::{EnvRef, ListRepr, NativeClosure, NativeContext, NativeFn, Value, ValueRef},
         EvalResult,
     },
     native_op,
@@ -55,7 +55,7 @@ native_op!(FileReadBytes, "file.read-bytes", [path], {
         .map(|b| Rc::new(Value::Number(b as f64)))
         .collect();
 
-    native_result(Value::List(result))
+    native_result(Value::List(ListRepr::from_vec(result)))
 });
 
 // Read file lines as a list
@@ -71,7 +71,7 @@ native_op!(FileLines, "file.read-lines", [path], {
         .map(|line| Rc::new(Value::String(line.to_string())))
         .collect();
 
-    native_result(Value::List(lines))
+    native_result(Value::List(ListRepr::from_vec(lines)))
 });
 
 // ============================================================================
@@ -402,7 +402,7 @@ native_op!(FileList, "file.list", [path], {
         result.push(Rc::new(Value::String(name)));
     }
 
-    native_result(Value::List(result))
+    native_result(Value::List(ListRepr::from_vec(result)))
 });
 
 // List directory contents with full paths
@@ -421,7 +421,7 @@ native_op!(FileListPaths, "file.list!", [path], {
         result.push(Rc::new(Value::String(path_str)));
     }
 
-    native_result(Value::List(result))
+    native_result(Value::List(ListRepr::from_vec(result)))
 });
 
 // Glob pattern matching
@@ -445,7 +445,7 @@ native_op!(FileGlob, "file.glob", [pattern], {
         }
     }
 
-    native_result(Value::List(result))
+    native_result(Value::List(ListRepr::from_vec(result)))
 });
 
 // ============================================================================

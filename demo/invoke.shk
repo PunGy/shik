@@ -1,1 +1,4 @@
-[(fn [] print :hello) (fn [] print :hello) (fn [] print :hello) (fn [] print :hello)] $> iterate fn.invoke
+[(fn [] print :hello1)
+ (fn [] print :hello2)
+ (fn [] print :hello3)
+ (fn [] print :hello4)] $> iterate fn.invoke

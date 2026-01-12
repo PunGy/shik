@@ -1,0 +1,17 @@
+let x 0
+let counter fn [base] '(
+  let x base
+  let bump fn [much] set x $ + much x
+  bump
+)
+
+let ctr1 $ counter 10
+let ctr2 $ counter 20
+let ctr3 $ counter 30
+
+print $ ctr1 1
+print $ ctr2 1
+print $ ctr3 1
+
+print x
+

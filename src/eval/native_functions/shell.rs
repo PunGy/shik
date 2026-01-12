@@ -5,7 +5,7 @@ use crate::{
         evaluator::Interpretator,
         native_functions::native_result,
         value::{
-            EnvRef, NativeClosure, NativeContext, NativeFn, SpecialClosure, SpecialFn, Value,
+            EnvRef, ListRepr, NativeClosure, NativeContext, NativeFn, SpecialClosure, SpecialFn, Value,
             ValueRef,
         },
         EvalResult,
@@ -191,7 +191,7 @@ native_op!(ShellLines, "shell.lines", [cmd], {
                 .lines()
                 .map(|line| Rc::new(Value::String(line.to_string())))
                 .collect();
-            native_result(Value::List(lines))
+            native_result(Value::List(ListRepr::from_vec(lines)))
         }
         Err(e) => Err(ShikError::default_error(format!(
             "shell command failed: {}",
@@ -407,7 +407,7 @@ native_op!(ProcessPid, "process.pid", [], {
 // Usage: shell.args
 native_op!(ShellArgs, "shell.args", [], {
     let args: Vec<ValueRef> = env::args().map(|arg| Rc::new(Value::String(arg))).collect();
-    native_result(Value::List(args))
+    native_result(Value::List(ListRepr::from_vec(args)))
 });
 
 // Get command line arguments, without caller and filename.
@@ -415,12 +415,12 @@ native_op!(ShellArgs, "shell.args", [], {
 native_op!(ProcessArgs, "process.args", [], {
     let mut args = env::args();
     if args.len() < 3 {
-        return native_result(Value::List([].to_vec()));
+        return native_result(Value::List(ListRepr::empty()));
     }
     args.next(); // skip shik
     args.next(); // skip filename
     let args: Vec<ValueRef> = args.map(|arg| Rc::new(Value::String(arg))).collect();
-    native_result(Value::List(args))
+    native_result(Value::List(ListRepr::from_vec(args)))
 });
 
 // Get name of the file currently executed. In case of repl would return null

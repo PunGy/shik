@@ -28,19 +28,18 @@ pub fn define_match(
                 let inner_val = val_list
                     .get(inx)
                     .ok_or_else(|| RuntimeError::InvalidPatternMatching)?;
-                define_match(pattern, inner_val, env, &match_context)?;
+                define_match(pattern, &inner_val, env, &match_context)?;
             }
 
             match rest {
-                Some(rest_name) => env.define(
-                    rest_name.clone(),
-                    Rc::new(Value::List(
-                        val_list[last_inx + 1..]
-                            .iter()
-                            .map(|v| Rc::clone(&v))
-                            .collect(),
-                    )),
-                ),
+                Some(rest_name) => {
+                    // Use drop() to get a view of the remaining elements - O(1)
+                    let rest_list = val_list.drop(last_inx + 1);
+                    env.define(
+                        rest_name.clone(),
+                        Rc::new(Value::List(rest_list)),
+                    );
+                }
                 _ => (),
             };
         }
@@ -79,22 +78,21 @@ pub fn pattern_match(pattern: &MatchPattern, item_val: &ValueRef, env: &EnvRef) 
                 let inner_val = val_list
                     .get(inx)
                     .ok_or_else(|| RuntimeError::InvalidPatternMatching)?;
-                let success = pattern_match(pattern, inner_val, env)?;
+                let success = pattern_match(pattern, &inner_val, env)?;
                 if !success {
                     return Ok(false);
                 }
             }
 
             match rest {
-                Some(rest_name) => env.define(
-                    rest_name.clone(),
-                    Rc::new(Value::List(
-                        val_list[last_inx + 1..]
-                            .iter()
-                            .map(|v| Rc::clone(&v))
-                            .collect(),
-                    )),
-                ),
+                Some(rest_name) => {
+                    // Use drop() to get a view of the remaining elements - O(1)
+                    let rest_list = val_list.drop(last_inx + 1);
+                    env.define(
+                        rest_name.clone(),
+                        Rc::new(Value::List(rest_list)),
+                    );
+                }
                 _ => (),
             };
 

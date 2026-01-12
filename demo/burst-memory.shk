@@ -1,5 +1,5 @@
 let generate-garbage fn [size] '(
-  list.range size ; generate list, do not assign anywhere
+  let x $ list.range size ; generate list, do not assign anywhere
   0 ; just return zero
 )
 

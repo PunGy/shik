@@ -5,7 +5,7 @@ use crate::{
         evaluator::Interpretator,
         native_functions::native_result,
         value::{
-            EnvRef, NativeClosure, NativeContext, NativeFn, SpecialClosure, SpecialFn, Value,
+            EnvRef, ListRepr, NativeClosure, NativeContext, NativeFn, SpecialClosure, SpecialFn, Value,
             ValueRef, ValueType, number_value,
         },
         EvalResult,
@@ -33,56 +33,51 @@ native_op!(ListSum, "list.sum", [lst], {
 native_op!(ListHead, "list.head", [lst], {
     let lst = lst.expect_list()?;
     match lst.first() {
-        Some(v) => Ok(Rc::clone(v)),
+        Some(v) => Ok(v),
         None => native_result(Value::Null),
     }
 });
 
 native_op!(ListTail, "list.tail", [lst], {
     let lst = lst.expect_list()?;
-    if lst.is_empty() {
-        native_result(Value::List(vec![]))
-    } else {
-        native_result(Value::List(lst[1..].to_vec()))
-    }
+    native_result(Value::List(lst.tail()))
 });
 
 native_op!(ListLast, "list.last", [lst], {
     let lst = lst.expect_list()?;
     match lst.last() {
-        Some(v) => Ok(Rc::clone(v)),
+        Some(v) => Ok(v),
         None => native_result(Value::Null),
     }
 });
 
 native_op!(ListInit, "list.init", [lst], {
     let lst = lst.expect_list()?;
-    if lst.is_empty() {
-        native_result(Value::List(vec![]))
-    } else {
-        native_result(Value::List(lst[..lst.len() - 1].to_vec()))
-    }
+    native_result(Value::List(lst.init()))
 });
 
+// Materializing operation - creates new Vec
 native_op!(ListReverse, "list.reverse", [lst], {
     let lst = lst.expect_list()?;
-    let reversed: Vec<ValueRef> = lst.iter().rev().cloned().collect();
-    native_result(Value::List(reversed))
+    let reversed: Vec<ValueRef> = lst.iter().rev().collect();
+    native_result(Value::List(ListRepr::from_vec(reversed)))
 });
 
+// Materializing operation - creates new Vec
 native_op!(ListConcat, "list.concat", [a, b], {
     let a = a.expect_list()?;
     let b = b.expect_list()?;
-    let mut result = a.clone();
-    result.extend(b.iter().cloned());
-    native_result(Value::List(result))
+    let mut result = Vec::with_capacity(a.len() + b.len());
+    result.extend(a.iter());
+    result.extend(b.iter());
+    native_result(Value::List(ListRepr::from_vec(result)))
 });
 
 native_op!(ListAt, "list.at", [idx, lst], {
     let lst = lst.expect_list()?;
     let idx = idx.expect_number()? as usize;
     match lst.get(idx) {
-        Some(v) => Ok(Rc::clone(v)),
+        Some(v) => Ok(v),
         None => native_result(Value::Null),
     }
 });
@@ -113,44 +108,50 @@ special_op!(ListRange, "list.range", args, ctx, {
         _ => return Err(RuntimeError::InvalidApplication),
     }
 
+    // Pre-allocate with known size
+    let len = if end > start && step > 0 {
+        ((end - start) as usize + step - 1) / step
+    } else {
+        0
+    };
+    let mut result = Vec::with_capacity(len);
+    
     // Use cached number values for 0 and 1, create new for others
-    let result: Vec<ValueRef> = (start..end)
-        .step_by(step)
-        .map(|n| number_value(n as f64))
-        .collect();
-    native_result(Value::List(result))
+    for n in (start..end).step_by(step) {
+        result.push(number_value(n as f64));
+    }
+    native_result(Value::List(ListRepr::from_vec(result)))
 });
 
 native_op!(ListTake, "list.take", [n, lst], {
     let lst = lst.expect_list()?;
     let n = n.expect_number()? as usize;
-    let result: Vec<ValueRef> = lst.iter().take(n).cloned().collect();
-    native_result(Value::List(result))
+    native_result(Value::List(lst.take(n)))
 });
 
 native_op!(ListDrop, "list.drop", [n, lst], {
     let lst = lst.expect_list()?;
     let n = n.expect_number()? as usize;
-    let result: Vec<ValueRef> = lst.iter().skip(n).cloned().collect();
-    native_result(Value::List(result))
+    native_result(Value::List(lst.drop(n)))
 });
 
 // Higher-order functions using NativeContext to call lambdas
 
+// Materializing operation - creates new Vec
 native_op!(ListMap, "list.map", [func, lst], ctx, {
     let lst = lst.expect_list()?;
-    let mut result: Vec<ValueRef> = Vec::new();
+    let mut result: Vec<ValueRef> = Vec::with_capacity(lst.len());
     for item in lst.iter() {
-        let mapped = ctx.apply(func, item)?;
+        let mapped = ctx.apply(func, &item)?;
         result.push(mapped);
     }
-    native_result(Value::List(result))
+    native_result(Value::List(ListRepr::from_vec(result)))
 });
 
 native_op!(ListIterate, "list.iterate", [func, lst], ctx, {
     let lst = lst.expect_list()?;
     for item in lst.iter() {
-        ctx.apply(func, item)?;
+        ctx.apply(func, &item)?;
     }
     native_result(Value::Null)
 });
@@ -163,22 +164,23 @@ native_op!(
     {
         let lst = lst.expect_list()?;
         for item in lst.iter().rev() {
-            ctx.apply(func, item)?;
+            ctx.apply(func, &item)?;
         }
         native_result(Value::Null)
     }
 );
 
+// Materializing operation - creates new Vec
 native_op!(ListFilter, "list.filter", [func, lst], ctx, {
     let lst = lst.expect_list()?;
-    let mut result: Vec<ValueRef> = Vec::new();
+    let mut result: Vec<ValueRef> = Vec::with_capacity(lst.len());
     for item in lst.iter() {
-        let predicate_result = ctx.apply(func, item)?;
+        let predicate_result = ctx.apply(func, &item)?;
         if predicate_result.expect_bool()? {
-            result.push(Rc::clone(item));
+            result.push(item);
         }
     }
-    native_result(Value::List(result))
+    native_result(Value::List(ListRepr::from_vec(result)))
 });
 
 native_op!(ListFold, "list.fold", [init, func, lst], ctx, {
@@ -187,7 +189,7 @@ native_op!(ListFold, "list.fold", [init, func, lst], ctx, {
     for item in lst.iter() {
         // Apply function to accumulator first, then to item (curried)
         let partial = ctx.apply(func, &acc)?;
-        acc = ctx.apply(&partial, item)?;
+        acc = ctx.apply(&partial, &item)?;
     }
     Ok(acc)
 });
@@ -195,7 +197,7 @@ native_op!(ListFold, "list.fold", [init, func, lst], ctx, {
 native_op!(ListAny, "list.any", [func, lst], ctx, {
     let lst = lst.expect_list()?;
     for item in lst.iter() {
-        let result = ctx.apply(func, item)?;
+        let result = ctx.apply(func, &item)?;
         if result.expect_bool()? {
             return native_result(Value::Bool(true));
         }
@@ -206,7 +208,7 @@ native_op!(ListAny, "list.any", [func, lst], ctx, {
 native_op!(ListAll, "list.all", [func, lst], ctx, {
     let lst = lst.expect_list()?;
     for item in lst.iter() {
-        let result = ctx.apply(func, item)?;
+        let result = ctx.apply(func, &item)?;
         if !result.expect_bool()? {
             return native_result(Value::Bool(false));
         }
@@ -217,9 +219,9 @@ native_op!(ListAll, "list.all", [func, lst], ctx, {
 native_op!(ListFind, "list.find", [func, lst], ctx, {
     let lst = lst.expect_list()?;
     for item in lst.iter() {
-        let result = ctx.apply(func, item)?;
+        let result = ctx.apply(func, &item)?;
         if result.expect_bool()? {
-            return Ok(Rc::clone(item));
+            return Ok(item);
         }
     }
     native_result(Value::Null)
@@ -228,7 +230,7 @@ native_op!(ListFind, "list.find", [func, lst], ctx, {
 native_op!(ListFindIndex, "list.find-index", [func, lst], ctx, {
     let lst = lst.expect_list()?;
     for (inx, item) in lst.iter().enumerate() {
-        let result = ctx.apply(func, item)?;
+        let result = ctx.apply(func, &item)?;
         if result.expect_bool()? {
             return native_result(Value::Number(inx as f64));
         }
@@ -239,28 +241,20 @@ native_op!(ListFindIndex, "list.find-index", [func, lst], ctx, {
 // ============================================================================
 // Mutable List Operations
 //
-// SAFETY NOTE: These functions use unsafe code to mutate through Rc<Value>.
-// This is technically undefined behavior in Rust, but is acceptable here because:
-//
-// 1. Shik is a single-threaded interpreter - no concurrent access
-// 2. We control all access patterns - no aliasing during mutation
-// 3. The mutation is intentional and expected by the user (! suffix convention)
-// 4. Using RefCell would add runtime overhead for every list access
-//
-// For a shell scripting language focused on performance, this is a pragmatic
-// tradeoff. If Shik ever becomes multi-threaded, these would need to change.
+// These operations use RefCell for safe interior mutability.
+// Views are automatically materialized before mutation (COW semantics).
 // ============================================================================
 
 native_op!(ListSet, "list.set", [inx, lst, content], {
-    let inx = inx.expect_number()?;
-    let inx = inx as usize;
+    let inx = inx.expect_number()? as usize;
 
-    // SAFETY: Single-threaded interpreter, no aliasing during mutation
+    // Get mutable access to the list through the Value
     let lst_ptr = Rc::as_ptr(lst) as *mut Value;
+    // SAFETY: Single-threaded interpreter, we're the only accessor
     unsafe {
         match &mut *lst_ptr {
-            Value::List(lst) => {
-                lst[inx] = Rc::clone(&content);
+            Value::List(list_repr) => {
+                list_repr.set(inx, Rc::clone(&content))?;
                 return Ok(Rc::clone(content));
             }
             _ => {
@@ -278,12 +272,13 @@ native_op!(
     ["list.push", "list.push>", "list.push-right"],
     [lst, content],
     {
-        // SAFETY: Single-threaded interpreter, no aliasing during mutation
+        // Get mutable access to the list through the Value
         let lst_ptr = Rc::as_ptr(lst) as *mut Value;
+        // SAFETY: Single-threaded interpreter, we're the only accessor
         unsafe {
             match &mut *lst_ptr {
-                Value::List(lst) => {
-                    lst.push(Rc::clone(&content));
+                Value::List(list_repr) => {
+                    list_repr.push(Rc::clone(&content));
                     return Ok(Rc::clone(content));
                 }
                 _ => {
@@ -302,12 +297,13 @@ native_op!(
     ["list.<push", "list.push-left"],
     [lst, content],
     {
-        // SAFETY: Single-threaded interpreter, no aliasing during mutation
+        // Get mutable access to the list through the Value
         let lst_ptr = Rc::as_ptr(lst) as *mut Value;
+        // SAFETY: Single-threaded interpreter, we're the only accessor
         unsafe {
             match &mut *lst_ptr {
-                Value::List(lst) => {
-                    lst.insert(0, Rc::clone(&content));
+                Value::List(list_repr) => {
+                    list_repr.push_front(Rc::clone(&content));
                     return Ok(Rc::clone(content));
                 }
                 _ => {
@@ -400,7 +396,7 @@ pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_help!(
         ListTail,
         env,
-        "[list]: returns list without first element\n\nlist.tail [1 2 3]  ; [2 3]"
+        "[list]: returns list without first element \n\nlist.tail [1 2 3]  ; [2 3]"
     );
 
     define_native!(ListLast, env, inter);
@@ -414,7 +410,7 @@ pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_help!(
         ListInit,
         env,
-        "[list]: returns list without last element\n\nlist.init [1 2 3]  ; [1 2]"
+        "[list]: returns list without last element \n\nlist.init [1 2 3]  ; [1 2]"
     );
 
     define_native!(ListReverse, env, inter);
@@ -445,14 +441,14 @@ pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_help!(
         ListTake,
         env,
-        "[count:number list]: takes first n elements\n\nlist.take 2 [1 2 3 4]  ; [1 2]"
+        "[count:number list]: takes first n elements \n\nlist.take 2 [1 2 3 4]  ; [1 2]"
     );
 
     define_native!(ListDrop, env, inter);
     define_help!(
         ListDrop,
         env,
-        "[count:number list]: drops first n elements\n\nlist.drop 2 [1 2 3 4]  ; [3 4]"
+        "[count:number list]: drops first n elements \n\nlist.drop 2 [1 2 3 4]  ; [3 4]"
     );
 
     // Higher-order functions

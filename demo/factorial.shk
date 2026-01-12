@@ -1,7 +1,8 @@
 let fac! fn [x] '(
+  print x
   if (< x 2) $
     1 $
-    (* x (fac! (- x 1)))
+    (* x (fac! (- 1 x)))
 )
 
 print $ fac! 5

@@ -1,7 +1,7 @@
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::rc::{Rc, Weak};
+use std::rc::{Rc};
 
 use crate::eval::evaluator::Interpretator;
 use crate::eval::utils::define_match;
@@ -9,6 +9,259 @@ use crate::{
     eval::error::RuntimeError,
     parser::{Expression, MatchPattern},
 };
+
+// ============================================================================
+// ListRepr - Efficient list representation with views and safe mutability
+//
+// Design goals:
+// 1. O(1) tail/init/take/drop operations via views (no copying)
+// 2. Safe mutability using RefCell
+// 3. Copy-on-write semantics for mutating views
+// ============================================================================
+
+/// Shared list data storage
+pub type ListData = Rc<RefCell<Vec<ValueRef>>>;
+
+/// List representation with view support
+///
+/// A view is a slice into a shared buffer. Multiple ListRepr instances
+/// can share the same underlying data with different start/end indices.
+#[derive(Clone, Debug)]
+pub struct ListRepr {
+    /// Shared reference to the underlying data
+    pub data: ListData,
+    /// Start index of the view (inclusive)
+    pub start: usize,
+    /// End index of the view (exclusive)
+    pub end: usize,
+}
+
+impl ListRepr {
+    /// Create a new ListRepr from a vector
+    pub fn from_vec(v: Vec<ValueRef>) -> Self {
+        let len = v.len();
+        Self {
+            data: Rc::new(RefCell::new(v)),
+            start: 0,
+            end: len,
+        }
+    }
+
+    /// Create an empty list
+    pub fn empty() -> Self {
+        Self {
+            data: Rc::new(RefCell::new(Vec::new())),
+            start: 0,
+            end: 0,
+        }
+    }
+
+    /// Get the length of this view
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.end - self.start
+    }
+
+    /// Check if this view is empty
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Check if this is a full view (not a slice)
+    #[inline]
+    pub fn is_full_view(&self) -> bool {
+        self.start == 0 && self.end == self.data.borrow().len()
+    }
+
+    /// Get the first element
+    pub fn first(&self) -> Option<ValueRef> {
+        self.get(0)
+    }
+
+    /// Get the last element
+    pub fn last(&self) -> Option<ValueRef> {
+        if self.is_empty() {
+            None
+        } else {
+            self.get(self.len() - 1)
+        }
+    }
+
+    /// Get an element by index (relative to view start)
+    pub fn get(&self, idx: usize) -> Option<ValueRef> {
+        let i = self.start + idx;
+        if i < self.end {
+            Some(Rc::clone(&self.data.borrow()[i]))
+        } else {
+            None
+        }
+    }
+
+    /// Execute a function with a borrowed slice of the view
+    pub fn with_slice<R>(&self, f: impl FnOnce(&[ValueRef]) -> R) -> R {
+        let borrow = self.data.borrow();
+        f(&borrow[self.start..self.end])
+    }
+
+    /// Create a new view as a slice of this view
+    pub fn slice(&self, start: usize, end: usize) -> Self {
+        let new_start = (self.start + start).min(self.end);
+        let new_end = (self.start + end).min(self.end).max(new_start);
+        Self {
+            data: Rc::clone(&self.data),
+            start: new_start,
+            end: new_end,
+        }
+    }
+
+    /// Get tail (all elements except first) - O(1)
+    pub fn tail(&self) -> Self {
+        if self.is_empty() {
+            self.clone()
+        } else {
+            self.slice(1, self.len())
+        }
+    }
+
+    /// Get init (all elements except last) - O(1)
+    pub fn init(&self) -> Self {
+        if self.is_empty() {
+            self.clone()
+        } else {
+            self.slice(0, self.len() - 1)
+        }
+    }
+
+    /// Take first n elements - O(1)
+    pub fn take(&self, n: usize) -> Self {
+        self.slice(0, n.min(self.len()))
+    }
+
+    /// Drop first n elements - O(1)
+    pub fn drop(&self, n: usize) -> Self {
+        self.slice(n.min(self.len()), self.len())
+    }
+
+    /// Materialize the view into a new owned vector
+    /// This is used before mutations on non-full views
+    pub fn materialize(&self) -> Vec<ValueRef> {
+        self.with_slice(|s| s.iter().cloned().collect())
+    }
+
+    /// Ensure this is a full view, materializing if necessary
+    /// Returns a ListRepr that is safe to mutate
+    pub fn ensure_owned(&mut self) {
+        if !self.is_full_view() {
+            let materialized = self.materialize();
+            self.data = Rc::new(RefCell::new(materialized));
+            self.start = 0;
+            self.end = self.data.borrow().len();
+        }
+    }
+
+    /// Set an element at index (relative to view start)
+    /// Materializes the view if it's not a full view
+    pub fn set(&mut self, idx: usize, value: ValueRef) -> Result<(), RuntimeError> {
+        let i = self.start + idx;
+        if i >= self.end {
+            return Err(RuntimeError::IndexOutOfBounds { index: idx });
+        }
+
+        // If this is not a full view, materialize first
+        if !self.is_full_view() {
+            self.ensure_owned();
+        }
+
+        self.data.borrow_mut()[self.start + idx] = value;
+        Ok(())
+    }
+
+    /// Push an element to the end
+    /// Materializes the view if it's not a full view
+    pub fn push(&mut self, value: ValueRef) {
+        if !self.is_full_view() {
+            self.ensure_owned();
+        }
+        self.data.borrow_mut().push(value);
+        self.end += 1;
+    }
+
+    /// Push an element to the front
+    /// Materializes the view if it's not a full view
+    pub fn push_front(&mut self, value: ValueRef) {
+        if !self.is_full_view() {
+            self.ensure_owned();
+        }
+        self.data.borrow_mut().insert(0, value);
+        self.end += 1;
+    }
+
+    /// Create an iterator over the view
+    pub fn iter(&self) -> ListIter<'_> {
+        ListIter {
+            data: self.data.borrow(),
+            start: self.start,
+            end: self.end,
+            current_front: self.start,
+            current_back: self.end,
+        }
+    }
+}
+
+/// Iterator over a ListRepr view
+pub struct ListIter<'a> {
+    data: Ref<'a, Vec<ValueRef>>,
+    start: usize,
+    end: usize,
+    current_front: usize,
+    current_back: usize,
+}
+
+impl<'a> Iterator for ListIter<'a> {
+    type Item = ValueRef;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_front < self.current_back {
+            let item = Rc::clone(&self.data[self.current_front]);
+            self.current_front += 1;
+            Some(item)
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.current_back - self.current_front;
+        (remaining, Some(remaining))
+    }
+}
+
+impl<'a> DoubleEndedIterator for ListIter<'a> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.current_back > self.current_front {
+            self.current_back -= 1;
+            Some(Rc::clone(&self.data[self.current_back]))
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a> ExactSizeIterator for ListIter<'a> {}
+
+impl PartialEq for ListRepr {
+    fn eq(&self, other: &Self) -> bool {
+        if self.len() != other.len() {
+            return false;
+        }
+        // Compare element by element using Rc::ptr_eq for efficiency
+        // or fall back to value comparison
+        self.with_slice(|a| {
+            other.with_slice(|b| a.iter().zip(b.iter()).all(|(x, y)| Rc::ptr_eq(x, y)))
+        })
+    }
+}
 
 // ============================================================================
 // Cached Common Values - Reduces allocations for frequently used values
@@ -60,16 +313,6 @@ pub fn number_value(n: f64) -> ValueRef {
     }
 }
 
-// ============================================================================
-// Weak Reference Type Aliases
-// ============================================================================
-
-/// Weak reference to environment - used in closures to break reference cycles
-pub type WeakEnvRef = Weak<Env>;
-
-/// Weak reference to interpreter - used in native closures
-pub type WeakInterRef = Weak<Interpretator>;
-
 #[derive(Debug)]
 pub enum ValueType {
     Number,
@@ -86,7 +329,7 @@ pub enum Value {
     Number(f64),
     String(String),
     Bool(bool),
-    List(Vec<ValueRef>),
+    List(ListRepr),
     Object(HashMap<String, ValueRef>),
     Lambda(Closure),
 
@@ -127,7 +370,6 @@ pub trait SpecialFn: Debug {
 
 // ============================================================================
 // Native Closure - For built-in functions implemented in Rust
-// Uses Weak references to break reference cycles
 // ============================================================================
 
 #[derive(Debug)]
@@ -135,8 +377,8 @@ pub struct NativeClosure {
     pub params_count: usize,
     pub binded: Vec<ValueRef>,
     pub logic: Rc<dyn NativeFn>,
-    pub inter: WeakInterRef,
-    pub env: WeakEnvRef,
+    pub inter: Rc<Interpretator>,
+    pub env: EnvRef,
 }
 
 // ============================================================================
@@ -146,8 +388,8 @@ pub struct NativeClosure {
 #[derive(Debug)]
 pub struct SpecialClosure {
     pub params: Vec<Expression>,
-    pub interpretator: WeakInterRef,
-    pub env: WeakEnvRef,
+    pub interpretator: Rc<Interpretator>,
+    pub env: EnvRef,
     pub logic: Rc<dyn SpecialFn>,
 }
 
@@ -160,19 +402,19 @@ pub struct SpecialBoundClosure {
     pub params_count: usize,
     pub binded: Vec<Expression>,
     pub logic: Rc<dyn SpecialFn>,
-    pub inter: WeakInterRef,
-    pub env: WeakEnvRef,
+    pub inter: Rc<Interpretator>,
+    pub env: EnvRef,
 }
 
 impl NativeClosure {
     /// Execute the native closure
     /// Returns EnvironmentDropped error if the environment was garbage collected
     pub fn exec(&self) -> Result<Rc<Value>, RuntimeError> {
-        let inter = self.get_inter()?;
-        let env = self.get_env()?;
+        let inter = &self.inter;
+        let env = &self.env;
         let ctx = NativeContext {
-            inter: &inter,
-            env: &env,
+            inter: inter,
+            env: env,
         };
         self.logic.exec(&self.binded, &ctx)
     }
@@ -187,29 +429,17 @@ impl NativeClosure {
             params_count,
             binded: Vec::new(),
             logic,
-            inter: Rc::downgrade(&inter),
-            env: Rc::downgrade(&env),
+            inter,
+            env,
         }
-    }
-
-    /// Upgrade weak environment reference, returning error if dropped
-    #[inline]
-    pub fn get_env(&self) -> Result<EnvRef, RuntimeError> {
-        self.env.upgrade().ok_or(RuntimeError::EnvironmentDropped)
-    }
-
-    /// Upgrade weak interpreter reference, returning error if dropped
-    #[inline]
-    pub fn get_inter(&self) -> Result<Rc<Interpretator>, RuntimeError> {
-        self.inter.upgrade().ok_or(RuntimeError::EnvironmentDropped)
     }
 }
 
 impl SpecialClosure {
     /// Execute the special closure
     pub fn exec(&self) -> Result<Rc<Value>, RuntimeError> {
-        let inter = self.get_inter()?;
-        let env = self.get_env()?;
+        let inter = &self.interpretator;
+        let env = &self.env;
         let ctx = NativeContext {
             inter: &inter,
             env: &env,
@@ -221,31 +451,17 @@ impl SpecialClosure {
         Self {
             params: Vec::new(),
             logic,
-            interpretator: Rc::downgrade(&interpretator),
-            env: Rc::downgrade(&env),
+            interpretator,
+            env,
         }
-    }
-
-    /// Upgrade weak environment reference
-    #[inline]
-    pub fn get_env(&self) -> Result<EnvRef, RuntimeError> {
-        self.env.upgrade().ok_or(RuntimeError::EnvironmentDropped)
-    }
-
-    /// Upgrade weak interpreter reference
-    #[inline]
-    pub fn get_inter(&self) -> Result<Rc<Interpretator>, RuntimeError> {
-        self.interpretator
-            .upgrade()
-            .ok_or(RuntimeError::EnvironmentDropped)
     }
 }
 
 impl SpecialBoundClosure {
     /// Execute the special bound closure
     pub fn exec(&self) -> Result<Rc<Value>, RuntimeError> {
-        let inter = self.get_inter()?;
-        let env = self.get_env()?;
+        let inter = &self.inter;
+        let env = &self.env;
         let ctx = NativeContext {
             inter: &inter,
             env: &env,
@@ -263,32 +479,14 @@ impl SpecialBoundClosure {
             params_count,
             binded: Vec::new(),
             logic,
-            inter: Rc::downgrade(&inter),
-            env: Rc::downgrade(&env),
+            inter,
+            env,
         }
-    }
-
-    /// Upgrade weak environment reference
-    #[inline]
-    pub fn get_env(&self) -> Result<EnvRef, RuntimeError> {
-        self.env.upgrade().ok_or(RuntimeError::EnvironmentDropped)
-    }
-
-    /// Upgrade weak interpreter reference
-    #[inline]
-    pub fn get_inter(&self) -> Result<Rc<Interpretator>, RuntimeError> {
-        self.inter.upgrade().ok_or(RuntimeError::EnvironmentDropped)
     }
 }
 
 // ============================================================================
-// User-defined Closure - For lambdas defined in Shik code
-//
-// Memory Management Strategy:
-// - Closure holds a STRONG reference to its own environment (keeps it alive)
-// - The Env holds a WEAK reference to its parent (breaks cycles)
-//
-// This breaks the cycle: Parent Env -> Closure -> Child Env -> (weak) Parent Env
+// User-defined Closure for lambdas
 // ============================================================================
 
 #[derive(Clone, Debug)]
@@ -297,9 +495,7 @@ pub struct Closure {
     pub rest: Option<String>,
     pub binded: Vec<ValueRef>,
     pub body: Box<Expression>,
-    /// Strong reference to the closure's own environment
-    /// This environment has a weak reference to its parent
-    pub env: EnvRef,
+    pub env: Rc<Env>,
 }
 
 impl Closure {
@@ -318,21 +514,16 @@ impl Closure {
         }
     }
 
-    /// Get the closure's environment (always available since we hold strong ref)
+    /// Get the closure's environment
     #[inline]
     pub fn get_env(&self) -> EnvRef {
         Rc::clone(&self.env)
     }
 
-    /// Bind variables in the closure's environment
-    pub fn bind_variables(&self) -> Result<(), RuntimeError> {
-        for (pattern, val) in self
-            .params
-            .iter()
-            .zip(self.binded.iter())
-            .collect::<Vec<_>>()
-        {
-            define_match(pattern, val, &self.env, &MatchContext::Lambda)?;
+    /// Bind variables into an explicit target environment
+    pub fn bind_variables_into(&self, target_env: &EnvRef) -> Result<(), RuntimeError> {
+        for (pattern, val) in self.params.iter().zip(self.binded.iter()) {
+            define_match(pattern, val, target_env, &MatchContext::Lambda)?;
         }
         Ok(())
     }
@@ -340,16 +531,11 @@ impl Closure {
 
 // ============================================================================
 // Environment - Holds variable bindings
-//
-// Uses WEAK reference to parent to break reference cycles.
-// The cycle we're breaking:
-//   Global Env (strong) -> vars["my-fn"] -> Closure (strong) -> Child Env (weak) -> Global Env
 // ============================================================================
 
 #[derive(Debug)]
 pub struct Env {
-    /// Weak reference to parent environment - breaks reference cycles
-    pub parent: Option<WeakEnvRef>,
+    pub parent: Option<EnvRef>,
     pub vars: RefCell<HashMap<String, ValueRef>>,
     pub help: RefCell<HashMap<String, String>>,
 }
@@ -390,7 +576,7 @@ impl Value {
             }),
         }
     }
-    pub fn expect_list(&self) -> Result<&Vec<ValueRef>, RuntimeError> {
+    pub fn expect_list(&self) -> Result<&ListRepr, RuntimeError> {
         match self {
             Value::List(lst) => Ok(lst),
             _ => Err(RuntimeError::MissmatchedTypes {
@@ -439,14 +625,17 @@ impl Value {
 }
 
 impl Env {
-    /// Create a new environment with an optional parent
-    /// The parent is stored as a Weak reference to break cycles
     pub fn new(parent: Option<EnvRef>) -> Self {
         Self {
-            parent: parent.map(|p| Rc::downgrade(&p)),
+            parent: parent.map(|p| Rc::clone(&p)),
             vars: RefCell::new(HashMap::new()),
             help: RefCell::new(HashMap::new()),
         }
+    }
+
+    /// Create new environment and return a ref
+    pub fn new_as_ref(parent: EnvRef) -> Rc<Self> {
+        Rc::new(Env::new(Some(parent)))
     }
 
     /// Create a new root environment (no parent)
@@ -456,11 +645,6 @@ impl Env {
             vars: RefCell::new(HashMap::new()),
             help: RefCell::new(HashMap::new()),
         }
-    }
-
-    /// Get the parent environment if it still exists
-    pub fn get_parent(&self) -> Option<EnvRef> {
-        self.parent.as_ref().and_then(|weak| weak.upgrade())
     }
 
     pub fn define(&self, name: String, value: ValueRef) {
@@ -477,7 +661,7 @@ impl Env {
             return Some(msg);
         }
         // Then check parent chain
-        if let Some(parent) = self.get_parent() {
+        if let Some(parent) = &self.parent {
             return parent.lookup_help(key);
         }
         None
@@ -489,7 +673,7 @@ impl Env {
             return Some(val);
         }
         // Then check parent chain
-        if let Some(parent) = self.get_parent() {
+        if let Some(parent) = &self.parent {
             return parent.lookup(key);
         }
         None
@@ -502,7 +686,7 @@ impl Env {
             return true;
         }
         // Check parent chain
-        if let Some(parent) = self.get_parent() {
+        if let Some(parent) = &self.parent {
             return parent.assign(name, value);
         }
         false
