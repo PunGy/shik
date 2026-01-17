@@ -131,6 +131,7 @@ native_op!(StringJoin, "string.join", [sep, lst], {
     let sep = sep.expect_string()?;
     let strings: Result<Vec<String>, _> = lst
         .iter()
+        .flat_map(|v| MakeString::run(&v))
         .map(|v| v.expect_string().map(|s| s.clone()))
         .collect();
     let strings = strings?;

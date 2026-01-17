@@ -64,7 +64,6 @@ let ff (string.reverse #> string.upper)
 
 file.read-safe :file.txt
 
-;; if.can: reversed if with 
 file.read-safe :file.txt $>
     result.read-or false $>
     if.can (string.upper #> file.write :file.txt)

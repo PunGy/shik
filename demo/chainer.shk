@@ -1,0 +1,27 @@
+;; Simple chain transformer
+; test for pattern matching + scoping + recursion
+
+let chainer fn [lst] match (list.len lst) {
+  0 "[]"
+  1 "[{list.head lst}]"
+  2 "[{list.head lst}-{list.last lst}]"
+  _ '(
+    let res "[{list.head lst}-"
+
+    let chain fn [lst] match (list.len lst) {
+      1 "{list.head lst}]"
+      2 "{list.head lst}-{list.last lst}]"
+      _ "{list.head lst}-{chain $ list.tail lst}"
+    }
+
+    string.+ res (chain $ list.tail lst)
+  )
+}
+
+print $ chainer [1 2 3]
+print $ chainer [1]
+print $ chainer [5 5 5 5 5]
+
+;; the same can be achieved with:
+let chainer' fn [lst] "[{string.join :- lst}]"
+print $ chainer' [1 2 3 4]

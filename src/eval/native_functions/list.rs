@@ -317,6 +317,15 @@ native_op!(
     }
 );
 
+native_op!(ListSlice, "list.slice", [start, end, lst], {
+    let lst = lst.expect_list()?;
+    let start = start.expect_number()? as usize;
+    let end = end.expect_number()? as usize;
+    let result = lst.slice(start, end);
+
+    native_result(Value::List(result))
+});
+
 pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
     // Module help
     env.define_help("list.".to_string(), "list module:
@@ -337,6 +346,7 @@ pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
 - list.range: creates range list
 - list.take: takes first n elements
 - list.drop: drops first n elements
+- list.slice: extracts sublist
 - list.map: transforms each element
 - list.filter: keeps elements matching predicate
 - list.fold: reduces to single value
@@ -478,4 +488,7 @@ pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
 
     define_native!(ListIterateBackward, env, inter);
     define_help!(ListIterateBackward, env, "[callback:lambda list]: iterates list in reverse order\n\nlist.<iterate print [1 2 3]  ; prints 3, 2, 1");
+
+    define_native!(ListSlice, env, inter);
+    define_help!(ListSlice, env, "[start:number end:number list]: extracts sublist from start(inclusice) to end(non-inclusive) index\n\nlet lst [1 2 3 4]\nlist.slice 0 2 lst ; [1 2]");
 }
