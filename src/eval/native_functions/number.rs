@@ -4,10 +4,12 @@ use crate::{
         error::RuntimeError,
         evaluator::Interpretator,
         native_functions::native_result,
-        value::{EnvRef, NativeClosure, NativeContext, NativeFn, Value, ValueRef},
+        value::{EnvRef, NativeClosure, NativeContext, NativeFn, SpecialClosure, SpecialFn, Value, ValueRef},
         EvalResult,
     },
     native_op,
+    parser::Expression,
+    special_op,
 };
 use std::rc::Rc;
 use rand::prelude::*;
@@ -114,10 +116,40 @@ native_op!(Log10, "number.log10", [x], {
     native_result(Value::Number(x.log10()))
 });
 
-native_op!(RandNumber, "number.rand", [], {
+// Random number generator with variable arguments:
+// - 0 args: random float 0.0 to 1.0
+// - 1 arg (max): random integer 0 to max (exclusive)
+// - 2 args (min, max): random integer min to max (exclusive)
+special_op!(RandNumber, "number.rand", args, ctx, {
     let mut rng = rand::rng();
-    let n = rng.random::<f64>();
-    native_result(Value::Number(n))
+    
+    match args.len() {
+        0 => {
+            // No arguments: return random float 0.0 to 1.0
+            let n = rng.random::<f64>();
+            native_result(Value::Number(n))
+        }
+        1 => {
+            // One argument: return random integer 0 to max (exclusive)
+            let max = ctx.inter.eval_expand(&args[0], &ctx.env)?.expect_number()? as i64;
+            if max <= 0 {
+                return native_result(Value::Number(0.0));
+            }
+            let n = rng.random_range(0..max);
+            native_result(Value::Number(n as f64))
+        }
+        2 => {
+            // Two arguments: return random integer min to max (exclusive)
+            let min = ctx.inter.eval_expand(&args[0], &ctx.env)?.expect_number()? as i64;
+            let max = ctx.inter.eval_expand(&args[1], &ctx.env)?.expect_number()? as i64;
+            if max <= min {
+                return native_result(Value::Number(min as f64));
+            }
+            let n = rng.random_range(min..max);
+            native_result(Value::Number(n as f64))
+        }
+        _ => Err(RuntimeError::InvalidApplication),
+    }
 });
 
 pub fn bind_number_module(env: &EnvRef, inter: Rc<Interpretator>) {
@@ -151,7 +183,7 @@ Math functions:
 - number.log10: base-10 logarithm
 
 Random:
-- number.rand: random number 0-1".to_string());
+- number.rand: random number (variadic)".to_string());
 
     define_native!(Plus, env, inter);
     define_help!(Plus, env, "[number number]: adds two numbers\n\nnumber.+ 2 3  ; 5");
@@ -207,6 +239,6 @@ Random:
     define_native!(Log10, env, inter);
     define_help!(Log10, env, "[number]: returns base-10 logarithm\n\nnumber.log10 100  ; 2");
 
-    define_native!(RandNumber, env, inter);
-    define_help!(RandNumber, env, "[]: returns random number between 0 and 1\n\nnumber.rand");
+    RandNumber::define(&env, Rc::clone(&inter));
+    define_help!(RandNumber, env, "[] or [max:number] or [min:number max:number]: generates random numbers\n\nnumber.rand  ; random float 0.0 to 1.0\nnumber.rand 10  ; random integer 0 to 9\nnumber.rand 5 10  ; random integer 5 to 9");
 }

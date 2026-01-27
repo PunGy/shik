@@ -34,6 +34,7 @@ MODULES:
 - number.: arithmetic, rounding, comparison, math functions, random
 - string.: string manipulation, conversion, iteration
 - list.: list operations, higher-order functions
+- object.: object access, mutation, creation, higher-order functions
 - bool.: comparison, logic, conversion
 
 -- Function modules

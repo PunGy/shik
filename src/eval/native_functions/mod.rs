@@ -7,6 +7,7 @@ pub mod macros;
 pub mod file;
 pub mod string;
 pub mod list;
+pub mod object;
 pub mod variables;
 pub mod shell;
 pub mod misc;

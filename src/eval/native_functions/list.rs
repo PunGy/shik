@@ -14,6 +14,7 @@ use crate::{
     parser::Expression,
     special_op,
 };
+use rand::prelude::*;
 use std::rc::Rc;
 
 native_op!(ListLen, "list.len", [lst], {
@@ -326,6 +327,23 @@ native_op!(ListSlice, "list.slice", [start, end, lst], {
     native_result(Value::List(result))
 });
 
+// Get a random element from a list
+native_op!(ListRandGet, "list.rand.get", [lst], {
+    let lst = lst.expect_list()?;
+
+    if lst.is_empty() {
+        return native_result(Value::Null);
+    }
+
+    let mut rng = rand::rng();
+    let idx = rng.random_range(0..lst.len());
+
+    match lst.get(idx) {
+        Some(v) => Ok(v),
+        None => native_result(Value::Null),
+    }
+});
+
 pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
     // Module help
     env.define_help(
@@ -357,7 +375,8 @@ pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
 - list.find: finds first matching element
 - list.find-index: finds index of first match
 - list.iterate: iterates forward
-- list.<iterate, list.iterate-backward: iterates backward"
+- list.<iterate, list.iterate-backward: iterates backward
+- list.rand.get: gets random element from list"
             .to_string(),
     );
 
@@ -495,4 +514,7 @@ pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
 
     define_native!(ListSlice, env, inter);
     define_help!(ListSlice, env, "[start:number end:number list]: extracts sublist from start(inclusice) to end(non-inclusive) index\n\nlet lst [1 2 3 4]\nlist.slice 0 2 lst ; [1 2]");
+
+    define_native!(ListRandGet, env, inter);
+    define_help!(ListRandGet, env, "[list]: returns a random element from the list, or null if empty\n\nlist.rand.get [1 2 3 4 5]  ; random element");
 }

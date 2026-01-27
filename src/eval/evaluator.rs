@@ -12,6 +12,7 @@ use crate::{
             list::bind_list_module,
             misc::bind_misc_module,
             number::bind_number_module,
+            object::bind_object_module,
             polymorphic::bind_poly_module,
             shell::bind_shell_module,
             string::bind_string_module,
@@ -57,6 +58,7 @@ impl Interpretator {
         bind_bool_module(&env, Rc::clone(&inter));
         bind_string_module(&env, Rc::clone(&inter));
         bind_list_module(&env, Rc::clone(&inter));
+        bind_object_module(&env, Rc::clone(&inter));
         bind_poly_module(&env, Rc::clone(&inter));
         bind_keywords_module(&env, Rc::clone(&inter));
         bind_file_module(&env, Rc::clone(&inter));
