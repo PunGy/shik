@@ -5,8 +5,8 @@ use crate::{
         evaluator::Interpretator,
         native_functions::native_result,
         value::{
-            EnvRef, ListRepr, NativeClosure, NativeContext, NativeFn, SpecialClosure, SpecialFn, Value,
-            ValueRef, ValueType, number_value,
+            number_value, EnvRef, ListRepr, NativeClosure, NativeContext, NativeFn, SpecialClosure,
+            SpecialFn, Value, ValueRef, ValueType,
         },
         EvalResult,
     },
@@ -94,16 +94,16 @@ special_op!(ListRange, "list.range", args, ctx, {
 
     match args.len() {
         1 => {
-            end = ctx.inter.eval_expr(&args[0], &ctx.env)?.expect_number()? as i64;
+            end = ctx.inter.eval_expand(&args[0], &ctx.env)?.expect_number()? as i64;
         }
         2 => {
-            start = ctx.inter.eval_expr(&args[0], &ctx.env)?.expect_number()? as i64;
-            end = ctx.inter.eval_expr(&args[1], &ctx.env)?.expect_number()? as i64;
+            start = ctx.inter.eval_expand(&args[0], &ctx.env)?.expect_number()? as i64;
+            end = ctx.inter.eval_expand(&args[1], &ctx.env)?.expect_number()? as i64;
         }
         3 => {
-            start = ctx.inter.eval_expr(&args[0], &ctx.env)?.expect_number()? as i64;
-            end = ctx.inter.eval_expr(&args[1], &ctx.env)?.expect_number()? as i64;
-            step = ctx.inter.eval_expr(&args[2], &ctx.env)?.expect_number()? as usize;
+            start = ctx.inter.eval_expand(&args[0], &ctx.env)?.expect_number()? as i64;
+            end = ctx.inter.eval_expand(&args[1], &ctx.env)?.expect_number()? as i64;
+            step = ctx.inter.eval_expand(&args[2], &ctx.env)?.expect_number()? as usize;
         }
         _ => return Err(RuntimeError::InvalidApplication),
     }
@@ -115,7 +115,7 @@ special_op!(ListRange, "list.range", args, ctx, {
         0
     };
     let mut result = Vec::with_capacity(len);
-    
+
     // Use cached number values for 0 and 1, create new for others
     for n in (start..end).step_by(step) {
         result.push(number_value(n as f64));
@@ -328,7 +328,9 @@ native_op!(ListSlice, "list.slice", [start, end, lst], {
 
 pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
     // Module help
-    env.define_help("list.".to_string(), "list module:
+    env.define_help(
+        "list.".to_string(),
+        "list module:
 
 - list.set: sets element at index (mutates list)
 - list.push, list.push>, list.push-right: appends value to end (mutates list)
@@ -355,7 +357,9 @@ pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
 - list.find: finds first matching element
 - list.find-index: finds index of first match
 - list.iterate: iterates forward
-- list.<iterate, list.iterate-backward: iterates backward".to_string());
+- list.<iterate, list.iterate-backward: iterates backward"
+            .to_string(),
+    );
 
     define_native!(ListSet, env, inter);
     define_help!(

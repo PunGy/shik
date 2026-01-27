@@ -1,0 +1,36 @@
+;; XO function
+{*
+https://www.codewars.com/kata/55908aad6620c066bc00002a
+
+XO "ooxx" => true
+XO "xooxx" => false
+XO "ooxXm" => true
+XO "zpzpzpp" => true // when no 'x' and 'o' is present should return true
+XO "zzoo" => false
+*}
+
+let xo fn [str] '(
+  let x 0
+  let o 0
+  set str (string.lower str)
+
+  string.iterate $
+    (fn [char]
+      if $
+        = char "x" $
+            set x (+ x 1) $
+        = char "o" $
+            set o (+ o 1)) $
+    str
+
+  ;; with match syntax
+  ; string.iterate (fn [char] match char { "x" (set x (+ x 1)) "o" (set o (+ o 1)) }) str
+  = x o
+)
+
+
+print $ ["got" (xo "ooxx")    "expected" true]
+print $ ["got" (xo "xooxx")   "expected" false]
+print $ ["got" (xo "ooxXm")   "expected" true]
+print $ ["got" (xo "zpzpzpp") "expected" true] ;; when no 'x' and 'o' is present should return true
+print $ ["got" (xo "zzoo")    "expected" false]

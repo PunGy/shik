@@ -23,10 +23,10 @@ special_op!(IfNull, "or?", args, ctx, {
 
     let on_null = args_it.next().ok_or(RuntimeError::InvalidApplication)?;
     let val = args_it.next().ok_or(RuntimeError::InvalidApplication)?;
-    let val = ctx.inter.eval_expr(val, &ctx.env)?;
+    let val = ctx.inter.eval_expand(val, &ctx.env)?;
 
     Ok(match val.as_ref() {
-        Value::Null => Rc::clone(&ctx.inter.eval_expr(on_null, ctx.env)?),
+        Value::Null => Rc::clone(&ctx.inter.eval_expand(on_null, ctx.env)?),
         _ => Rc::clone(&val),
     })
 });

@@ -75,7 +75,7 @@ impl Interpretator {
 
         let env = Rc::clone(&self.ctx.borrow().env);
         for stmt in &program.statements {
-            last = self.expand(self.eval_expr(&stmt.expression, &env)?)?;
+            last = self.eval_expand(&stmt.expression, &env)?;
         }
 
         Ok(last)
@@ -91,7 +91,7 @@ impl Interpretator {
 
                 for inter in entries.into_iter().rev() {
                     let i = inter.position;
-                    let val = self.expand(self.eval_expr(&inter.expression, &env)?)?;
+                    let val = self.eval_expand(&inter.expression, &env)?;
                     let val_str = match val.as_ref() {
                         Value::String(s) => s,
                         val => &val.to_string(),
@@ -105,7 +105,7 @@ impl Interpretator {
                 let mut res: Vec<ValueRef> = Vec::with_capacity(lst.len());
 
                 for it in lst.into_iter() {
-                    let val = self.expand(self.eval_expr(it, env)?)?;
+                    let val = self.eval_expand(it, env)?;
                     res.push(val);
                 }
 
@@ -115,9 +115,9 @@ impl Interpretator {
                 let mut res: HashMap<String, ValueRef> = HashMap::new();
 
                 for it in obj.iter() {
-                    let key = self.expand(self.eval_expr(&it.key, env)?)?;
+                    let key = self.eval_expand(&it.key, env)?;
                     let key = key.expect_string()?;
-                    let val = self.expand(self.eval_expr(&it.value, env)?)?;
+                    let val = self.eval_expand(&it.value, env)?;
                     res.insert(key.to_string(), val);
                 }
 
@@ -139,7 +139,7 @@ impl Interpretator {
                         Ok(Rc::new(f))
                     }
                     _ => {
-                        let a = self.expand(self.eval_expr(left.as_ref(), env)?)?;
+                        let a = self.eval_expand(left.as_ref(), env)?;
 
                         self.apply_fn(&f, &a)
                     }
@@ -159,7 +159,7 @@ impl Interpretator {
                         Ok(Rc::new(f))
                     }
                     _ => {
-                        let a = self.expand(self.eval_expr(right.as_ref(), env)?)?;
+                        let a = self.eval_expand(right.as_ref(), env)?;
 
                         self.apply_fn(&f, &a)
                     }
@@ -204,18 +204,18 @@ impl Interpretator {
                         }
                     }
                     _ => {
-                        let a = self.expand(self.eval_expr(argument.as_ref(), env)?)?;
+                        let a = self.eval_expand(argument.as_ref(), env)?;
 
                         self.apply_fn(&f, &a)
                     }
                 }
             }
-            Expression::Parenthesized(expr) => self.eval_expr(expr, env),
+            Expression::Parenthesized(expr) => self.eval_expand(expr, env),
             Expression::Block(expr_lst) => {
                 let mut last = null_value();
 
                 for it in expr_lst.iter() {
-                    last = self.expand(self.eval_expr(it, env)?)?;
+                    last = self.eval_expand(it, env)?;
                 }
 
                 Ok(last)
@@ -233,11 +233,11 @@ impl Interpretator {
                 ))))
             }
             Expression::Let { pattern, value } => {
-                let val = self.expand(self.eval_expr(value, env)?)?;
+                let val = self.eval_expand(value, env)?;
                 define_match(pattern, &val, &env, &MatchContext::Let)
             }
             Expression::Match { item, entries } => {
-                let item_val = self.eval_expr(item, &env)?;
+                let item_val = self.eval_expand(item, &env)?;
 
                 for entry in entries {
                     let pattern = &entry.pattern;
@@ -245,16 +245,16 @@ impl Interpretator {
                         MatchPattern::Identifier(ident) => {
                             let val = self.lookup(&ident, &env)?;
                             if self.val_compare(&item_val, &val)? {
-                                return self.eval_expr(&entry.resolve, &env);
+                                return self.eval_expand(&entry.resolve, &env);
                             }
                         }
                         MatchPattern::NamedWildcard(ident) => {
                             env.define(ident.to_string(), Rc::clone(&item_val));
-                            return self.eval_expr(&entry.resolve, &env);
+                            return self.eval_expand(&entry.resolve, &env);
                         }
                         _ => {
                             if pattern_match(pattern, &item_val, &env)? {
-                                return self.eval_expr(&entry.resolve, &env);
+                                return self.eval_expand(&entry.resolve, &env);
                             }
                         }
                     }
@@ -350,6 +350,10 @@ impl Interpretator {
         }
     }
 
+    pub fn eval_expand(&self, expr: &Expression, env: &EnvRef) -> EvalResult {
+        self.expand(self.eval_expr(expr, env)?)
+    }
+
     fn lookup(&self, name: &String, env: &EnvRef) -> EvalResult {
         env.lookup(name).map_or(
             Err(RuntimeError::UndefinedVariable(name.clone())),
@@ -357,9 +361,7 @@ impl Interpretator {
                 Value::Lambda(closure) => {
                     let quoted = self.ctx.borrow().quoted;
                     if closure.params.len() == 0 && !quoted {
-                        // Get the closure's definition environment (strong reference)
                         let closure_env = closure.get_env();
-                        // Create a fresh call frame for the body evaluation
                         let call_env = Env::new_as_ref(closure_env);
                         return self.eval_expr(&closure.body, &call_env);
                     }

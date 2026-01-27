@@ -356,7 +356,7 @@ pub struct NativeContext<'a> {
 
 impl<'a> NativeContext<'a> {
     pub fn apply(&self, f: &ValueRef, arg: &ValueRef) -> Result<ValueRef, RuntimeError> {
-        self.inter.apply_fn(f, arg)
+        self.inter.expand(self.inter.apply_fn(f, arg)?)
     }
 }
 

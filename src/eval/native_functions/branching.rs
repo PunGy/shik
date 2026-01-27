@@ -38,12 +38,12 @@ special_op!(If, "if", args, ctx, {
 
         let mut args_it = args.iter().peekable();
         let predicate = args_it.next().ok_or(RuntimeError::InvalidApplication)?;
-        let mut predicate = ctx.inter.eval_expr(predicate, &ctx.env)?.expect_bool()?;
+        let mut predicate = ctx.inter.eval_expand(predicate, &ctx.env)?.expect_bool()?;
 
         if args_count == 2 {
             // Simple if without else
             if predicate {
-                ctx.inter.eval_expr(&args_it.next().unwrap(), &ctx.env)
+                ctx.inter.eval_expand(&args_it.next().unwrap(), &ctx.env)
             } else {
                 Ok(Rc::new(Value::Null))
             }
@@ -55,12 +55,12 @@ special_op!(If, "if", args, ctx, {
                 if next == None {
                     break;
                 }
-                predicate = ctx.inter.eval_expr(next.unwrap(), &ctx.env)?.expect_bool()?;
+                predicate = ctx.inter.eval_expand(next.unwrap(), &ctx.env)?.expect_bool()?;
             }
 
             if predicate {
                 let next = args_it.next().ok_or(RuntimeError::InvalidApplication)?;
-                ctx.inter.eval_expr(next, &ctx.env)
+                ctx.inter.eval_expand(next, &ctx.env)
             } else {
                 Ok(Rc::new(Value::Null))
             }
@@ -74,7 +74,7 @@ special_op!(If, "if", args, ctx, {
                 if args_it.peek() == None {
                     break;
                 }
-                predicate = ctx.inter.eval_expr(next.unwrap(), &ctx.env)?.expect_bool()?;
+                predicate = ctx.inter.eval_expand(next.unwrap(), &ctx.env)?.expect_bool()?;
                 if predicate {
                     // next body
                     next = args_it.next();
@@ -86,12 +86,12 @@ special_op!(If, "if", args, ctx, {
 
             // the next would be the desired body for sure, either `elseif` block, or `else`
             let next = next.ok_or(RuntimeError::InvalidApplication)?;
-            ctx.inter.eval_expr(next, &ctx.env)
+            ctx.inter.eval_expand(next, &ctx.env)
         }
 });
 
 special_op!(While, "while", args, ctx, {
-    let pred_fn = ctx.inter.eval_expr(&args[0], &ctx.env)?;
+    let pred_fn = ctx.inter.eval_expand(&args[0], &ctx.env)?;
 
     let void = Rc::new(Value::Null);
     loop {

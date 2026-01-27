@@ -13,7 +13,7 @@ special_op!(Let, "let", args, ctx, {
 
     match name {
         Expression::Identifier(name) => {
-            let val = ctx.inter.expand(ctx.inter.eval_expr(val, &ctx.env)?)?;
+            let val = ctx.inter.eval_expand(val, &ctx.env)?;
             ctx.env.define(name.to_string(), Rc::clone(&val));
             Ok(val)
         }
@@ -41,7 +41,7 @@ special_op!(Set, "set", args, ctx, {
 
     match name {
         Expression::Identifier(name) => {
-            let val = ctx.inter.eval_expr(val, &ctx.env)?;
+            let val = ctx.inter.eval_expand(val, &ctx.env)?;
             ctx.env.assign(name, Rc::clone(&val));
             Ok(val)
         }

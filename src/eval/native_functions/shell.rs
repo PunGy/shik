@@ -213,7 +213,7 @@ special_op!(ShellRead, "shell.ask", args, ctx, {
 
     // Optional prompt
     if args.len() == 1 {
-        let prompt_val = ctx.inter.eval_expr(&args[0], &ctx.env)?;
+        let prompt_val = ctx.inter.eval_expand(&args[0], &ctx.env)?;
         let prompt = prompt_val.expect_string()?;
 
         print!("{prompt}");
