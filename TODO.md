@@ -2,13 +2,8 @@
 
 ## Operations
 
-### Numeric
-
-- **Random number**
-
 ### Objects
 
-- **Object functions**
 - **Object pattern matching**
 
 ### String
