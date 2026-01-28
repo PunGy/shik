@@ -24,7 +24,13 @@ native_op!(PPlus, "+", [x, y], {
         (Value::String(_), other) => StringConcat::run(x, &other.into_string()),
         (other, Value::String(_)) => StringConcat::run(&other.into_string(), y),
 
-        (_, _) => return Err(RuntimeError::InvalidApplication),
+        (_, _) => {
+            return Err(RuntimeError::invalid_application(format!(
+                "Cannot make addition between {:?} and {:?}",
+                x.get_type(),
+                y.get_type()
+            )))
+        }
     }
 });
 
@@ -32,7 +38,10 @@ native_op!(At, "at", [inx, s], {
     match s.as_ref() {
         Value::String(_) => StringCharAt::run(inx, s),
         Value::List(_) => ListAt::run(inx, s),
-        _ => Err(RuntimeError::InvalidApplication),
+        _ => Err(RuntimeError::invalid_application(format!(
+            "(at) type {:?} is not supported",
+            s.get_type()
+        ))),
     }
 });
 
@@ -40,7 +49,10 @@ native_op!(Iterate, "iterate", [func, s], ctx, {
     match s.as_ref() {
         Value::String(_) => StringIterate::run(func, s, ctx),
         Value::List(_) => ListIterate::run(func, s, ctx),
-        _ => Err(RuntimeError::InvalidApplication),
+        _ => Err(RuntimeError::invalid_application(format!(
+            "(iterate) type {:?} is not supported",
+            s.get_type()
+        ))),
     }
 });
 
@@ -53,7 +65,10 @@ native_op!(
         match s.as_ref() {
             Value::String(_) => StringIterateBackward::run(func, s, ctx),
             Value::List(_) => ListIterateBackward::run(func, s, ctx),
-            _ => Err(RuntimeError::InvalidApplication),
+            _ => Err(RuntimeError::invalid_application(format!(
+            "(iterate-backward) type {:?} is not supported",
+            s.get_type()
+        ))),
         }
     }
 );
@@ -90,5 +105,9 @@ Contains polymorphic functions for values with similar behaviour.
     define_help!(IterateBackward, env, "[callback:lambda value]: iterates in reverse over string or list\n\n<iterate print [1 2 3]  ; prints 3, 2, 1");
 
     define_native!(Print, env, inter);
-    define_help!(Print, env, "[value]: prints value to stdout with newline\n\nprint \"hello world\"");
+    define_help!(
+        Print,
+        env,
+        "[value]: prints value to stdout with newline\n\nprint \"hello world\""
+    );
 }

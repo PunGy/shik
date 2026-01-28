@@ -165,7 +165,7 @@ impl ListRepr {
     pub fn set(&mut self, idx: usize, value: ValueRef) -> Result<(), RuntimeError> {
         let i = self.start + idx;
         if i >= self.end {
-            return Err(RuntimeError::IndexOutOfBounds { index: idx });
+            return Err(RuntimeError::index_out_of_bounds(idx));
         }
 
         // If this is not a full view, materialize first
@@ -355,8 +355,8 @@ pub struct NativeContext<'a> {
 }
 
 impl<'a> NativeContext<'a> {
-    pub fn apply(&self, f: &ValueRef, arg: &ValueRef) -> Result<ValueRef, RuntimeError> {
-        self.inter.expand(self.inter.apply_fn(f, arg)?)
+    pub fn apply(&self, f: &ValueRef, arg: &ValueRef, env: &EnvRef) -> Result<ValueRef, RuntimeError> {
+        self.inter.expand(self.inter.apply_fn(f, arg, env)?, env)
     }
 }
 
@@ -378,7 +378,6 @@ pub struct NativeClosure {
     pub binded: Vec<ValueRef>,
     pub logic: Rc<dyn NativeFn>,
     pub inter: Rc<Interpretator>,
-    pub env: EnvRef,
 }
 
 // ============================================================================
@@ -389,7 +388,6 @@ pub struct NativeClosure {
 pub struct SpecialClosure {
     pub params: Vec<Expression>,
     pub interpretator: Rc<Interpretator>,
-    pub env: EnvRef,
     pub logic: Rc<dyn SpecialFn>,
 }
 
@@ -403,18 +401,16 @@ pub struct SpecialBoundClosure {
     pub binded: Vec<Expression>,
     pub logic: Rc<dyn SpecialFn>,
     pub inter: Rc<Interpretator>,
-    pub env: EnvRef,
 }
 
 impl NativeClosure {
     /// Execute the native closure
     /// Returns EnvironmentDropped error if the environment was garbage collected
-    pub fn exec(&self) -> Result<Rc<Value>, RuntimeError> {
+    pub fn exec(&self, env: EnvRef) -> Result<Rc<Value>, RuntimeError> {
         let inter = &self.inter;
-        let env = &self.env;
         let ctx = NativeContext {
             inter: inter,
-            env: env,
+            env: &env,
         };
         self.logic.exec(&self.binded, &ctx)
     }
@@ -423,23 +419,20 @@ impl NativeClosure {
         params_count: usize,
         logic: Rc<dyn NativeFn>,
         inter: Rc<Interpretator>,
-        env: EnvRef,
     ) -> Self {
         Self {
             params_count,
             binded: Vec::new(),
             logic,
             inter,
-            env,
         }
     }
 }
 
 impl SpecialClosure {
     /// Execute the special closure
-    pub fn exec(&self) -> Result<Rc<Value>, RuntimeError> {
+    pub fn exec(&self, env: EnvRef) -> Result<Rc<Value>, RuntimeError> {
         let inter = &self.interpretator;
-        let env = &self.env;
         let ctx = NativeContext {
             inter: &inter,
             env: &env,
@@ -447,21 +440,19 @@ impl SpecialClosure {
         self.logic.exec(&self.params, &ctx)
     }
 
-    pub fn new(logic: Rc<dyn SpecialFn>, interpretator: Rc<Interpretator>, env: EnvRef) -> Self {
+    pub fn new(logic: Rc<dyn SpecialFn>, interpretator: Rc<Interpretator>) -> Self {
         Self {
             params: Vec::new(),
             logic,
             interpretator,
-            env,
         }
     }
 }
 
 impl SpecialBoundClosure {
     /// Execute the special bound closure
-    pub fn exec(&self) -> Result<Rc<Value>, RuntimeError> {
+    pub fn exec(&self, env: EnvRef) -> Result<Rc<Value>, RuntimeError> {
         let inter = &self.inter;
-        let env = &self.env;
         let ctx = NativeContext {
             inter: &inter,
             env: &env,
@@ -473,14 +464,12 @@ impl SpecialBoundClosure {
         params_count: usize,
         logic: Rc<dyn SpecialFn>,
         inter: Rc<Interpretator>,
-        env: EnvRef,
     ) -> Self {
         Self {
             params_count,
             binded: Vec::new(),
             logic,
             inter,
-            env,
         }
     }
 }
@@ -552,55 +541,37 @@ impl Value {
     pub fn expect_number(&self) -> Result<f64, RuntimeError> {
         match self {
             Value::Number(x) => Ok(*x),
-            _ => Err(RuntimeError::MissmatchedTypes {
-                got: self.get_type(),
-                expected: ValueType::Number,
-            }),
+            _ => Err(RuntimeError::mismatched_types(self.get_type(), ValueType::Number)),
         }
     }
     pub fn expect_bool(&self) -> Result<bool, RuntimeError> {
         match self {
             Value::Bool(x) => Ok(*x),
-            _ => Err(RuntimeError::MissmatchedTypes {
-                got: self.get_type(),
-                expected: ValueType::Bool,
-            }),
+            _ => Err(RuntimeError::mismatched_types(self.get_type(), ValueType::Bool)),
         }
     }
     pub fn expect_string(&self) -> Result<&String, RuntimeError> {
         match self {
             Value::String(s) => Ok(s),
-            _ => Err(RuntimeError::MissmatchedTypes {
-                got: self.get_type(),
-                expected: ValueType::String,
-            }),
+            _ => Err(RuntimeError::mismatched_types(self.get_type(), ValueType::String)),
         }
     }
     pub fn expect_list(&self) -> Result<&ListRepr, RuntimeError> {
         match self {
             Value::List(lst) => Ok(lst),
-            _ => Err(RuntimeError::MissmatchedTypes {
-                got: self.get_type(),
-                expected: ValueType::List,
-            }),
+            _ => Err(RuntimeError::mismatched_types(self.get_type(), ValueType::List)),
         }
     }
     pub fn expect_obj(&self) -> Result<&HashMap<String, ValueRef>, RuntimeError> {
         match self {
             Value::Object(obj) => Ok(obj),
-            _ => Err(RuntimeError::MissmatchedTypes {
-                got: self.get_type(),
-                expected: ValueType::Object,
-            }),
+            _ => Err(RuntimeError::mismatched_types(self.get_type(), ValueType::Object)),
         }
     }
     pub fn expect_native_lambda(&self) -> Result<&NativeClosure, RuntimeError> {
         match self {
             Value::NativeLambda(l) => Ok(l),
-            _ => Err(RuntimeError::MissmatchedTypes {
-                got: self.get_type(),
-                expected: ValueType::Lambda,
-            }),
+            _ => Err(RuntimeError::mismatched_types(self.get_type(), ValueType::Lambda)),
         }
     }
 

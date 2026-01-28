@@ -1,4 +1,4 @@
-use shik::parser::{parse, Expression, Statement};
+use shik::parser::{parse, ExpressionKind, Statement};
 
 fn main() {
     println!("Testing newline handling in parser...\n");
@@ -11,7 +11,7 @@ fn main() {
         Ok(program) => {
             println!("Parsed {} statements:", program.statements.len());
             for (i, stmt) in program.statements.iter().enumerate() {
-                println!("  Statement {}: {:?}", i + 1, stmt.expression);
+                println!("  Statement {}: {:?}", i + 1, stmt.expression.kind);
             }
         }
         Err(e) => println!("Error: {:?}", e),
@@ -24,10 +24,10 @@ fn main() {
     match parse(input2) {
         Ok(program) => {
             if let Some(stmt) = program.statements.first() {
-                if let Expression::Block(exprs) = &stmt.expression {
+                if let ExpressionKind::Block(exprs) = &stmt.expression.kind {
                     println!("Block contains {} expressions:", exprs.len());
                     for (i, expr) in exprs.iter().enumerate() {
-                        println!("  Line {}: {:?}", i + 1, expr);
+                        println!("  Line {}: {:?}", i + 1, expr.kind);
                     }
                 }
             }
@@ -42,10 +42,10 @@ fn main() {
     match parse(input3) {
         Ok(program) => {
             if let Some(stmt) = program.statements.first() {
-                if let Expression::Lazy(exprs) = &stmt.expression {
+                if let ExpressionKind::Lazy(exprs) = &stmt.expression.kind {
                     println!("Lazy block contains {} expressions:", exprs.len());
                     for (i, expr) in exprs.iter().enumerate() {
-                        println!("  Line {}: {:?}", i + 1, expr);
+                        println!("  Line {}: {:?}", i + 1, expr.kind);
                     }
                 }
             }
@@ -61,7 +61,7 @@ fn main() {
         Ok(program) => {
             println!("Parsed {} statements:", program.statements.len());
             for (i, stmt) in program.statements.iter().enumerate() {
-                println!("  Statement {}: {:?}", i + 1, stmt.expression);
+                println!("  Statement {}: {:?}", i + 1, stmt.expression.kind);
             }
         }
         Err(e) => println!("Error: {:?}", e),
@@ -74,7 +74,7 @@ fn main() {
     match parse(input5) {
         Ok(program) => {
             println!("Successfully parsed complex structure");
-            println!("Root: {:?}", program.statements[0].expression);
+            println!("Root: {:?}", program.statements[0].expression.kind);
         }
         Err(e) => println!("Error: {:?}", e),
     }
@@ -87,7 +87,7 @@ fn main() {
         Ok(program) => {
             println!("Parsed {} statements:", program.statements.len());
             for (i, stmt) in program.statements.iter().enumerate() {
-                println!("  Statement {}: {:?}", i + 1, stmt.expression);
+                println!("  Statement {}: {:?}", i + 1, stmt.expression.kind);
             }
         }
         Err(e) => println!("Error: {:?}", e),

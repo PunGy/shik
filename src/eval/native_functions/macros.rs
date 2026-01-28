@@ -7,8 +7,9 @@ macro_rules! native_op {
         impl NativeFn for $name {
             #[allow(unused_variables)]
             fn exec(&self, args: &Vec<ValueRef>, __native_ctx: &NativeContext) -> EvalResult {
-                if args.len() != $crate::count_args!($($arg),*) {
-                    return Err(RuntimeError::InvalidApplication);
+                let args_required = $crate::count_args!($($arg),*);
+                if args.len() != args_required {
+                    return Err(RuntimeError::invalid_application(format!("({:?}) wrong number of arguments. Expected {}", $fn_title, args_required)));
                 }
 
                 #[allow(unused_mut)]
@@ -38,7 +39,6 @@ macro_rules! native_op {
                         $crate::count_args!($($arg),*),
                         Rc::new($name),
                         inter,
-                        Rc::clone(env),
                     )));
                     $crate::native_op!(@define_titles env, val, $fn_title);
                 }
@@ -93,8 +93,9 @@ macro_rules! special_b_op {
         impl SpecialFn for $name {
             #[allow(unused_variables)]
             fn exec(&self, args: &Vec<Expression>, __native_ctx: &NativeContext) -> EvalResult {
-                if args.len() != $crate::count_args!($($arg),*) {
-                    return Err(RuntimeError::InvalidApplication);
+                let args_required = $crate::count_args!($($arg),*);
+                if args.len() != args_required {
+                    return Err(RuntimeError::invalid_application(format!("({:?}) wrong number of arguments. Expected {}", $fn_title, args_required)));
                 }
 
                 #[allow(unused_mut)]
@@ -124,7 +125,6 @@ macro_rules! special_b_op {
                         $crate::count_args!($($arg),*),
                         Rc::new($name),
                         inter,
-                        Rc::clone(env),
                     )));
                     $crate::special_b_op!(@define_titles env, val, $fn_title);
                 }
@@ -191,7 +191,6 @@ macro_rules! special_op {
                     Rc::new(Value::SpecialForm(SpecialClosure::new(
                         Rc::new($name),
                         inter,
-                        Rc::clone(env),
                     ))),
                 );
             }

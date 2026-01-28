@@ -106,7 +106,7 @@ special_op!(ListRange, "list.range", args, ctx, {
             end = ctx.inter.eval_expand(&args[1], &ctx.env)?.expect_number()? as i64;
             step = ctx.inter.eval_expand(&args[2], &ctx.env)?.expect_number()? as usize;
         }
-        _ => return Err(RuntimeError::InvalidApplication),
+        count => return Err(RuntimeError::invalid_application(format!("(list.range) wrong number of arguments. Must be 1, 2 or 3. Got {}", count))),
     }
 
     // Pre-allocate with known size
@@ -143,7 +143,7 @@ native_op!(ListMap, "list.map", [func, lst], ctx, {
     let lst = lst.expect_list()?;
     let mut result: Vec<ValueRef> = Vec::with_capacity(lst.len());
     for item in lst.iter() {
-        let mapped = ctx.apply(func, &item)?;
+        let mapped = ctx.apply(func, &item, ctx.env)?;
         result.push(mapped);
     }
     native_result(Value::List(ListRepr::from_vec(result)))
@@ -152,7 +152,7 @@ native_op!(ListMap, "list.map", [func, lst], ctx, {
 native_op!(ListIterate, "list.iterate", [func, lst], ctx, {
     let lst = lst.expect_list()?;
     for item in lst.iter() {
-        ctx.apply(func, &item)?;
+        ctx.apply(func, &item, ctx.env)?;
     }
     native_result(Value::Null)
 });
@@ -165,7 +165,7 @@ native_op!(
     {
         let lst = lst.expect_list()?;
         for item in lst.iter().rev() {
-            ctx.apply(func, &item)?;
+            ctx.apply(func, &item, ctx.env)?;
         }
         native_result(Value::Null)
     }
@@ -176,7 +176,7 @@ native_op!(ListFilter, "list.filter", [func, lst], ctx, {
     let lst = lst.expect_list()?;
     let mut result: Vec<ValueRef> = Vec::with_capacity(lst.len());
     for item in lst.iter() {
-        let predicate_result = ctx.apply(func, &item)?;
+        let predicate_result = ctx.apply(func, &item, ctx.env)?;
         if predicate_result.expect_bool()? {
             result.push(item);
         }
@@ -189,8 +189,8 @@ native_op!(ListFold, "list.fold", [init, func, lst], ctx, {
     let mut acc = Rc::clone(init);
     for item in lst.iter() {
         // Apply function to accumulator first, then to item (curried)
-        let partial = ctx.apply(func, &acc)?;
-        acc = ctx.apply(&partial, &item)?;
+        let partial = ctx.apply(func, &acc, ctx.env)?;
+        acc = ctx.apply(&partial, &item, ctx.env)?;
     }
     Ok(acc)
 });
@@ -198,7 +198,7 @@ native_op!(ListFold, "list.fold", [init, func, lst], ctx, {
 native_op!(ListAny, "list.any", [func, lst], ctx, {
     let lst = lst.expect_list()?;
     for item in lst.iter() {
-        let result = ctx.apply(func, &item)?;
+        let result = ctx.apply(func, &item, ctx.env)?;
         if result.expect_bool()? {
             return native_result(Value::Bool(true));
         }
@@ -209,7 +209,7 @@ native_op!(ListAny, "list.any", [func, lst], ctx, {
 native_op!(ListAll, "list.all", [func, lst], ctx, {
     let lst = lst.expect_list()?;
     for item in lst.iter() {
-        let result = ctx.apply(func, &item)?;
+        let result = ctx.apply(func, &item, ctx.env)?;
         if !result.expect_bool()? {
             return native_result(Value::Bool(false));
         }
@@ -220,7 +220,7 @@ native_op!(ListAll, "list.all", [func, lst], ctx, {
 native_op!(ListFind, "list.find", [func, lst], ctx, {
     let lst = lst.expect_list()?;
     for item in lst.iter() {
-        let result = ctx.apply(func, &item)?;
+        let result = ctx.apply(func, &item, ctx.env)?;
         if result.expect_bool()? {
             return Ok(item);
         }
@@ -231,7 +231,7 @@ native_op!(ListFind, "list.find", [func, lst], ctx, {
 native_op!(ListFindIndex, "list.find-index", [func, lst], ctx, {
     let lst = lst.expect_list()?;
     for (inx, item) in lst.iter().enumerate() {
-        let result = ctx.apply(func, &item)?;
+        let result = ctx.apply(func, &item, ctx.env)?;
         if result.expect_bool()? {
             return native_result(Value::Number(inx as f64));
         }
@@ -259,10 +259,10 @@ native_op!(ListSet, "list.set", [inx, lst, content], {
                 return Ok(Rc::clone(content));
             }
             _ => {
-                return Err(RuntimeError::MissmatchedTypes {
-                    got: lst.get_type(),
-                    expected: ValueType::List,
-                })
+                return Err(RuntimeError::mismatched_types(
+                    lst.get_type(),
+                    ValueType::List,
+                ))
             }
         }
     }
@@ -283,10 +283,10 @@ native_op!(
                     return Ok(Rc::clone(content));
                 }
                 _ => {
-                    return Err(RuntimeError::MissmatchedTypes {
-                        got: lst.get_type(),
-                        expected: ValueType::List,
-                    })
+                    return Err(RuntimeError::mismatched_types(
+                        lst.get_type(),
+                        ValueType::List,
+                    ))
                 }
             }
         }
@@ -308,10 +308,10 @@ native_op!(
                     return Ok(Rc::clone(content));
                 }
                 _ => {
-                    return Err(RuntimeError::MissmatchedTypes {
-                        got: lst.get_type(),
-                        expected: ValueType::List,
-                    })
+                    return Err(RuntimeError::mismatched_types(
+                        lst.get_type(),
+                        ValueType::List,
+                    ))
                 }
             }
         }
@@ -328,7 +328,7 @@ native_op!(ListSlice, "list.slice", [start, end, lst], {
 });
 
 // Get a random element from a list
-native_op!(ListRandGet, "list.rand.get", [lst], {
+native_op!(ListRandGet, "list.choice", [lst], {
     let lst = lst.expect_list()?;
 
     if lst.is_empty() {
@@ -376,7 +376,7 @@ pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
 - list.find-index: finds index of first match
 - list.iterate: iterates forward
 - list.<iterate, list.iterate-backward: iterates backward
-- list.rand.get: gets random element from list"
+- list.choice: gets random element from list"
             .to_string(),
     );
 
@@ -516,5 +516,5 @@ pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_help!(ListSlice, env, "[start:number end:number list]: extracts sublist from start(inclusice) to end(non-inclusive) index\n\nlet lst [1 2 3 4]\nlist.slice 0 2 lst ; [1 2]");
 
     define_native!(ListRandGet, env, inter);
-    define_help!(ListRandGet, env, "[list]: returns a random element from the list, or null if empty\n\nlist.rand.get [1 2 3 4 5]  ; random element");
+    define_help!(ListRandGet, env, "[list]: returns a random element from the list, or null if empty\n\nlist.choice [1 2 3 4 5]  ; random element");
 }

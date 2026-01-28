@@ -6,7 +6,7 @@ use crate::{
         value::{EnvRef, NativeContext, SpecialClosure, SpecialFn, Value},
         EvalResult,
     },
-    parser::Expression,
+    parser::{Expression, ExpressionKind},
     special_op,
 };
 use std::rc::Rc;
@@ -64,8 +64,8 @@ special_op!(Help, "help", args, ctx, {
     if args.len() > 0 {
         let arg = &args[0];
 
-        match arg {
-            Expression::Identifier(ident) => {
+        match &arg.kind {
+            ExpressionKind::Identifier(ident) => {
                 let help_msg = ctx.env.lookup_help(ident);
                 match help_msg {
                     Some(help_msg) => msg = help_msg,

@@ -1,14 +1,10 @@
 use crate::{
-    eval::{
+    count_args, define_help, define_native, eval::{
         error::RuntimeError,
         evaluator::Interpretator,
-        value::{EnvRef, NativeContext, SpecialClosure, SpecialFn, Value},
+        value::{EnvRef, NativeContext, SpecialBoundClosure, SpecialFn, Value},
         EvalResult,
-    },
-    parser::Expression,
-    special_op,
-    define_native,
-    define_help,
+    }, parser::Expression, special_b_op
 };
 use std::rc::Rc;
 
@@ -18,11 +14,7 @@ use std::rc::Rc;
 
 // If got null, convert to the value on the right side
 // Usage: null $> or? 10
-special_op!(IfNull, "or?", args, ctx, {
-    let mut args_it = args.into_iter();
-
-    let on_null = args_it.next().ok_or(RuntimeError::InvalidApplication)?;
-    let val = args_it.next().ok_or(RuntimeError::InvalidApplication)?;
+special_b_op!(IfNull, "or?", [on_null, val], ctx, {
     let val = ctx.inter.eval_expand(val, &ctx.env)?;
 
     Ok(match val.as_ref() {

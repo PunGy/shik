@@ -25,7 +25,7 @@ use crate::{
         },
         EvalResult,
     },
-    parser::{Expression, MatchPattern, Program},
+    parser::{Expression, ExpressionKind, MatchPattern, Program, Span},
 };
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
@@ -84,10 +84,11 @@ impl Interpretator {
     }
 
     pub fn eval_expr(&self, expr: &Expression, env: &EnvRef) -> EvalResult {
-        match expr {
-            Expression::Number(x) => Ok(Rc::new(Value::Number(*x))),
-            Expression::String(s) => Ok(Rc::new(Value::String(s.clone()))),
-            Expression::StringInterpolation(si) => {
+        let span = expr.span;
+        match &expr.kind {
+            ExpressionKind::Number(x) => Ok(Rc::new(Value::Number(*x))),
+            ExpressionKind::String(s) => Ok(Rc::new(Value::String(s.clone()))),
+            ExpressionKind::StringInterpolation(si) => {
                 let mut str = si.string.clone();
                 let entries = &si.entries;
 
@@ -103,7 +104,7 @@ impl Interpretator {
 
                 return Ok(Rc::new(Value::String(str)));
             }
-            Expression::List(lst) => {
+            ExpressionKind::List(lst) => {
                 let mut res: Vec<ValueRef> = Vec::with_capacity(lst.len());
 
                 for it in lst.into_iter() {
@@ -113,107 +114,88 @@ impl Interpretator {
 
                 Ok(Rc::new(Value::List(ListRepr::from_vec(res))))
             }
-            Expression::Object(obj) => {
+            ExpressionKind::Object(obj) => {
                 let mut res: HashMap<String, ValueRef> = HashMap::new();
 
                 for it in obj.iter() {
                     let key = self.eval_expand(&it.key, env)?;
-                    let key = key.expect_string()?;
+                    let key = key.expect_string().map_err(|e| e.with_span(it.key.span))?;
                     let val = self.eval_expand(&it.value, env)?;
                     res.insert(key.to_string(), val);
                 }
 
                 Ok(Rc::new(Value::Object(res)))
             }
-            Expression::Pipe { left, right } => {
+            ExpressionKind::Pipe { left, right } => {
                 let f = self.eval_expr(right.as_ref(), env)?;
 
                 match f.as_ref() {
                     Value::SpecialForm(closure) => {
                         // Upgrade weak references for the new closure
                         let inter = closure.interpretator.clone();
-                        let mut curried =
-                            SpecialClosure::new(Rc::clone(&closure.logic), inter, Rc::clone(&env));
+                        let mut curried = SpecialClosure::new(Rc::clone(&closure.logic), inter);
                         curried.params.extend_from_slice(&closure.params);
                         curried.params.push(*left.clone());
                         let f = Value::SpecialForm(curried);
 
                         Ok(Rc::new(f))
                     }
+                    Value::SpecialBoundForm(closure) => self
+                        .apply_special_fn(&closure, &left, env)
+                        .map_err(|e| e.with_span(span)),
                     _ => {
                         let a = self.eval_expand(left.as_ref(), env)?;
 
-                        self.apply_fn(&f, &a)
+                        self.apply_fn(&f, &a, env).map_err(|e| e.with_span(span))
                     }
                 }
             }
-            Expression::Chain { left, right } => {
+            ExpressionKind::Chain { left, right } => {
                 let f = self.eval_expr(left.as_ref(), env)?;
                 match f.as_ref() {
                     Value::SpecialForm(closure) => {
                         let inter = closure.interpretator.clone();
-                        let mut curried =
-                            SpecialClosure::new(Rc::clone(&closure.logic), inter, Rc::clone(&env));
+                        let mut curried = SpecialClosure::new(Rc::clone(&closure.logic), inter);
                         curried.params.extend_from_slice(&closure.params);
                         curried.params.push(*right.clone());
                         let f = Value::SpecialForm(curried);
 
                         Ok(Rc::new(f))
                     }
+                    Value::SpecialBoundForm(closure) => self
+                        .apply_special_fn(&closure, &right, env)
+                        .map_err(|e| e.with_span(span)),
                     _ => {
                         let a = self.eval_expand(right.as_ref(), env)?;
 
-                        self.apply_fn(&f, &a)
+                        self.apply_fn(&f, &a, env).map_err(|e| e.with_span(span))
                     }
                 }
             }
-            Expression::Application { function, argument } => {
+            ExpressionKind::Application { function, argument } => {
                 let f = self.eval_expr(function.as_ref(), env)?;
                 match f.as_ref() {
                     Value::SpecialForm(closure) => {
                         let inter = closure.interpretator.clone();
-                        let mut curried =
-                            SpecialClosure::new(Rc::clone(&closure.logic), inter, Rc::clone(&env));
+                        let mut curried = SpecialClosure::new(Rc::clone(&closure.logic), inter);
                         curried.params.extend_from_slice(&closure.params);
                         curried.params.push(*argument.clone());
                         let f = Value::SpecialForm(curried);
 
                         Ok(Rc::new(f))
                     }
-                    Value::SpecialBoundForm(closure) => {
-                        if closure.params_count == 0 {
-                            return closure.exec();
-                        }
-
-                        // Upgrade weak references for the new closure
-                        let inter = closure.inter.clone();
-                        let closure_env = closure.env.clone();
-
-                        // Make a new curried lambda
-                        let mut curried = SpecialBoundClosure::new(
-                            closure.params_count,
-                            Rc::clone(&closure.logic),
-                            inter,
-                            closure_env,
-                        );
-                        curried.binded.extend_from_slice(&closure.binded);
-                        curried.binded.push(*argument.clone());
-
-                        if curried.binded.len() == closure.params_count {
-                            curried.exec()
-                        } else {
-                            Ok(Rc::new(Value::SpecialBoundForm(curried)))
-                        }
-                    }
+                    Value::SpecialBoundForm(closure) => self
+                        .apply_special_fn(&closure, &argument, env)
+                        .map_err(|e| e.with_span(span)),
                     _ => {
                         let a = self.eval_expand(argument.as_ref(), env)?;
 
-                        self.apply_fn(&f, &a)
+                        self.apply_fn(&f, &a, env).map_err(|e| e.with_span(span))
                     }
                 }
             }
-            Expression::Parenthesized(expr) => self.eval_expand(expr, env),
-            Expression::Block(expr_lst) => {
+            ExpressionKind::Parenthesized(expr) => self.eval_expand(expr, env),
+            ExpressionKind::Block(expr_lst) => {
                 let mut last = null_value();
 
                 for it in expr_lst.iter() {
@@ -222,31 +204,32 @@ impl Interpretator {
 
                 Ok(last)
             }
-            Expression::Lambda {
+            ExpressionKind::Lambda {
                 parameters,
                 rest,
                 body,
-            } => {
-                Ok(Rc::new(Value::Lambda(Closure::new(
-                    parameters.clone(),
-                    rest.clone(),
-                    body.clone(),
-                    Rc::clone(env),
-                ))))
-            }
-            Expression::Let { pattern, value } => {
+            } => Ok(Rc::new(Value::Lambda(Closure::new(
+                parameters.clone(),
+                rest.clone(),
+                body.clone(),
+                Rc::clone(env),
+            )))),
+            ExpressionKind::Let { pattern, value } => {
                 let val = self.eval_expand(value, env)?;
-                define_match(pattern, &val, &env, &MatchContext::Let)
+                define_match(pattern, &val, &env, &MatchContext::Let).map_err(|e| e.with_span(span))
             }
-            Expression::Match { item, entries } => {
+            ExpressionKind::Match { item, entries } => {
                 let item_val = self.eval_expand(item, &env)?;
 
                 for entry in entries {
                     let pattern = &entry.pattern;
                     match pattern {
                         MatchPattern::Identifier(ident) => {
-                            let val = self.lookup(&ident, &env)?;
-                            if self.val_compare(&item_val, &val)? {
+                            let val = self.lookup(&ident, &env).map_err(|e| e.with_span(span))?;
+                            if self
+                                .val_compare(&item_val, &val)
+                                .map_err(|e| e.with_span(span))?
+                            {
                                 return self.eval_expand(&entry.resolve, &env);
                             }
                         }
@@ -255,7 +238,9 @@ impl Interpretator {
                             return self.eval_expand(&entry.resolve, &env);
                         }
                         _ => {
-                            if pattern_match(pattern, &item_val, &env)? {
+                            if pattern_match(pattern, &item_val, &env)
+                                .map_err(|e| e.with_span(span))?
+                            {
                                 return self.eval_expand(&entry.resolve, &env);
                             }
                         }
@@ -264,19 +249,30 @@ impl Interpretator {
 
                 Ok(null_value())
             }
-            Expression::Identifier(name) => self.lookup(name, &env),
-            Expression::Flow { left, right } => {
+            ExpressionKind::Identifier(name) => {
+                self.lookup(name, &env).map_err(|e| e.with_span(span))
+            }
+            ExpressionKind::Flow { left, right } => {
                 let mut params: Vec<MatchPattern> = Vec::new();
                 let param = MatchPattern::Identifier("x".to_string());
                 params.push(param);
 
-                let body = Expression::Application {
-                    function: right.clone(),
-                    argument: Box::new(Expression::Application {
-                        function: left.clone(),
-                        argument: Box::new(Expression::Identifier("x".to_string())),
-                    }),
-                };
+                let body = Expression::new(
+                    ExpressionKind::Application {
+                        function: right.clone(),
+                        argument: Box::new(Expression::new(
+                            ExpressionKind::Application {
+                                function: left.clone(),
+                                argument: Box::new(Expression::new(
+                                    ExpressionKind::Identifier("x".to_string()),
+                                    Span::unknown(),
+                                )),
+                            },
+                            Span::unknown(),
+                        )),
+                    },
+                    Span::unknown(),
+                );
 
                 // Capture the current environment for the composed function
                 // The call frame will be created at call time
@@ -284,14 +280,16 @@ impl Interpretator {
                     Value::Lambda(Closure::new(params, None, Box::new(body), Rc::clone(env)));
                 Ok(Rc::new(composed))
             }
-            e => Err(RuntimeError::NotYetImplemented(e.clone())),
+            ExpressionKind::Lazy(_) => {
+                // Lazy blocks are not directly evaluated - they're handled by special forms
+                Err(RuntimeError::not_yet_implemented(expr.clone()))
+            }
         }
     }
 
-    pub fn apply_fn(&self, f: &ValueRef, a: &ValueRef) -> EvalResult {
+    pub fn apply_fn(&self, f: &ValueRef, a: &ValueRef, env: &EnvRef) -> EvalResult {
         match f.as_ref() {
             Value::Lambda(closure) => {
-                // Get the closure's definition environment (strong reference, always available)
                 let closure_env = closure.get_env();
 
                 if closure.params.len() == 0 {
@@ -318,25 +316,19 @@ impl Interpretator {
             }
             Value::NativeLambda(closure) => {
                 if closure.params_count == 0 {
-                    return closure.exec();
+                    return closure.exec(env.clone());
                 }
 
-                // Upgrade weak references for the new closure
                 let inter = closure.inter.clone();
-                let closure_env = closure.env.clone();
 
                 // Make a new curried lambda
-                let mut curried = NativeClosure::new(
-                    closure.params_count,
-                    Rc::clone(&closure.logic),
-                    inter,
-                    closure_env,
-                );
+                let mut curried =
+                    NativeClosure::new(closure.params_count, Rc::clone(&closure.logic), inter);
                 curried.binded.extend_from_slice(&closure.binded);
                 curried.binded.push(a.clone());
 
                 if curried.binded.len() == closure.params_count {
-                    curried.exec()
+                    curried.exec(env.clone())
                 } else {
                     Ok(Rc::new(Value::NativeLambda(curried)))
                 }
@@ -345,20 +337,45 @@ impl Interpretator {
         }
     }
 
-    pub fn expand(&self, v: ValueRef) -> EvalResult {
+    pub fn apply_special_fn(
+        &self,
+        closure: &SpecialBoundClosure,
+        a: &Box<Expression>,
+        env: &EnvRef,
+    ) -> EvalResult {
+        if closure.params_count == 0 {
+            return closure.exec(env.clone());
+        }
+
+        let inter = closure.inter.clone();
+
+        // Make a new curried special lambda
+        let mut curried =
+            SpecialBoundClosure::new(closure.params_count, Rc::clone(&closure.logic), inter);
+        curried.binded.extend_from_slice(&closure.binded);
+        curried.binded.push(*a.clone());
+
+        if curried.binded.len() == closure.params_count {
+            curried.exec(env.clone())
+        } else {
+            Ok(Rc::new(Value::SpecialBoundForm(curried)))
+        }
+    }
+
+    pub fn expand(&self, v: ValueRef, env: &EnvRef) -> EvalResult {
         match v.as_ref() {
-            Value::SpecialForm(closure) => closure.exec(),
+            Value::SpecialForm(closure) => closure.exec(env.clone()),
             _ => Ok(v),
         }
     }
 
     pub fn eval_expand(&self, expr: &Expression, env: &EnvRef) -> EvalResult {
-        self.expand(self.eval_expr(expr, env)?)
+        self.expand(self.eval_expr(expr, env)?, env)
     }
 
     fn lookup(&self, name: &String, env: &EnvRef) -> EvalResult {
         env.lookup(name).map_or(
-            Err(RuntimeError::UndefinedVariable(name.clone())),
+            Err(RuntimeError::undefined_variable(name.clone())),
             |val| match val.as_ref() {
                 Value::Lambda(closure) => {
                     let quoted = self.ctx.borrow().quoted;
@@ -371,7 +388,7 @@ impl Interpretator {
                 }
                 Value::NativeLambda(closure) => {
                     if closure.params_count == 0 {
-                        return closure.exec();
+                        return closure.exec(env.clone());
                     }
                     Ok(val)
                 }

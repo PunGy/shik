@@ -1,7 +1,7 @@
 use crate::{
     count_args, define_help, define_native,
     eval::{
-        error::{RuntimeError, ShikError},
+        error::{RuntimeError},
         evaluator::Interpretator,
         native_functions::native_result,
         value::{EnvRef, ListRepr, NativeClosure, NativeContext, NativeFn, Value, ValueRef},
@@ -26,7 +26,7 @@ native_op!(FileRead, "file.read", [path], {
     let path = path.expect_string()?;
 
     let content = fs::read_to_string(path)
-        .map_err(|e| ShikError::default_error(format!("cannot open file - {}", e)))?;
+        .map_err(|e| RuntimeError::default_error(format!("cannot open file - {}", e)))?;
 
     native_result(Value::String(content))
 });
@@ -48,7 +48,7 @@ native_op!(FileReadBytes, "file.read-bytes", [path], {
     let path = path.expect_string()?;
 
     let bytes = fs::read(path)
-        .map_err(|e| ShikError::default_error(format!("cannot read file - {}", e)))?;
+        .map_err(|e| RuntimeError::default_error(format!("cannot read file - {}", e)))?;
 
     let result: Vec<ValueRef> = bytes
         .into_iter()
@@ -64,7 +64,7 @@ native_op!(FileLines, "file.read-lines", [path], {
     let path = path.expect_string()?;
 
     let content = fs::read_to_string(path)
-        .map_err(|e| ShikError::default_error(format!("cannot read file - {}", e)))?;
+        .map_err(|e| RuntimeError::default_error(format!("cannot read file - {}", e)))?;
 
     let lines: Vec<ValueRef> = content
         .lines()
@@ -85,7 +85,7 @@ native_op!(FileWrite, "file.write", [path, content], {
     let content = content.expect_string()?;
 
     fs::write(path, content)
-        .map_err(|e| ShikError::default_error(format!("cannot write file {}: {}", path, e)))?;
+        .map_err(|e| RuntimeError::default_error(format!("cannot write file {}: {}", path, e)))?;
 
     native_result(Value::Null)
 });
@@ -103,10 +103,10 @@ native_op!(FileAppend, "file.append", [path, content], {
         .create(true)
         .append(true)
         .open(path)
-        .map_err(|e| ShikError::default_error(format!("cannot open file {}: {}", path, e)))?;
+        .map_err(|e| RuntimeError::default_error(format!("cannot open file {}: {}", path, e)))?;
 
     file.write_all(content.as_bytes())
-        .map_err(|e| ShikError::default_error(format!("cannot write to file {}: {}", path, e)))?;
+        .map_err(|e| RuntimeError::default_error(format!("cannot write to file {}: {}", path, e)))?;
 
     native_result(Value::Null)
 });
@@ -121,7 +121,7 @@ native_op!(FileWriteBytes, "file.write-bytes", [path, bytes], {
     for b in bytes_list.iter() {
         let num = b.expect_number()?;
         if num < 0.0 || num > 255.0 {
-            return Err(ShikError::default_error(format!(
+            return Err(RuntimeError::default_error(format!(
                 "byte value out of range: {}",
                 num
             )));
@@ -130,7 +130,7 @@ native_op!(FileWriteBytes, "file.write-bytes", [path, bytes], {
     }
 
     fs::write(path, bytes_vec)
-        .map_err(|e| ShikError::default_error(format!("cannot write file {}: {}", path, e)))?;
+        .map_err(|e| RuntimeError::default_error(format!("cannot write file {}: {}", path, e)))?;
 
     native_result(Value::Null)
 });
@@ -152,7 +152,7 @@ native_op!(FileCopy, ["file.copy", "file.cp"], [dst, src], {
     let final_dst = if dst_path.is_dir() {
         match src_path.file_name() {
             Some(name) => dst_path.join(name),
-            None => return Err(ShikError::default_error("invalid source path".to_string())),
+            None => return Err(RuntimeError::default_error("invalid source path".to_string())),
         }
     } else {
         dst_path.to_path_buf()
@@ -162,7 +162,7 @@ native_op!(FileCopy, ["file.copy", "file.cp"], [dst, src], {
         copy_dir_recursive(src_path, &final_dst)?;
     } else {
         fs::copy(src_path, &final_dst)
-            .map_err(|e| ShikError::default_error(format!("cannot copy file: {}", e)))?;
+            .map_err(|e| RuntimeError::default_error(format!("cannot copy file: {}", e)))?;
     }
 
     native_result(Value::Null)
@@ -181,14 +181,14 @@ native_op!(FileMove, ["file.move", "file.mv"], [dst, src], {
     let final_dst = if dst_path.is_dir() {
         match src_path.file_name() {
             Some(name) => dst_path.join(name),
-            None => return Err(ShikError::default_error("invalid source path".to_string())),
+            None => return Err(RuntimeError::default_error("invalid source path".to_string())),
         }
     } else {
         dst_path.to_path_buf()
     };
 
     fs::rename(src_path, &final_dst)
-        .map_err(|e| ShikError::default_error(format!("cannot move file: {}", e)))?;
+        .map_err(|e| RuntimeError::default_error(format!("cannot move file: {}", e)))?;
 
     native_result(Value::Null)
 });
@@ -200,10 +200,10 @@ native_op!(FileRm, ["file.remove", "file.rm"], [path], {
 
     if Path::new(path).is_dir() {
         fs::remove_dir_all(path)
-            .map_err(|e| ShikError::default_error(format!("cannot remove directory: {}", e)))?
+            .map_err(|e| RuntimeError::default_error(format!("cannot remove directory: {}", e)))?
     } else {
         fs::remove_file(path)
-            .map_err(|e| ShikError::default_error(format!("cannot delete file: {}", e)))?;
+            .map_err(|e| RuntimeError::default_error(format!("cannot delete file: {}", e)))?;
     }
 
     native_result(Value::Null)
@@ -215,7 +215,7 @@ native_op!(FileRmdir, "file.rmdir", [path], {
     let path = path.expect_string()?;
 
     fs::remove_dir(path)
-        .map_err(|e| ShikError::default_error(format!("cannot remove directory: {}", e)))?;
+        .map_err(|e| RuntimeError::default_error(format!("cannot remove directory: {}", e)))?;
 
     native_result(Value::Null)
 });
@@ -226,7 +226,7 @@ native_op!(FileRmdirAll, "file.rmdir!", [path], {
     let path = path.expect_string()?;
 
     fs::remove_dir_all(path)
-        .map_err(|e| ShikError::default_error(format!("cannot remove directory: {}", e)))?;
+        .map_err(|e| RuntimeError::default_error(format!("cannot remove directory: {}", e)))?;
 
     native_result(Value::Null)
 });
@@ -237,7 +237,7 @@ native_op!(FileMkdir, "file.mkdir", [path], {
     let path = path.expect_string()?;
 
     fs::create_dir(path)
-        .map_err(|e| ShikError::default_error(format!("cannot create directory: {}", e)))?;
+        .map_err(|e| RuntimeError::default_error(format!("cannot create directory: {}", e)))?;
 
     native_result(Value::Null)
 });
@@ -248,7 +248,7 @@ native_op!(FileMkdirAll, "file.mkdir!", [path], {
     let path = path.expect_string()?;
 
     fs::create_dir_all(path)
-        .map_err(|e| ShikError::default_error(format!("cannot create directories: {}", e)))?;
+        .map_err(|e| RuntimeError::default_error(format!("cannot create directories: {}", e)))?;
 
     native_result(Value::Null)
 });
@@ -291,7 +291,7 @@ native_op!(FileSize, "file.size", [path], {
     let path = path.expect_string()?;
 
     let metadata = fs::metadata(path)
-        .map_err(|e| ShikError::default_error(format!("cannot get file metadata: {}", e)))?;
+        .map_err(|e| RuntimeError::default_error(format!("cannot get file metadata: {}", e)))?;
 
     native_result(Value::Number(metadata.len() as f64))
 });
@@ -334,13 +334,13 @@ native_op!(FileSizeDeep, "file.size.deep", [path], {
 
     // Use symlink_metadata here so we can distinguish symlinks if needed.
     let metadata = fs::symlink_metadata(path)
-        .map_err(|e| ShikError::default_error(format!("cannot get file metadata: {}", e)))?;
+        .map_err(|e| RuntimeError::default_error(format!("cannot get file metadata: {}", e)))?;
 
     let size = if metadata.is_file() {
         metadata.len()
     } else if metadata.is_dir() {
         dir_size(path)
-            .map_err(|e| ShikError::default_error(format!("cannot traverse directory: {}", e)))?
+            .map_err(|e| RuntimeError::default_error(format!("cannot traverse directory: {}", e)))?
     } else {
         // For symlinks, devices, etc. we return 0
         0
@@ -355,7 +355,7 @@ native_op!(FileStat, "file.stat", [path], {
     let path = path.expect_string()?;
 
     let metadata = fs::metadata(path)
-        .map_err(|e| ShikError::default_error(format!("cannot get file metadata: {}", e)))?;
+        .map_err(|e| RuntimeError::default_error(format!("cannot get file metadata: {}", e)))?;
 
     let mut result: HashMap<String, ValueRef> = HashMap::new();
     result.insert(
@@ -392,12 +392,12 @@ native_op!(FileList, "file.list", [path], {
     let path = path.expect_string()?;
 
     let entries = fs::read_dir(path)
-        .map_err(|e| ShikError::default_error(format!("cannot read directory: {}", e)))?;
+        .map_err(|e| RuntimeError::default_error(format!("cannot read directory: {}", e)))?;
 
     let mut result: Vec<ValueRef> = Vec::new();
     for entry in entries {
         let entry =
-            entry.map_err(|e| ShikError::default_error(format!("cannot read entry: {}", e)))?;
+            entry.map_err(|e| RuntimeError::default_error(format!("cannot read entry: {}", e)))?;
         let name = entry.file_name().to_string_lossy().to_string();
         result.push(Rc::new(Value::String(name)));
     }
@@ -411,12 +411,12 @@ native_op!(FileListPaths, "file.list!", [path], {
     let path = path.expect_string()?;
 
     let entries = fs::read_dir(path)
-        .map_err(|e| ShikError::default_error(format!("cannot read directory: {}", e)))?;
+        .map_err(|e| RuntimeError::default_error(format!("cannot read directory: {}", e)))?;
 
     let mut result: Vec<ValueRef> = Vec::new();
     for entry in entries {
         let entry =
-            entry.map_err(|e| ShikError::default_error(format!("cannot read entry: {}", e)))?;
+            entry.map_err(|e| RuntimeError::default_error(format!("cannot read entry: {}", e)))?;
         let path_str = entry.path().to_string_lossy().to_string();
         result.push(Rc::new(Value::String(path_str)));
     }
@@ -430,7 +430,7 @@ native_op!(FileGlob, "file.glob", [pattern], {
     let pattern = pattern.expect_string()?;
 
     let paths = glob(pattern)
-        .map_err(|e| ShikError::default_error(format!("invalid glob pattern: {}", e)))?;
+        .map_err(|e| RuntimeError::default_error(format!("invalid glob pattern: {}", e)))?;
 
     let mut result: Vec<ValueRef> = Vec::new();
     for entry in paths {
@@ -440,7 +440,7 @@ native_op!(FileGlob, "file.glob", [pattern], {
                 result.push(Rc::new(Value::String(path_str)));
             }
             Err(e) => {
-                return Err(ShikError::default_error(format!("glob error: {}", e)));
+                return Err(RuntimeError::default_error(format!("glob error: {}", e)));
             }
         }
     }
@@ -516,7 +516,7 @@ native_op!(FileAbsolute, "path.absolute", [path], {
     let path = path.expect_string()?;
 
     let abs_path = fs::canonicalize(path)
-        .map_err(|e| ShikError::default_error(format!("cannot resolve path: {}", e)))?;
+        .map_err(|e| RuntimeError::default_error(format!("cannot resolve path: {}", e)))?;
 
     native_result(Value::String(abs_path.to_string_lossy().to_string()))
 });
@@ -534,7 +534,7 @@ native_op!(FileSymlink, "file.symlink", [link_path, target], {
     #[cfg(unix)]
     {
         std::os::unix::fs::symlink(target, link_path)
-            .map_err(|e| ShikError::default_error(format!("cannot create symlink: {}", e)))?;
+            .map_err(|e| RuntimeError::default_error(format!("cannot create symlink: {}", e)))?;
     }
 
     #[cfg(windows)]
@@ -542,10 +542,10 @@ native_op!(FileSymlink, "file.symlink", [link_path, target], {
         let target_path = Path::new(target);
         if target_path.is_dir() {
             std::os::windows::fs::symlink_dir(target, link_path)
-                .map_err(|e| ShikError::default_error(format!("cannot create symlink: {}", e)))?;
+                .map_err(|e| RuntimeError::default_error(format!("cannot create symlink: {}", e)))?;
         } else {
             std::os::windows::fs::symlink_file(target, link_path)
-                .map_err(|e| ShikError::default_error(format!("cannot create symlink: {}", e)))?;
+                .map_err(|e| RuntimeError::default_error(format!("cannot create symlink: {}", e)))?;
         }
     }
 
@@ -558,7 +558,7 @@ native_op!(FileReadLink, "file.read-link", [path], {
     let path = path.expect_string()?;
 
     let target = fs::read_link(path)
-        .map_err(|e| ShikError::default_error(format!("cannot read symlink: {}", e)))?;
+        .map_err(|e| RuntimeError::default_error(format!("cannot read symlink: {}", e)))?;
 
     native_result(Value::String(target.to_string_lossy().to_string()))
 });
@@ -580,13 +580,13 @@ native_op!(FileTempDir, "file.temp-dir", [], {
 
 fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), RuntimeError> {
     fs::create_dir_all(dst)
-        .map_err(|e| ShikError::default_error(format!("cannot create directory: {}", e)))?;
+        .map_err(|e| RuntimeError::default_error(format!("cannot create directory: {}", e)))?;
 
     for entry in fs::read_dir(src)
-        .map_err(|e| ShikError::default_error(format!("cannot read directory: {}", e)))?
+        .map_err(|e| RuntimeError::default_error(format!("cannot read directory: {}", e)))?
     {
         let entry =
-            entry.map_err(|e| ShikError::default_error(format!("cannot read entry: {}", e)))?;
+            entry.map_err(|e| RuntimeError::default_error(format!("cannot read entry: {}", e)))?;
         let src_path = entry.path();
         let dst_path = dst.join(entry.file_name());
 
@@ -594,7 +594,7 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), RuntimeError> {
             copy_dir_recursive(&src_path, &dst_path)?;
         } else {
             fs::copy(&src_path, &dst_path)
-                .map_err(|e| ShikError::default_error(format!("cannot copy file: {}", e)))?;
+                .map_err(|e| RuntimeError::default_error(format!("cannot copy file: {}", e)))?;
         }
     }
 

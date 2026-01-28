@@ -175,7 +175,7 @@ native_op!(StringIterate, "string.iterate", [func, str], ctx, {
     let str = str.expect_string()?;
     for char in str.chars() {
         let char = Rc::new(Value::String(char.to_string()));
-        ctx.apply(func, &char)?;
+        ctx.apply(func, &char, ctx.env)?;
     }
     native_result(Value::Null)
 });
@@ -184,7 +184,7 @@ native_op!(StringIterateBackward, ["string.iterate-backward", "string.<iterate"]
     let str = str.expect_string()?;
     for char in str.chars().rev() {
         let char = Rc::new(Value::String(char.to_string()));
-        ctx.apply(func, &char)?;
+        ctx.apply(func, &char, ctx.env)?;
     }
     native_result(Value::Null)
 });
@@ -208,15 +208,12 @@ native_op!(StringSet, "string.set", [inx, s, content], {
             Value::String(st) => {
                 // Replace the single character at `inx` with `replacement`
                 let (start, end) = char_byte_range(st, inx)
-                    .ok_or(RuntimeError::IndexOutOfBounds { index: inx })?;
+                    .ok_or(RuntimeError::index_out_of_bounds(inx))?;
 
                 st.replace_range(start..end, replacement);
                 Ok(Rc::clone(&content))
             }
-            _ => Err(RuntimeError::MissmatchedTypes {
-                got: s.get_type(),
-                expected: ValueType::String,
-            }),
+            _ => Err(RuntimeError::mismatched_types(s.get_type(), ValueType::String)),
         }
     }
 });
@@ -236,10 +233,7 @@ native_op!(
                     st.push_str(suffix);
                     Ok(Rc::clone(&content))
                 }
-                _ => Err(RuntimeError::MissmatchedTypes {
-                    got: s.get_type(),
-                    expected: ValueType::String,
-                }),
+                _ => Err(RuntimeError::mismatched_types(s.get_type(), ValueType::String)),
             }
         }
     }
@@ -266,10 +260,7 @@ native_op!(
 
                     Ok(Rc::clone(&content))
                 }
-                _ => Err(RuntimeError::MissmatchedTypes {
-                    got: s.get_type(),
-                    expected: ValueType::String,
-                }),
+                _ => Err(RuntimeError::mismatched_types(s.get_type(), ValueType::String)),
             }
         }
     }

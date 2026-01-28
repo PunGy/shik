@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::parser::{parse, Expression};
+    use crate::parser::{parse, ExpressionKind};
 
     #[test]
     fn test_parse_number() {
@@ -8,8 +8,8 @@ mod tests {
         let result = parse(input).unwrap();
         assert_eq!(result.statements.len(), 1);
 
-        match &result.statements[0].expression {
-            Expression::Number(n) => assert_eq!(*n, 42.0),
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Number(n) => assert_eq!(*n, 42.0),
             _ => panic!("Expected number"),
         }
     }
@@ -20,8 +20,8 @@ mod tests {
         let result = parse(input).unwrap();
         assert_eq!(result.statements.len(), 1);
 
-        match &result.statements[0].expression {
-            Expression::String(s) => assert_eq!(s, "hello world"),
+        match &result.statements[0].expression.kind {
+            ExpressionKind::String(s) => assert_eq!(s, "hello world"),
             _ => panic!("Expected string"),
         }
     }
@@ -32,8 +32,8 @@ mod tests {
         let result = parse(input).unwrap();
         assert_eq!(result.statements.len(), 1);
 
-        match &result.statements[0].expression {
-            Expression::String(s) => assert_eq!(s, "symbol"),
+        match &result.statements[0].expression.kind {
+            ExpressionKind::String(s) => assert_eq!(s, "symbol"),
             _ => panic!("Expected string"),
         }
     }
@@ -44,8 +44,8 @@ mod tests {
         let result = parse(input).unwrap();
         assert_eq!(result.statements.len(), 1);
 
-        match &result.statements[0].expression {
-            Expression::Identifier(name) => assert_eq!(name, "variable-name"),
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Identifier(name) => assert_eq!(name, "variable-name"),
             _ => panic!("Expected identifier"),
         }
     }
@@ -56,11 +56,11 @@ mod tests {
         let result = parse(input).unwrap();
         assert_eq!(result.statements.len(), 1);
 
-        match &result.statements[0].expression {
-            Expression::List(items) => {
+        match &result.statements[0].expression.kind {
+            ExpressionKind::List(items) => {
                 assert_eq!(items.len(), 3);
-                match &items[0] {
-                    Expression::Number(n) => assert_eq!(*n, 1.0),
+                match &items[0].kind {
+                    ExpressionKind::Number(n) => assert_eq!(*n, 1.0),
                     _ => panic!("Expected number in list"),
                 }
             }
@@ -74,15 +74,15 @@ mod tests {
         let result = parse(input).unwrap();
         assert_eq!(result.statements.len(), 1);
 
-        match &result.statements[0].expression {
-            Expression::Object(items) => {
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Object(items) => {
                 assert_eq!(items.len(), 2);
-                match &items[0].key {
-                    Expression::String(s) => assert_eq!(s, "x"),
+                match &items[0].key.kind {
+                    ExpressionKind::String(s) => assert_eq!(s, "x"),
                     _ => panic!("Expected string key"),
                 }
-                match &items[0].value {
-                    Expression::Number(n) => assert_eq!(*n, 10.0),
+                match &items[0].value.kind {
+                    ExpressionKind::Number(n) => assert_eq!(*n, 10.0),
                     _ => panic!("Expected number value"),
                 }
             }
@@ -96,14 +96,14 @@ mod tests {
         let result = parse(input).unwrap();
         assert_eq!(result.statements.len(), 1);
 
-        match &result.statements[0].expression {
-            Expression::Let { pattern, value } => {
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Let { pattern, value } => {
                 match pattern {
                     crate::parser::MatchPattern::Identifier(name) => assert_eq!(name, "x"),
                     _ => panic!("Expected identifier pattern"),
                 }
-                match &**value {
-                    Expression::Number(n) => assert_eq!(*n, 10.0),
+                match &value.kind {
+                    ExpressionKind::Number(n) => assert_eq!(*n, 10.0),
                     _ => panic!("Expected number value"),
                 }
             }
@@ -117,8 +117,8 @@ mod tests {
         let result = parse(input).unwrap();
         assert_eq!(result.statements.len(), 1);
 
-        match &result.statements[0].expression {
-            Expression::Lambda {
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Lambda {
                 parameters,
                 rest,
                 body,
@@ -126,8 +126,8 @@ mod tests {
                 assert_eq!(parameters.len(), 2);
                 assert!(rest.is_none());
                 // Body should be an application expression
-                match &**body {
-                    Expression::Application { .. } => {}
+                match &body.kind {
+                    ExpressionKind::Application { .. } => {}
                     _ => panic!("Expected application in lambda body"),
                 }
             }
@@ -141,14 +141,14 @@ mod tests {
         let result = parse(input).unwrap();
         assert_eq!(result.statements.len(), 1);
 
-        match &result.statements[0].expression {
-            Expression::Pipe { left, right } => {
-                match &**left {
-                    Expression::Identifier(name) => assert_eq!(name, "x"),
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Pipe { left, right } => {
+                match &left.kind {
+                    ExpressionKind::Identifier(name) => assert_eq!(name, "x"),
                     _ => panic!("Expected identifier on left"),
                 }
-                match &**right {
-                    Expression::Identifier(name) => assert_eq!(name, "f"),
+                match &right.kind {
+                    ExpressionKind::Identifier(name) => assert_eq!(name, "f"),
                     _ => panic!("Expected identifier on right"),
                 }
             }
@@ -162,14 +162,14 @@ mod tests {
         let result = parse(input).unwrap();
         assert_eq!(result.statements.len(), 1);
 
-        match &result.statements[0].expression {
-            Expression::Flow { left, right } => {
-                match &**left {
-                    Expression::Identifier(name) => assert_eq!(name, "f"),
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Flow { left, right } => {
+                match &left.kind {
+                    ExpressionKind::Identifier(name) => assert_eq!(name, "f"),
                     _ => panic!("Expected identifier on left"),
                 }
-                match &**right {
-                    Expression::Identifier(name) => assert_eq!(name, "g"),
+                match &right.kind {
+                    ExpressionKind::Identifier(name) => assert_eq!(name, "g"),
                     _ => panic!("Expected identifier on right"),
                 }
             }
@@ -183,14 +183,14 @@ mod tests {
         let result = parse(input).unwrap();
         assert_eq!(result.statements.len(), 1);
 
-        match &result.statements[0].expression {
-            Expression::Application { function, argument } => {
-                match &**function {
-                    Expression::Identifier(name) => assert_eq!(name, "f"),
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Application { function, argument } => {
+                match &function.kind {
+                    ExpressionKind::Identifier(name) => assert_eq!(name, "f"),
                     _ => panic!("Expected identifier as function"),
                 }
-                match &**argument {
-                    Expression::Identifier(name) => assert_eq!(name, "x"),
+                match &argument.kind {
+                    ExpressionKind::Identifier(name) => assert_eq!(name, "x"),
                     _ => panic!("Expected identifier as argument"),
                 }
             }
@@ -205,28 +205,28 @@ mod tests {
         let result = parse(input).unwrap();
         assert_eq!(result.statements.len(), 1);
 
-        match &result.statements[0].expression {
-            Expression::Block(exprs) => {
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Block(exprs) => {
                 assert_eq!(exprs.len(), 1);
-                match &exprs[0] {
-                    Expression::Application { function, argument } => {
+                match &exprs[0].kind {
+                    ExpressionKind::Application { function, argument } => {
                         // argument should be z
-                        match &**argument {
-                            Expression::Identifier(name) => assert_eq!(name, "z"),
+                        match &argument.kind {
+                            ExpressionKind::Identifier(name) => assert_eq!(name, "z"),
                             _ => panic!("Expected identifier z as argument"),
                         }
                         // function should be App(x, y)
-                        match &**function {
-                            Expression::Application {
+                        match &function.kind {
+                            ExpressionKind::Application {
                                 function: inner_fn,
                                 argument: inner_arg,
                             } => {
-                                match &**inner_fn {
-                                    Expression::Identifier(name) => assert_eq!(name, "x"),
+                                match &inner_fn.kind {
+                                    ExpressionKind::Identifier(name) => assert_eq!(name, "x"),
                                     _ => panic!("Expected identifier x"),
                                 }
-                                match &**inner_arg {
-                                    Expression::Identifier(name) => assert_eq!(name, "y"),
+                                match &inner_arg.kind {
+                                    ExpressionKind::Identifier(name) => assert_eq!(name, "y"),
                                     _ => panic!("Expected identifier y"),
                                 }
                             }
@@ -247,17 +247,17 @@ mod tests {
         let result = parse(input).unwrap();
         assert_eq!(result.statements.len(), 1);
 
-        match &result.statements[0].expression {
-            Expression::Lazy(exprs) => {
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Lazy(exprs) => {
                 assert_eq!(exprs.len(), 1);
-                match &exprs[0] {
-                    Expression::Application { function, argument } => {
-                        match &**function {
-                            Expression::Identifier(name) => assert_eq!(name, "x"),
+                match &exprs[0].kind {
+                    ExpressionKind::Application { function, argument } => {
+                        match &function.kind {
+                            ExpressionKind::Identifier(name) => assert_eq!(name, "x"),
                             _ => panic!("Expected identifier x"),
                         }
-                        match &**argument {
-                            Expression::Identifier(name) => assert_eq!(name, "y"),
+                        match &argument.kind {
+                            ExpressionKind::Identifier(name) => assert_eq!(name, "y"),
                             _ => panic!("Expected identifier y"),
                         }
                     }
@@ -274,9 +274,9 @@ mod tests {
         let result = parse(input).unwrap();
         assert_eq!(result.statements.len(), 1);
 
-        match &result.statements[0].expression {
-            Expression::Parenthesized(inner) => match &**inner {
-                Expression::Application { .. } => {}
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Parenthesized(inner) => match &inner.kind {
+                ExpressionKind::Application { .. } => {}
                 _ => panic!("Expected application inside parentheses"),
             },
             _ => panic!("Expected parenthesized expression"),
@@ -289,14 +289,14 @@ mod tests {
         let result = parse(input).unwrap();
 
         // Should parse as: x $> (f y)
-        match &result.statements[0].expression {
-            Expression::Pipe { left, right } => {
-                match &**left {
-                    Expression::Identifier(name) => assert_eq!(name, "x"),
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Pipe { left, right } => {
+                match &left.kind {
+                    ExpressionKind::Identifier(name) => assert_eq!(name, "x"),
                     _ => panic!("Expected identifier on left"),
                 }
-                match &**right {
-                    Expression::Application { .. } => {}
+                match &right.kind {
+                    ExpressionKind::Application { .. } => {}
                     _ => panic!("Expected application on right"),
                 }
             }
@@ -310,14 +310,14 @@ mod tests {
         let result = parse(input).unwrap();
 
         // Should parse as: (a #> b) $> c
-        match &result.statements[0].expression {
-            Expression::Pipe { left, right } => {
-                match &**left {
-                    Expression::Flow { .. } => {}
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Pipe { left, right } => {
+                match &left.kind {
+                    ExpressionKind::Flow { .. } => {}
                     _ => panic!("Expected flow on left"),
                 }
-                match &**right {
-                    Expression::Identifier(name) => assert_eq!(name, "c"),
+                match &right.kind {
+                    ExpressionKind::Identifier(name) => assert_eq!(name, "c"),
                     _ => panic!("Expected identifier on right"),
                 }
             }
@@ -330,15 +330,15 @@ mod tests {
         let input = "let result (fn [x] x $> double #> add 10)";
         let result = parse(input).unwrap();
 
-        match &result.statements[0].expression {
-            Expression::Let { pattern, value } => {
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Let { pattern, value } => {
                 match pattern {
                     crate::parser::MatchPattern::Identifier(name) => assert_eq!(name, "result"),
                     _ => panic!("Expected identifier pattern"),
                 }
-                match &**value {
-                    Expression::Parenthesized(inner) => match &**inner {
-                        Expression::Lambda { .. } => {}
+                match &value.kind {
+                    ExpressionKind::Parenthesized(inner) => match &inner.kind {
+                        ExpressionKind::Lambda { .. } => {}
                         _ => panic!("Expected lambda"),
                     },
                     _ => panic!("Expected parenthesized lambda"),
@@ -356,20 +356,20 @@ mod tests {
         assert_eq!(result.statements.len(), 3);
 
         // First statement: let x 10
-        match &result.statements[0].expression {
-            Expression::Let { .. } => {}
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Let { .. } => {}
             _ => panic!("Expected let expression"),
         }
 
         // Second statement: let y 20
-        match &result.statements[1].expression {
-            Expression::Let { .. } => {}
+        match &result.statements[1].expression.kind {
+            ExpressionKind::Let { .. } => {}
             _ => panic!("Expected let expression"),
         }
 
         // Third statement: x
-        match &result.statements[2].expression {
-            Expression::Identifier(name) => assert_eq!(name, "x"),
+        match &result.statements[2].expression.kind {
+            ExpressionKind::Identifier(name) => assert_eq!(name, "x"),
             _ => panic!("Expected identifier"),
         }
     }
@@ -381,14 +381,14 @@ mod tests {
 
         assert_eq!(result.statements.len(), 1);
 
-        match &result.statements[0].expression {
-            Expression::Block(exprs) => {
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Block(exprs) => {
                 assert_eq!(exprs.len(), 3);
 
                 // Each line should be parsed as an application
                 for expr in exprs {
-                    match expr {
-                        Expression::Application { .. } => {}
+                    match &expr.kind {
+                        ExpressionKind::Application { .. } => {}
                         _ => panic!("Expected application in block, got {:?}", expr),
                     }
                 }
@@ -404,21 +404,21 @@ mod tests {
 
         assert_eq!(result.statements.len(), 1);
 
-        match &result.statements[0].expression {
-            Expression::Lazy(exprs) => {
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Lazy(exprs) => {
                 assert_eq!(exprs.len(), 3);
 
                 // Each line should be a single identifier
-                match &exprs[0] {
-                    Expression::Identifier(name) => assert_eq!(name, "x"),
+                match &exprs[0].kind {
+                    ExpressionKind::Identifier(name) => assert_eq!(name, "x"),
                     _ => panic!("Expected identifier"),
                 }
-                match &exprs[1] {
-                    Expression::Identifier(name) => assert_eq!(name, "y"),
+                match &exprs[1].kind {
+                    ExpressionKind::Identifier(name) => assert_eq!(name, "y"),
                     _ => panic!("Expected identifier"),
                 }
-                match &exprs[2] {
-                    Expression::Identifier(name) => assert_eq!(name, "z"),
+                match &exprs[2].kind {
+                    ExpressionKind::Identifier(name) => assert_eq!(name, "z"),
                     _ => panic!("Expected identifier"),
                 }
             }
@@ -433,16 +433,16 @@ mod tests {
 
         assert_eq!(result.statements.len(), 3);
 
-        match &result.statements[0].expression {
-            Expression::Identifier(name) => assert_eq!(name, "x"),
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Identifier(name) => assert_eq!(name, "x"),
             _ => panic!("Expected identifier"),
         }
-        match &result.statements[1].expression {
-            Expression::Identifier(name) => assert_eq!(name, "y"),
+        match &result.statements[1].expression.kind {
+            ExpressionKind::Identifier(name) => assert_eq!(name, "y"),
             _ => panic!("Expected identifier"),
         }
-        match &result.statements[2].expression {
-            Expression::Identifier(name) => assert_eq!(name, "z"),
+        match &result.statements[2].expression.kind {
+            ExpressionKind::Identifier(name) => assert_eq!(name, "z"),
             _ => panic!("Expected identifier"),
         }
     }
@@ -456,14 +456,14 @@ mod tests {
         // Should parse as: (x $> f) and y
         assert_eq!(result.statements.len(), 2);
 
-        match &result.statements[0].expression {
-            Expression::Pipe { left, right } => {
-                match &**left {
-                    Expression::Identifier(name) => assert_eq!(name, "x"),
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Pipe { left, right } => {
+                match &left.kind {
+                    ExpressionKind::Identifier(name) => assert_eq!(name, "x"),
                     _ => panic!("Expected identifier x"),
                 }
-                match &**right {
-                    Expression::Identifier(name) => assert_eq!(name, "f"),
+                match &right.kind {
+                    ExpressionKind::Identifier(name) => assert_eq!(name, "f"),
                     _ => panic!("Expected identifier f"),
                 }
             }
@@ -472,8 +472,8 @@ mod tests {
                 result.statements[0].expression
             ),
         }
-        match &result.statements[1].expression {
-            Expression::Identifier(name) => assert_eq!(name, "y"),
+        match &result.statements[1].expression.kind {
+            ExpressionKind::Identifier(name) => assert_eq!(name, "y"),
             _ => panic!("Expected identifier y"),
         }
     }
@@ -496,19 +496,19 @@ mod tests {
 
         assert_eq!(result.statements.len(), 1);
 
-        match &result.statements[0].expression {
-            Expression::Block(exprs) => {
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Block(exprs) => {
                 assert_eq!(exprs.len(), 2);
 
                 // First line: x $> f
-                match &exprs[0] {
-                    Expression::Pipe { left, right } => {
-                        match &**left {
-                            Expression::Identifier(name) => assert_eq!(name, "x"),
+                match &exprs[0].kind {
+                    ExpressionKind::Pipe { left, right } => {
+                        match &left.kind {
+                            ExpressionKind::Identifier(name) => assert_eq!(name, "x"),
                             _ => panic!("Expected identifier x"),
                         }
-                        match &**right {
-                            Expression::Identifier(name) => assert_eq!(name, "f"),
+                        match &right.kind {
+                            ExpressionKind::Identifier(name) => assert_eq!(name, "f"),
                             _ => panic!("Expected identifier f"),
                         }
                     }
@@ -516,14 +516,14 @@ mod tests {
                 }
 
                 // Second line: y $> g
-                match &exprs[1] {
-                    Expression::Pipe { left, right } => {
-                        match &**left {
-                            Expression::Identifier(name) => assert_eq!(name, "y"),
+                match &exprs[1].kind {
+                    ExpressionKind::Pipe { left, right } => {
+                        match &left.kind {
+                            ExpressionKind::Identifier(name) => assert_eq!(name, "y"),
                             _ => panic!("Expected identifier y"),
                         }
-                        match &**right {
-                            Expression::Identifier(name) => assert_eq!(name, "g"),
+                        match &right.kind {
+                            ExpressionKind::Identifier(name) => assert_eq!(name, "g"),
                             _ => panic!("Expected identifier g"),
                         }
                     }
@@ -541,11 +541,11 @@ mod tests {
 
         assert_eq!(result.statements.len(), 1);
 
-        match &result.statements[0].expression {
-            Expression::Let { pattern: _, value } => match &**value {
-                Expression::Parenthesized(inner) => match &**inner {
-                    Expression::Lambda { body, .. } => match &**body {
-                        Expression::Block(exprs) => {
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Let { pattern: _, value } => match &value.kind {
+                ExpressionKind::Parenthesized(inner) => match &inner.kind {
+                    ExpressionKind::Lambda { body, .. } => match &body.kind {
+                        ExpressionKind::Block(exprs) => {
                             assert_eq!(exprs.len(), 2);
                         }
                         _ => panic!("Expected block in lambda body"),
@@ -574,21 +574,21 @@ mod tests {
 
         assert_eq!(result.statements.len(), 1);
 
-        match &result.statements[0].expression {
-            Expression::Block(exprs) => {
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Block(exprs) => {
                 assert_eq!(exprs.len(), 1);
 
-                match &exprs[0] {
-                    Expression::Chain { left, right } => {
+                match &exprs[0].kind {
+                    ExpressionKind::Chain { left, right } => {
                         // Left side should be: Application(if, true)
-                        match &**left {
-                            Expression::Application { function, argument } => {
-                                match &**function {
-                                    Expression::Identifier(name) => assert_eq!(name, "if"),
+                        match &left.kind {
+                            ExpressionKind::Application { function, argument } => {
+                                match &function.kind {
+                                    ExpressionKind::Identifier(name) => assert_eq!(name, "if"),
                                     _ => panic!("Expected 'if' identifier as function"),
                                 }
-                                match &**argument {
-                                    Expression::Identifier(name) => assert_eq!(name, "true"),
+                                match &argument.kind {
+                                    ExpressionKind::Identifier(name) => assert_eq!(name, "true"),
                                     _ => panic!("Expected 'true' identifier as argument"),
                                 }
                             }
@@ -598,14 +598,14 @@ mod tests {
                         }
 
                         // Right side should be: Application(print, 1)
-                        match &**right {
-                            Expression::Application { function, argument } => {
-                                match &**function {
-                                    Expression::Identifier(name) => assert_eq!(name, "print"),
+                        match &right.kind {
+                            ExpressionKind::Application { function, argument } => {
+                                match &function.kind {
+                                    ExpressionKind::Identifier(name) => assert_eq!(name, "print"),
                                     _ => panic!("Expected 'print' identifier as function"),
                                 }
-                                match &**argument {
-                                    Expression::Number(n) => assert_eq!(*n, 1.0),
+                                match &argument.kind {
+                                    ExpressionKind::Number(n) => assert_eq!(*n, 1.0),
                                     _ => panic!("Expected number 1 as argument"),
                                 }
                             }
@@ -630,21 +630,21 @@ mod tests {
 
         assert_eq!(result.statements.len(), 1);
 
-        match &result.statements[0].expression {
-            Expression::Block(exprs) => {
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Block(exprs) => {
                 assert_eq!(exprs.len(), 1);
 
-                match &exprs[0] {
-                    Expression::Chain { left, right } => {
+                match &exprs[0].kind {
+                    ExpressionKind::Chain { left, right } => {
                         // Left: Application(a, b)
-                        match &**left {
-                            Expression::Application { function, argument } => {
-                                match &**function {
-                                    Expression::Identifier(name) => assert_eq!(name, "a"),
+                        match &left.kind {
+                            ExpressionKind::Application { function, argument } => {
+                                match &function.kind {
+                                    ExpressionKind::Identifier(name) => assert_eq!(name, "a"),
                                     _ => panic!("Expected 'a' identifier"),
                                 }
-                                match &**argument {
-                                    Expression::Identifier(name) => assert_eq!(name, "b"),
+                                match &argument.kind {
+                                    ExpressionKind::Identifier(name) => assert_eq!(name, "b"),
                                     _ => panic!("Expected 'b' identifier"),
                                 }
                             }
@@ -652,14 +652,14 @@ mod tests {
                         }
 
                         // Right: Application(c, d)
-                        match &**right {
-                            Expression::Application { function, argument } => {
-                                match &**function {
-                                    Expression::Identifier(name) => assert_eq!(name, "c"),
+                        match &right.kind {
+                            ExpressionKind::Application { function, argument } => {
+                                match &function.kind {
+                                    ExpressionKind::Identifier(name) => assert_eq!(name, "c"),
                                     _ => panic!("Expected 'c' identifier"),
                                 }
-                                match &**argument {
-                                    Expression::Identifier(name) => assert_eq!(name, "d"),
+                                match &argument.kind {
+                                    ExpressionKind::Identifier(name) => assert_eq!(name, "d"),
                                     _ => panic!("Expected 'd' identifier"),
                                 }
                             }
@@ -681,18 +681,18 @@ mod tests {
 
         assert_eq!(result.statements.len(), 1);
 
-        match &result.statements[0].expression {
-            Expression::Lazy(exprs) => {
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Lazy(exprs) => {
                 assert_eq!(exprs.len(), 1);
 
-                match &exprs[0] {
-                    Expression::Chain { left, right } => {
-                        match &**left {
-                            Expression::Application { .. } => {}
+                match &exprs[0].kind {
+                    ExpressionKind::Chain { left, right } => {
+                        match &left.kind {
+                            ExpressionKind::Application { .. } => {}
                             _ => panic!("Expected Application on left side of Chain"),
                         }
-                        match &**right {
-                            Expression::Application { .. } => {}
+                        match &right.kind {
+                            ExpressionKind::Application { .. } => {}
                             _ => panic!("Expected Application on right side of Chain"),
                         }
                     }
@@ -712,20 +712,20 @@ mod tests {
 
         assert_eq!(result.statements.len(), 1);
 
-        match &result.statements[0].expression {
-            Expression::Block(exprs) => {
+        match &result.statements[0].expression.kind {
+            ExpressionKind::Block(exprs) => {
                 assert_eq!(exprs.len(), 1);
 
-                match &exprs[0] {
-                    Expression::Pipe { left, right } => {
+                match &exprs[0].kind {
+                    ExpressionKind::Pipe { left, right } => {
                         // Left should be Chain { left: App(a,b), right: App(c,d) }
-                        match &**left {
-                            Expression::Chain { .. } => {}
+                        match &left.kind {
+                            ExpressionKind::Chain { .. } => {}
                             _ => panic!("Expected Chain on left side of Pipe, got {:?}", left),
                         }
                         // Right should be App(e, f)
-                        match &**right {
-                            Expression::Application { .. } => {}
+                        match &right.kind {
+                            ExpressionKind::Application { .. } => {}
                             _ => panic!("Expected Application on right side of Pipe"),
                         }
                     }

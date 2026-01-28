@@ -1,13 +1,17 @@
 use crate::{
-    count_args, define_native, define_help,
+    count_args, define_help, define_native,
     eval::{
         error::RuntimeError,
         evaluator::Interpretator,
         native_functions::{native_result, string::StringEq},
-        value::{EnvRef, NativeClosure, NativeContext, NativeFn, Value, ValueRef},
+        value::{
+            bool_value, EnvRef, NativeClosure, NativeContext, NativeFn, SpecialBoundClosure, SpecialFn, Value, ValueRef
+        },
         EvalResult,
     },
     native_op,
+    parser::Expression,
+    special_b_op,
 };
 use std::rc::Rc;
 
@@ -46,18 +50,32 @@ native_op!(Bool, "bool", [val], {
     })
 });
 
-native_op!(Or, "or", [x, y], {
+special_b_op!(Or, "or", [x, y], ctx, {
+    let x = ctx.inter.eval_expr(x, &ctx.env)?;
     let x = x.expect_bool()?;
+
+    if x {
+        return Ok(bool_value(true));
+    }
+
+    let y = ctx.inter.eval_expr(y, &ctx.env)?;
     let y = y.expect_bool()?;
 
-    native_result(Value::Bool(x || y))
+    Ok(bool_value(y))
 });
 
-native_op!(And, "and", [x, y], {
+special_b_op!(And, "and", [x, y], ctx, {
+    let x = ctx.inter.eval_expr(x, &ctx.env)?;
     let x = x.expect_bool()?;
+
+    if !x {
+        return Ok(bool_value(false));
+    }
+
+    let y = ctx.inter.eval_expr(y, &ctx.env)?;
     let y = y.expect_bool()?;
 
-    native_result(Value::Bool(x && y))
+    return Ok(bool_value(y))
 });
 
 native_op!(Eq, "=", [x, y], {
@@ -93,7 +111,9 @@ native_op!(Lt, "<", [x, y], {
 
 pub fn bind_bool_module(env: &EnvRef, inter: Rc<Interpretator>) {
     // Module help
-    env.define_help("bool.".to_string(), "bool module:
+    env.define_help(
+        "bool.".to_string(),
+        "bool module:
 
 Comparison:
 - =: equality check
@@ -107,28 +127,50 @@ Logic:
 - and: logical AND
 
 Conversion:
-- bool: convert value to boolean".to_string());
+- bool: convert value to boolean"
+            .to_string(),
+    );
 
     define_native!(Eq, env, inter);
     define_help!(Eq, env, "[value value]: checks equality of two values (numbers, bools, strings, or null)\n\n= 5 5  ; true");
 
     define_native!(NotEq, env, inter);
-    define_help!(NotEq, env, "[value value]: checks inequality of two values\n\n!= 5 3  ; true");
+    define_help!(
+        NotEq,
+        env,
+        "[value value]: checks inequality of two values\n\n!= 5 3  ; true"
+    );
 
     define_native!(Gt, env, inter);
-    define_help!(Gt, env, "[number number]: returns true if first number is greater than second\n\n> 5 3  ; true");
+    define_help!(
+        Gt,
+        env,
+        "[number number]: returns true if first number is greater than second\n\n> 5 3  ; true"
+    );
 
     define_native!(Lt, env, inter);
-    define_help!(Lt, env, "[number number]: returns true if first number is less than second\n\n< 3 5  ; true");
+    define_help!(
+        Lt,
+        env,
+        "[number number]: returns true if first number is less than second\n\n< 3 5  ; true"
+    );
 
     define_native!(Not, env, inter);
     define_help!(Not, env, "[bool]: logical negation\n\nnot true  ; false");
 
     define_native!(Or, env, inter);
-    define_help!(Or, env, "[bool bool]: logical OR of two boolean values\n\nor true false  ; true");
+    define_help!(
+        Or,
+        env,
+        "[bool bool]: logical OR of two boolean values\n\nor true false  ; true"
+    );
 
     define_native!(And, env, inter);
-    define_help!(And, env, "[bool bool]: logical AND of two boolean values\n\nand true false  ; false");
+    define_help!(
+        And,
+        env,
+        "[bool bool]: logical AND of two boolean values\n\nand true false  ; false"
+    );
 
     define_native!(Bool, env, inter);
     define_help!(Bool, env, "[value]: converts value to boolean. 0, null, empty string/list/object are false, everything else is true\n\nbool 0  ; false\nbool \"hello\"  ; true");

@@ -1,5 +1,5 @@
 use crate::{
-    count_args, define_native, define_help,
+    count_args, define_help, define_native,
     eval::{
         error::RuntimeError,
         evaluator::Interpretator,
@@ -25,7 +25,7 @@ special_b_op!(Quote, ["'", "fn.quote"], [val], ctx, {
 
 native_op!(Id, ["fn.id", "fn.invoke", "invoke"], [fun], ctx, {
     ctx.inter.ctx.borrow_mut().quoted = true;
-    let res = ctx.apply(&fun, &Rc::new(Value::Null));
+    let res = ctx.apply(&fun, &Rc::new(Value::Null), ctx.env);
     ctx.inter.ctx.borrow_mut().quoted = false;
 
     res
@@ -33,10 +33,14 @@ native_op!(Id, ["fn.id", "fn.invoke", "invoke"], [fun], ctx, {
 
 pub fn bind_function_module(env: &EnvRef, inter: Rc<Interpretator>) {
     // Module help
-    env.define_help("fn.".to_string(), "fn module:
+    env.define_help(
+        "fn.".to_string(),
+        "fn module:
 
 - fn.id, fn.invoke, invoke: invokes lambda with null argument
-- ', fn.quote: quotes the lambda (prevents evaluation)".to_string());
+- ', fn.quote: quotes the lambda (prevents evaluation)"
+            .to_string(),
+    );
 
     define_native!(Id, env, inter);
     define_help!(Id, env, "[fn:lambda]: invokes a lambda with null argument. Useful for callbacks\n\n[ (fn [] print :hello) (fn [] print :world) ] $> list.iterate fn.invoke");

@@ -40,7 +40,7 @@ native_op!(Shell, "shell", [cmd], {
             let stdout = String::from_utf8_lossy(&output.stdout).to_string();
             native_result(Value::String(stdout))
         }
-        Err(e) => Err(ShikError::default_error(format!(
+        Err(e) => Err(RuntimeError::default_error(format!(
             "shell command failed: {}",
             e
         ))),
@@ -63,7 +63,7 @@ native_op!(ShellExec, "shell!", [cmd], {
             let code = status.code().unwrap_or(-1) as f64;
             native_result(Value::Number(code))
         }
-        Err(e) => Err(ShikError::default_error(format!(
+        Err(e) => Err(RuntimeError::default_error(format!(
             "shell command failed: {}",
             e
         ))),
@@ -86,7 +86,7 @@ native_op!(ShellCode, "shell.code", [cmd], {
             let code = output.status.code().unwrap_or(-1) as f64;
             native_result(Value::Number(code))
         }
-        Err(e) => Err(ShikError::default_error(format!(
+        Err(e) => Err(RuntimeError::default_error(format!(
             "shell command failed: {}",
             e
         ))),
@@ -121,7 +121,7 @@ native_op!(ShellFull, "shell.full", [cmd], {
 
             native_result(Value::Object(result))
         }
-        Err(e) => Err(ShikError::default_error(format!(
+        Err(e) => Err(RuntimeError::default_error(format!(
             "shell command failed: {}",
             e
         ))),
@@ -193,7 +193,7 @@ native_op!(ShellLines, "shell.lines", [cmd], {
                 .collect();
             native_result(Value::List(ListRepr::from_vec(lines)))
         }
-        Err(e) => Err(ShikError::default_error(format!(
+        Err(e) => Err(RuntimeError::default_error(format!(
             "shell command failed: {}",
             e
         ))),
@@ -206,7 +206,7 @@ native_op!(ShellLines, "shell.lines", [cmd], {
 
 special_op!(ShellRead, "shell.ask", args, ctx, {
     if args.len() > 1 {
-        return Err(ShikError::default_error(
+        return Err(RuntimeError::default_error(
             "shell.read expects 0 or 1 arguments".to_string(),
         ));
     }
@@ -219,14 +219,14 @@ special_op!(ShellRead, "shell.ask", args, ctx, {
         print!("{prompt}");
         io::stdout()
             .flush()
-            .map_err(|e| ShikError::default_error(format!("cannot write prompt: {}", e)))?;
+            .map_err(|e| RuntimeError::default_error(format!("cannot write prompt: {}", e)))?;
     }
 
     // Read input
     let mut line = String::new();
     let n = io::stdin()
         .read_line(&mut line)
-        .map_err(|e| ShikError::default_error(format!("cannot read from stdin: {}", e)))?;
+        .map_err(|e| RuntimeError::default_error(format!("cannot read from stdin: {}", e)))?;
 
     // EOF
     if n == 0 {
@@ -296,7 +296,7 @@ native_op!(ShellEnvAll, "shell.env.all", [], {
 native_op!(ShellCwd, "shell.cwd", [], {
     match env::current_dir() {
         Ok(path) => native_result(Value::String(path.to_string_lossy().to_string())),
-        Err(e) => Err(ShikError::default_error(format!(
+        Err(e) => Err(RuntimeError::default_error(format!(
             "cannot get current directory: {}",
             e
         ))),
@@ -310,7 +310,7 @@ native_op!(ShellCd, "shell.cd", [path], {
 
     match env::set_current_dir(path) {
         Ok(_) => native_result(Value::Null),
-        Err(e) => Err(ShikError::default_error(format!(
+        Err(e) => Err(RuntimeError::default_error(format!(
             "cannot change directory to '{}': {}",
             path, e
         ))),
@@ -322,7 +322,7 @@ native_op!(ShellCd, "shell.cd", [path], {
 native_op!(ShellHome, "shell.home", [], {
     match env::var("HOME").or_else(|_| env::var("USERPROFILE")) {
         Ok(home) => native_result(Value::String(home)),
-        Err(_) => Err(ShikError::default_error(
+        Err(_) => Err(RuntimeError::default_error(
             "cannot determine home directory".to_string(),
         )),
     }

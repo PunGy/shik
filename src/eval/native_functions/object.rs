@@ -110,10 +110,7 @@ native_op!(ObjectSet, "object.set", [key, obj, value], {
                 map.insert(key, Rc::clone(value));
                 Ok(Rc::clone(value))
             }
-            _ => Err(RuntimeError::MissmatchedTypes {
-                got: obj.get_type(),
-                expected: ValueType::Object,
-            }),
+            _ => Err(RuntimeError::mismatched_types(obj.get_type(), ValueType::Object)),
         }
     }
 });
@@ -132,10 +129,7 @@ native_op!(ObjectRemove, "object.remove", [key, obj], {
                 Some(v) => Ok(v),
                 None => native_result(Value::Null),
             },
-            _ => Err(RuntimeError::MissmatchedTypes {
-                got: obj.get_type(),
-                expected: ValueType::Object,
-            }),
+            _ => Err(RuntimeError::mismatched_types(obj.get_type(), ValueType::Object)),
         }
     }
 });
@@ -153,12 +147,9 @@ native_op!(ObjectFromEntries, "object.from-entries", [entries], {
 
     for entry in entries.iter() {
         let pair = entry.expect_list()?;
-        if pair.len() < 2 {
-            return Err(RuntimeError::InvalidApplication);
-        }
-        let key = pair.get(0).ok_or(RuntimeError::InvalidApplication)?;
+        let key = pair.get(0).ok_or(RuntimeError::invalid_application("(object.from-entries) must have at least two elements in order to make an object".to_string()))?;
         let key = key.expect_string()?.clone();
-        let value = pair.get(1).ok_or(RuntimeError::InvalidApplication)?;
+        let value = pair.get(1).ok_or(RuntimeError::invalid_application("(object.from-entries) must have at least two elements in order to make an object".to_string()))?;
         result.insert(key, value);
     }
 
@@ -253,7 +244,7 @@ native_op!(ObjectIterate, "object.iterate", [func, obj], ctx, {
     for (k, v) in obj.iter() {
         let pair = vec![Rc::new(Value::String(k.clone())), Rc::clone(v)];
         let entry = Rc::new(Value::List(ListRepr::from_vec(pair)));
-        ctx.apply(func, &entry)?;
+        ctx.apply(func, &entry, ctx.env)?;
     }
 
     native_result(Value::Null)
@@ -267,7 +258,7 @@ native_op!(ObjectMap, "object.map", [func, obj], ctx, {
     let mut result: HashMap<String, ValueRef> = HashMap::with_capacity(obj.len());
 
     for (k, v) in obj.iter() {
-        let mapped = ctx.apply(func, v)?;
+        let mapped = ctx.apply(func, v, ctx.env)?;
         result.insert(k.clone(), mapped);
     }
 
@@ -285,7 +276,7 @@ native_op!(ObjectMapEntries, "object.map-entries", [func, obj], ctx, {
     for (k, v) in obj.iter() {
         let pair = vec![Rc::new(Value::String(k.clone())), Rc::clone(v)];
         let entry = Rc::new(Value::List(ListRepr::from_vec(pair)));
-        let mapped = ctx.apply(func, &entry)?;
+        let mapped = ctx.apply(func, &entry, ctx.env)?;
         result.insert(k.clone(), mapped);
     }
 
@@ -303,7 +294,7 @@ native_op!(ObjectFilter, "object.filter", [func, obj], ctx, {
     for (k, v) in obj.iter() {
         let pair = vec![Rc::new(Value::String(k.clone())), Rc::clone(v)];
         let entry = Rc::new(Value::List(ListRepr::from_vec(pair)));
-        let keep = ctx.apply(func, &entry)?.expect_bool()?;
+        let keep = ctx.apply(func, &entry, ctx.env)?.expect_bool()?;
         if keep {
             result.insert(k.clone(), Rc::clone(v));
         }
@@ -324,8 +315,8 @@ native_op!(ObjectFold, "object.fold", [init, func, obj], ctx, {
         let pair = vec![Rc::new(Value::String(k.clone())), Rc::clone(v)];
         let entry = Rc::new(Value::List(ListRepr::from_vec(pair)));
         // Apply function to accumulator first, then to entry (curried)
-        let partial = ctx.apply(func, &acc)?;
-        acc = ctx.apply(&partial, &entry)?;
+        let partial = ctx.apply(func, &acc, ctx.env)?;
+        acc = ctx.apply(&partial, &entry, ctx.env)?;
     }
 
     Ok(acc)
@@ -340,7 +331,7 @@ native_op!(ObjectAny, "object.any", [func, obj], ctx, {
     for (k, v) in obj.iter() {
         let pair = vec![Rc::new(Value::String(k.clone())), Rc::clone(v)];
         let entry = Rc::new(Value::List(ListRepr::from_vec(pair)));
-        if ctx.apply(func, &entry)?.expect_bool()? {
+        if ctx.apply(func, &entry, ctx.env)?.expect_bool()? {
             return native_result(Value::Bool(true));
         }
     }
@@ -357,7 +348,7 @@ native_op!(ObjectAll, "object.all", [func, obj], ctx, {
     for (k, v) in obj.iter() {
         let pair = vec![Rc::new(Value::String(k.clone())), Rc::clone(v)];
         let entry = Rc::new(Value::List(ListRepr::from_vec(pair)));
-        if !ctx.apply(func, &entry)?.expect_bool()? {
+        if !ctx.apply(func, &entry, ctx.env)?.expect_bool()? {
             return native_result(Value::Bool(false));
         }
     }
@@ -374,7 +365,7 @@ native_op!(ObjectFind, "object.find", [func, obj], ctx, {
     for (k, v) in obj.iter() {
         let pair = vec![Rc::new(Value::String(k.clone())), Rc::clone(v)];
         let entry = Rc::new(Value::List(ListRepr::from_vec(pair)));
-        if ctx.apply(func, &entry)?.expect_bool()? {
+        if ctx.apply(func, &entry, ctx.env)?.expect_bool()? {
             return Ok(entry);
         }
     }
@@ -391,7 +382,7 @@ native_op!(ObjectFindKey, "object.find-key", [func, obj], ctx, {
     for (k, v) in obj.iter() {
         let pair = vec![Rc::new(Value::String(k.clone())), Rc::clone(v)];
         let entry = Rc::new(Value::List(ListRepr::from_vec(pair)));
-        if ctx.apply(func, &entry)?.expect_bool()? {
+        if ctx.apply(func, &entry, ctx.env)?.expect_bool()? {
             return native_result(Value::String(k.clone()));
         }
     }

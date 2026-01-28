@@ -85,6 +85,10 @@ impl Parser {
         })
     }
 
+    fn current_span(&self) -> Span {
+        Span::new(self.current_line(), self.current_column())
+    }
+
     fn parse_expression(&mut self, precedence: Precedence) -> ParseResult<Expression> {
         // Parse prefix/primary expression
         let mut left = self.parse_primary()?;
@@ -97,33 +101,45 @@ impl Parser {
 
             let should_continue = match self.current_token_type() {
                 Ok(TokenType::Pipe) if precedence < Precedence::Pipe => {
+                    let span = left.span;
                     self.advance();
                     // Allow newlines after pipe operator
                     while self.is_newline() {
                         self.advance();
                     }
                     let right = self.parse_expression(Precedence::Pipe)?;
-                    left = Expression::pipe(left, right);
+                    left = Expression::new(ExpressionKind::Pipe {
+                        left: Box::new(left),
+                        right: Box::new(right),
+                    }, span);
                     true
                 }
                 Ok(TokenType::Chain) if precedence < Precedence::Chain => {
+                    let span = left.span;
                     self.advance();
                     // Allow newlines after chain operator
                     while self.is_newline() {
                         self.advance();
                     }
                     let right = self.parse_expression(Precedence::Chain)?;
-                    left = Expression::chain(left, right);
+                    left = Expression::new(ExpressionKind::Chain {
+                        left: Box::new(left),
+                        right: Box::new(right),
+                    }, span);
                     true
                 }
                 Ok(TokenType::Flow) if precedence < Precedence::Flow => {
+                    let span = left.span;
                     self.advance();
                     // Allow newlines after flow operator
                     while self.is_newline() {
                         self.advance();
                     }
                     let right = self.parse_expression(Precedence::Flow)?;
-                    left = Expression::flow(left, right);
+                    left = Expression::new(ExpressionKind::Flow {
+                        left: Box::new(left),
+                        right: Box::new(right),
+                    }, span);
                     true
                 }
                 Ok(TokenType::Newline) => {
@@ -132,8 +148,12 @@ impl Parser {
                 }
                 _ => {
                     if self.can_start_primary() && precedence < Precedence::Apply {
+                        let span = left.span;
                         let arg = self.parse_expression(Precedence::Apply)?;
-                        left = Expression::application(left, arg);
+                        left = Expression::new(ExpressionKind::Application {
+                            function: Box::new(left),
+                            argument: Box::new(arg),
+                        }, span);
                         true
                     } else {
                         false
@@ -156,6 +176,8 @@ impl Parser {
             });
         }
 
+        let span = self.current_span();
+
         // Use reference to avoid cloning the token
         let token_type = self.current_token_type_ref();
 
@@ -163,12 +185,12 @@ impl Parser {
             Some(TokenType::Number(n)) => {
                 let value = *n;
                 self.advance();
-                Ok(Expression::number(value))
+                Ok(Expression::new(ExpressionKind::Number(value), span))
             }
             Some(TokenType::String(s)) => {
                 let value = s.clone();
                 self.advance();
-                Ok(Expression::string(value))
+                Ok(Expression::new(ExpressionKind::String(value), span))
             }
             Some(TokenType::StringInterpolation(info)) => {
                 let value = info.clone();
@@ -190,46 +212,46 @@ impl Parser {
                     string: value.string,
                     entries: interpolatons,
                 };
-                Ok(Expression::StringInterpolation(inter_info))
+                Ok(Expression::new(ExpressionKind::StringInterpolation(inter_info), span))
             }
             Some(TokenType::Ident) => {
                 let name = self.current_lexeme().to_string();
                 self.advance();
-                Ok(Expression::identifier(name))
+                Ok(Expression::new(ExpressionKind::Identifier(name), span))
             }
             Some(TokenType::Let) => {
                 self.advance();
-                self.parse_let_expression()
+                self.parse_let_expression(span)
             }
             Some(TokenType::Fn) => {
                 self.advance();
-                self.parse_lambda()
+                self.parse_lambda(span)
             }
             Some(TokenType::Match) => {
                 self.advance();
-                self.parse_match_expression()
+                self.parse_match_expression(span)
             }
             Some(TokenType::LeftParen) => {
                 self.advance();
                 let expr = self.parse_expression(Precedence::Lowest)?;
                 self.expect_token(TokenType::RightParen)?;
-                Ok(Expression::parenthesized(expr))
+                Ok(Expression::new(ExpressionKind::Parenthesized(Box::new(expr)), span))
             }
             Some(TokenType::OpenBlock) => {
                 self.advance();
-                self.parse_block()
+                self.parse_block(span)
             }
             Some(TokenType::OpenLazy) => {
                 self.advance();
-                self.parse_lazy()
+                self.parse_lazy(span)
             }
             Some(TokenType::LeftBracket) => {
                 self.advance();
-                self.parse_list()
+                self.parse_list(span)
             }
             Some(TokenType::LeftCurlyBracket) => {
                 self.advance();
-                self.parse_object()
+                self.parse_object(span)
             }
             Some(TokenType::Newline) => {
                 self.advance();
@@ -245,14 +267,14 @@ impl Parser {
         }
     }
 
-    fn parse_let_expression(&mut self) -> ParseResult<Expression> {
+    fn parse_let_expression(&mut self, span: Span) -> ParseResult<Expression> {
         let pattern = self.parse_match_pattern()?;
         let value = Box::new(self.parse_expression(Precedence::Lowest)?);
 
-        Ok(Expression::Let { pattern, value })
+        Ok(Expression::new(ExpressionKind::Let { pattern, value }, span))
     }
 
-    fn parse_match_expression(&mut self) -> ParseResult<Expression> {
+    fn parse_match_expression(&mut self, span: Span) -> ParseResult<Expression> {
         let item = Box::new(self.parse_primary()?);
 
         let mut entries: Vec<MatchItem> = Vec::new();
@@ -273,10 +295,10 @@ impl Parser {
 
         self.expect_token(TokenType::RightCurlyBracket)?;
 
-        Ok(Expression::Match { item, entries })
+        Ok(Expression::new(ExpressionKind::Match { item, entries }, span))
     }
 
-    fn parse_lambda(&mut self) -> ParseResult<Expression> {
+    fn parse_lambda(&mut self, span: Span) -> ParseResult<Expression> {
         self.expect_token(TokenType::LeftBracket)?;
 
         let mut parameters = Vec::new();
@@ -296,11 +318,11 @@ impl Parser {
         // Parse the body - this should parse the entire remaining expression
         let body = Box::new(self.parse_expression(Precedence::Lowest)?);
 
-        Ok(Expression::Lambda {
+        Ok(Expression::new(ExpressionKind::Lambda {
             parameters,
             rest,
             body,
-        })
+        }, span))
     }
 
     fn parse_match_pattern(&mut self) -> ParseResult<MatchPattern> {
@@ -359,16 +381,16 @@ impl Parser {
         }
     }
 
-    fn parse_block(&mut self) -> ParseResult<Expression> {
+    fn parse_block(&mut self, span: Span) -> ParseResult<Expression> {
         let expressions = self.parse_block_contents()?;
         self.expect_token(TokenType::RightParen)?;
-        Ok(Expression::block(expressions))
+        Ok(Expression::new(ExpressionKind::Block(expressions), span))
     }
 
-    fn parse_lazy(&mut self) -> ParseResult<Expression> {
+    fn parse_lazy(&mut self, span: Span) -> ParseResult<Expression> {
         let expressions = self.parse_block_contents()?;
         self.expect_token(TokenType::RightParen)?;
-        Ok(Expression::lazy(expressions))
+        Ok(Expression::new(ExpressionKind::Lazy(expressions), span))
     }
 
     /// Shared parsing logic for block and lazy expressions.
@@ -397,7 +419,13 @@ impl Parser {
             // Build up the current line expression
             current_line_expr = Some(match current_line_expr.take() {
                 None => primary,
-                Some(left) => Expression::application(left, primary),
+                Some(left) => {
+                    let span = left.span;
+                    Expression::new(ExpressionKind::Application {
+                        function: Box::new(left),
+                        argument: Box::new(primary),
+                    }, span)
+                }
             });
 
             // Check if there's an operator that continues the expression
@@ -441,33 +469,45 @@ impl Parser {
 
             let should_continue = match self.current_token_type() {
                 Ok(TokenType::Pipe) if precedence < Precedence::Pipe => {
+                    let span = left.span;
                     self.advance();
                     // Allow newlines after pipe operator (continuation)
                     while self.is_newline() {
                         self.advance();
                     }
                     let right = self.parse_expression(Precedence::Pipe)?;
-                    left = Expression::pipe(left, right);
+                    left = Expression::new(ExpressionKind::Pipe {
+                        left: Box::new(left),
+                        right: Box::new(right),
+                    }, span);
                     true
                 }
                 Ok(TokenType::Chain) if precedence < Precedence::Chain => {
+                    let span = left.span;
                     self.advance();
                     // Allow newlines after chain operator (continuation)
                     while self.is_newline() {
                         self.advance();
                     }
                     let right = self.parse_expression(Precedence::Chain)?;
-                    left = Expression::chain(left, right);
+                    left = Expression::new(ExpressionKind::Chain {
+                        left: Box::new(left),
+                        right: Box::new(right),
+                    }, span);
                     true
                 }
                 Ok(TokenType::Flow) if precedence < Precedence::Flow => {
+                    let span = left.span;
                     self.advance();
                     // Allow newlines after flow operator (continuation)
                     while self.is_newline() {
                         self.advance();
                     }
                     let right = self.parse_expression(Precedence::Flow)?;
-                    left = Expression::flow(left, right);
+                    left = Expression::new(ExpressionKind::Flow {
+                        left: Box::new(left),
+                        right: Box::new(right),
+                    }, span);
                     true
                 }
                 Ok(TokenType::Newline) => false,
@@ -482,7 +522,7 @@ impl Parser {
         Ok(left)
     }
 
-    fn parse_list(&mut self) -> ParseResult<Expression> {
+    fn parse_list(&mut self, span: Span) -> ParseResult<Expression> {
         let mut items = Vec::new();
 
         while !self.check_token(&TokenType::RightBracket) && !self.is_at_end() {
@@ -494,10 +534,10 @@ impl Parser {
         }
 
         self.expect_token(TokenType::RightBracket)?;
-        Ok(Expression::list(items))
+        Ok(Expression::new(ExpressionKind::List(items), span))
     }
 
-    fn parse_object(&mut self) -> ParseResult<Expression> {
+    fn parse_object(&mut self, span: Span) -> ParseResult<Expression> {
         let mut items = Vec::new();
 
         while !self.check_token(&TokenType::RightCurlyBracket) && !self.is_at_end() {
@@ -511,7 +551,7 @@ impl Parser {
         }
 
         self.expect_token(TokenType::RightCurlyBracket)?;
-        Ok(Expression::object(items))
+        Ok(Expression::new(ExpressionKind::Object(items), span))
     }
 
     // Helper methods

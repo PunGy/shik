@@ -1,10 +1,16 @@
 use crate::{
+    define_help,
     eval::{
-        error::RuntimeError, evaluator::Interpretator, native_functions::native_result, value::{EnvRef, NativeContext, SpecialClosure, SpecialFn, Value}, EvalResult
+        error::RuntimeError,
+        evaluator::Interpretator,
+        native_functions::native_result,
+        value::{EnvRef, NativeContext, SpecialClosure, SpecialFn, Value},
+        EvalResult,
     },
-    parser::Expression, special_op, define_help,
+    parser::Expression,
+    special_op,
 };
-use std::{rc::Rc};
+use std::rc::Rc;
 
 /*
 ; count 2
@@ -31,63 +37,73 @@ if predicate
 */
 
 special_op!(If, "if", args, ctx, {
-        let args_count = args.len();
-        if args_count < 2 {
-            return Err(RuntimeError::InvalidApplication);
-        }
+    let args_count = args.len();
+    if args_count < 2 {
+        return Err(RuntimeError::invalid_application(
+            format!("(if) must be at least two arguments, but got {args_count}"),
+        ));
+    }
 
-        let mut args_it = args.iter().peekable();
-        let predicate = args_it.next().ok_or(RuntimeError::InvalidApplication)?;
-        let mut predicate = ctx.inter.eval_expand(predicate, &ctx.env)?.expect_bool()?;
+    let mut args_it = args.iter().peekable();
+    let predicate = args_it.next().ok_or(RuntimeError::invalid_application(
+        "(if) must be at least two arguments".to_string(),
+    ))?;
+    let mut predicate = ctx.inter.eval_expand(predicate, &ctx.env)?.expect_bool()?;
 
-        if args_count == 2 {
-            // Simple if without else
-            if predicate {
-                ctx.inter.eval_expand(&args_it.next().unwrap(), &ctx.env)
-            } else {
-                Ok(Rc::new(Value::Null))
-            }
-        } else if args_count % 2 == 0 {
-            // Without else at the end
-            while !predicate {
-                args_it.next(); // skip body
-                let next = args_it.next();
-                if next == None {
-                    break;
-                }
-                predicate = ctx.inter.eval_expand(next.unwrap(), &ctx.env)?.expect_bool()?;
-            }
-
-            if predicate {
-                let next = args_it.next().ok_or(RuntimeError::InvalidApplication)?;
-                ctx.inter.eval_expand(next, &ctx.env)
-            } else {
-                Ok(Rc::new(Value::Null))
-            }
+    if args_count == 2 {
+        // Simple if without else
+        if predicate {
+            ctx.inter.eval_expand(&args_it.next().unwrap(), &ctx.env)
         } else {
-            // With else at the end
-            let mut next: Option<&Expression> = args_it.next();
-
-            while !predicate {
-                next = args_it.next();
-                // if it is the last - go back, we found final `else`
-                if args_it.peek() == None {
-                    break;
-                }
-                predicate = ctx.inter.eval_expand(next.unwrap(), &ctx.env)?.expect_bool()?;
-                if predicate {
-                    // next body
-                    next = args_it.next();
-                    break
-                } else {
-                    args_it.next();
-                }
-            }
-
-            // the next would be the desired body for sure, either `elseif` block, or `else`
-            let next = next.ok_or(RuntimeError::InvalidApplication)?;
-            ctx.inter.eval_expand(next, &ctx.env)
+            Ok(Rc::new(Value::Null))
         }
+    } else if args_count % 2 == 0 {
+        // Without else at the end
+        while !predicate {
+            args_it.next(); // skip body
+            let next = args_it.next();
+            if next == None {
+                break;
+            }
+            predicate = ctx
+                .inter
+                .eval_expand(next.unwrap(), &ctx.env)?
+                .expect_bool()?;
+        }
+
+        if predicate {
+            let next = args_it.next().ok_or(RuntimeError::invalid_application("(if) cannot find body for succeeded else-if block".to_string()))?;
+            ctx.inter.eval_expand(next, &ctx.env)
+        } else {
+            Ok(Rc::new(Value::Null))
+        }
+    } else {
+        // With else at the end
+        let mut next: Option<&Expression> = args_it.next();
+
+        while !predicate {
+            next = args_it.next();
+            // if it is the last - go back, we found final `else`
+            if args_it.peek() == None {
+                break;
+            }
+            predicate = ctx
+                .inter
+                .eval_expand(next.unwrap(), &ctx.env)?
+                .expect_bool()?;
+            if predicate {
+                // next body
+                next = args_it.next();
+                break;
+            } else {
+                args_it.next();
+            }
+        }
+
+        // the next would be the desired body for sure, either `elseif` block, or `else`
+        let next = next.ok_or(RuntimeError::invalid_application("(if) unballanced number of arguments".to_string()))?;
+        ctx.inter.eval_expand(next, &ctx.env)
+    }
 });
 
 special_op!(While, "while", args, ctx, {
@@ -95,7 +111,7 @@ special_op!(While, "while", args, ctx, {
 
     let void = Rc::new(Value::Null);
     loop {
-        let should_continue = ctx.inter.apply_fn(&pred_fn, &void)?.expect_bool()?;
+        let should_continue = ctx.inter.apply_fn(&pred_fn, &void, ctx.env)?.expect_bool()?;
         if !should_continue {
             return native_result(Value::Null);
         }
@@ -103,11 +119,15 @@ special_op!(While, "while", args, ctx, {
 });
 
 pub fn bind_special_module(env: &EnvRef, inter: Rc<Interpretator>) {
-    env.define_help("branching.".to_string(), "branching functions:
+    env.define_help(
+        "branching.".to_string(),
+        "branching functions:
 
 - if: conditional branching
 - while: loops while predicate function returns true
-- match: match the value against a pattern".to_string());
+- match: match the value against a pattern"
+            .to_string(),
+    );
 
     If::define(&env, Rc::clone(&inter));
     define_help!(If, env, "[predicate:bool body:value ...]: conditional branching. Supports if, if-else, and if-elseif-else patterns\n\nif (> x 5) \"big\"\nif (> x 5) \"big\" \"small\"\nif (> x 10) \"huge\" (> x 5) \"big\" \"small\"");

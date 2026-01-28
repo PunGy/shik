@@ -1,3 +1,30 @@
+/// Source location information for error reporting
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct Span {
+    pub line: usize,
+    pub column: usize,
+}
+
+impl Span {
+    pub fn new(line: usize, column: usize) -> Self {
+        Self { line, column }
+    }
+    
+    pub fn unknown() -> Self {
+        Self { line: 0, column: 0 }
+    }
+}
+
+impl std::fmt::Display for Span {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.line == 0 && self.column == 0 {
+            write!(f, "unknown location")
+        } else {
+            write!(f, "line {}, column {}", self.line, self.column)
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program {
     pub statements: Vec<Statement>,
@@ -10,8 +37,87 @@ pub struct Statement {
     pub column: usize,
 }
 
+/// Expression with source location information
 #[derive(Debug, Clone, PartialEq)]
-pub enum Expression {
+pub struct Expression {
+    pub kind: ExpressionKind,
+    pub span: Span,
+}
+
+impl Expression {
+    pub fn new(kind: ExpressionKind, span: Span) -> Self {
+        Self { kind, span }
+    }
+    
+    pub fn with_span(kind: ExpressionKind, line: usize, column: usize) -> Self {
+        Self { kind, span: Span::new(line, column) }
+    }
+    
+    // Convenience constructors that create expressions with unknown span
+    // These are used in tests and places where span isn't critical
+    pub fn number(value: f64) -> Self {
+        Self::new(ExpressionKind::Number(value), Span::unknown())
+    }
+
+    pub fn string(value: String) -> Self {
+        Self::new(ExpressionKind::String(value), Span::unknown())
+    }
+
+    pub fn identifier(name: String) -> Self {
+        Self::new(ExpressionKind::Identifier(name), Span::unknown())
+    }
+
+    pub fn pipe(left: Expression, right: Expression) -> Self {
+        Self::new(ExpressionKind::Pipe {
+            left: Box::new(left),
+            right: Box::new(right),
+        }, Span::unknown())
+    }
+
+    pub fn chain(left: Expression, right: Expression) -> Self {
+        Self::new(ExpressionKind::Chain {
+            left: Box::new(left),
+            right: Box::new(right),
+        }, Span::unknown())
+    }
+
+    pub fn flow(left: Expression, right: Expression) -> Self {
+        Self::new(ExpressionKind::Flow {
+            left: Box::new(left),
+            right: Box::new(right),
+        }, Span::unknown())
+    }
+
+    pub fn application(function: Expression, argument: Expression) -> Self {
+        Self::new(ExpressionKind::Application {
+            function: Box::new(function),
+            argument: Box::new(argument),
+        }, Span::unknown())
+    }
+
+    pub fn list(items: Vec<Expression>) -> Self {
+        Self::new(ExpressionKind::List(items), Span::unknown())
+    }
+
+    pub fn object(items: Vec<ObjectItem>) -> Self {
+        Self::new(ExpressionKind::Object(items), Span::unknown())
+    }
+
+    pub fn parenthesized(expr: Expression) -> Self {
+        Self::new(ExpressionKind::Parenthesized(Box::new(expr)), Span::unknown())
+    }
+
+    pub fn block(expressions: Vec<Expression>) -> Self {
+        Self::new(ExpressionKind::Block(expressions), Span::unknown())
+    }
+
+    pub fn lazy(expressions: Vec<Expression>) -> Self {
+        Self::new(ExpressionKind::Lazy(expressions), Span::unknown())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ExpressionKind {
     // Literals
     Number(f64),
     String(String),
@@ -105,66 +211,4 @@ pub enum MatchPattern {
 pub enum LiteralPattern {
     Number(f64),
     String(String),
-}
-
-impl Expression {
-    pub fn number(value: f64) -> Self {
-        Expression::Number(value)
-    }
-
-    pub fn string(value: String) -> Self {
-        Expression::String(value)
-    }
-
-    pub fn identifier(name: String) -> Self {
-        Expression::Identifier(name)
-    }
-
-    pub fn pipe(left: Expression, right: Expression) -> Self {
-        Expression::Pipe {
-            left: Box::new(left),
-            right: Box::new(right),
-        }
-    }
-
-    pub fn chain(left: Expression, right: Expression) -> Self {
-        Expression::Chain {
-            left: Box::new(left),
-            right: Box::new(right),
-        }
-    }
-
-    pub fn flow(left: Expression, right: Expression) -> Self {
-        Expression::Flow {
-            left: Box::new(left),
-            right: Box::new(right),
-        }
-    }
-
-    pub fn application(function: Expression, argument: Expression) -> Self {
-        Expression::Application {
-            function: Box::new(function),
-            argument: Box::new(argument),
-        }
-    }
-
-    pub fn list(items: Vec<Expression>) -> Self {
-        Expression::List(items)
-    }
-
-    pub fn object(items: Vec<ObjectItem>) -> Self {
-        Expression::Object(items)
-    }
-
-    pub fn parenthesized(expr: Expression) -> Self {
-        Expression::Parenthesized(Box::new(expr))
-    }
-
-    pub fn block(expressions: Vec<Expression>) -> Self {
-        Expression::Block(expressions)
-    }
-
-    pub fn lazy(expressions: Vec<Expression>) -> Self {
-        Expression::Lazy(expressions)
-    }
 }
