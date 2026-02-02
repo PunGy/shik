@@ -102,11 +102,23 @@ native_op!(Gt, ">", [x, y], {
 
     native_result(Value::Bool(x > y))
 });
+native_op!(GtE, ">=", [x, y], {
+    let x = x.expect_number()?;
+    let y = y.expect_number()?;
+
+    native_result(Value::Bool(x >= y))
+});
 native_op!(Lt, "<", [x, y], {
     let x = x.expect_number()?;
     let y = y.expect_number()?;
 
     native_result(Value::Bool(x < y))
+});
+native_op!(LtE, "<=", [x, y], {
+    let x = x.expect_number()?;
+    let y = y.expect_number()?;
+
+    native_result(Value::Bool(x <= y))
 });
 
 pub fn bind_bool_module(env: &EnvRef, inter: Rc<Interpretator>) {
@@ -119,7 +131,9 @@ Comparison:
 - =: equality check
 - !=: inequality check
 - >: greater than
+- >=: greater than or equal
 - <: less than
+- <=: less than or equal
 
 Logic:
 - not: logical negation
@@ -147,12 +161,25 @@ Conversion:
         env,
         "[number number]: returns true if first number is greater than second\n\n> 5 3  ; true"
     );
+    define_native!(GtE, env, inter);
+    define_help!(
+        GtE,
+        env,
+        "[number number]: returns true if first number is greater than second or equal\n\n>= 3 3  ; true"
+    );
 
     define_native!(Lt, env, inter);
     define_help!(
         Lt,
         env,
         "[number number]: returns true if first number is less than second\n\n< 3 5  ; true"
+    );
+
+    define_native!(LtE, env, inter);
+    define_help!(
+        LtE,
+        env,
+        "[number number]: returns true if first number is less than second or equal\n\n<= 3 3  ; true"
     );
 
     define_native!(Not, env, inter);

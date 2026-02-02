@@ -1,7 +1,7 @@
 use crate::{
     count_args, define_native, define_help,
     eval::{
-        error::{RuntimeError, ShikError},
+        error::{RuntimeError},
         evaluator::Interpretator,
         native_functions::native_result,
         value::{
