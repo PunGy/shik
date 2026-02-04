@@ -3,7 +3,7 @@ use crate::{
     eval::{
         error::RuntimeError,
         evaluator::Interpretator,
-        native_functions::native_result,
+        native_functions::{native_result, number::Minus, polymorphic::PPlus},
         value::{
             EnvRef, NativeClosure, NativeContext, NativeFn, SpecialBoundClosure, SpecialFn, Value,
             ValueRef,
@@ -56,6 +56,47 @@ special_b_op!(Set, "set", [name, val], ctx, {
     }
 });
 
+special_b_op!(SetPlus, "set+", [name, val], ctx, {
+    match &name.kind {
+        ExpressionKind::Identifier(name) => {
+            let current_val = ctx
+                .env
+                .lookup(name)
+                .ok_or(RuntimeError::undefined_variable(name.clone()))?;
+            let val = ctx.inter.eval_expand(val, &ctx.env)?;
+
+            let next_val = PPlus::run(&current_val, &val)?;
+            ctx.env.assign(name, Rc::clone(&next_val));
+            Ok(next_val)
+        }
+        _ => {
+            return Err(RuntimeError::invalid_application(
+                "(set+) variable name must be an identifier".to_string(),
+            ))
+        }
+    }
+});
+special_b_op!(SetMinus, "set-", [name, val], ctx, {
+    match &name.kind {
+        ExpressionKind::Identifier(name) => {
+            let current_val = ctx
+                .env
+                .lookup(name)
+                .ok_or(RuntimeError::undefined_variable(name.clone()))?;
+            let val = ctx.inter.eval_expand(val, &ctx.env)?;
+
+            let next_val = Minus::run(&val, &current_val)?;
+            ctx.env.assign(name, Rc::clone(&next_val));
+            Ok(next_val)
+        }
+        _ => {
+            return Err(RuntimeError::invalid_application(
+                "(set-) variable name must be an identifier".to_string(),
+            ))
+        }
+    }
+});
+
 pub fn bind_variable_module(env: &EnvRef, inter: Rc<Interpretator>) {
     // Module help
     env.define_help(
@@ -65,6 +106,8 @@ pub fn bind_variable_module(env: &EnvRef, inter: Rc<Interpretator>) {
 - let: define variable
 - let$: define variable with pattern matching
 - set: mutate value of the variable
+- set+: mutate value of the variable by making concatenation
+- set-: mutate value of the variable by making substraction
 - var.get: gets variable value by name string"
             .to_string(),
     );
@@ -77,6 +120,20 @@ pub fn bind_variable_module(env: &EnvRef, inter: Rc<Interpretator>) {
         Set,
         env,
         "[name:identifier value]: assigns new value to existing variable\n\nlet x 1\nset x 2"
+    );
+
+    define_native!(SetPlus, env, inter);
+    define_help!(
+        SetPlus,
+        env,
+        "[name:identifier value]: assigns new value with concatenation\n\nlet x 1\nset+ x 2\nprint x ;; 3"
+    );
+
+    define_native!(SetMinus, env, inter);
+    define_help!(
+        SetMinus,
+        env,
+        "[name:identifier value]: assigns new value with substraction\n\nlet x 3\nset- x 2\nprint x ;; 1"
     );
 
     define_native!(VarGet, env, inter);

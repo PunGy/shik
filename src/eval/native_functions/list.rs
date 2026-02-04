@@ -327,6 +327,71 @@ native_op!(ListSlice, "list.slice", [start, end, lst], {
     native_result(Value::List(result))
 });
 
+// Sort a list using a comparator function
+// The comparator takes two arguments and returns a number:
+// - negative if a < b
+// - zero if a == b
+// - positive if a > b
+// Usage: list.sort (fn [a b] (- a b)) [3 1 2]  ; [1 2 3]
+native_op!(ListSort, "list.sort", [func, lst], ctx, {
+    let lst = lst.expect_list()?;
+    
+    // Materialize the list into a Vec for sorting
+    let mut items: Vec<ValueRef> = lst.iter().collect();
+    
+    // We need to sort with a fallible comparator, so we use a cell to capture any error
+    let mut sort_error: Option<RuntimeError> = None;
+    
+    items.sort_by(|a, b| {
+        // If we already have an error, don't do more comparisons
+        if sort_error.is_some() {
+            return std::cmp::Ordering::Equal;
+        }
+        
+        // Apply the comparator function: func a b
+        let partial = match ctx.apply(func, a, ctx.env) {
+            Ok(p) => p,
+            Err(e) => {
+                sort_error = Some(e);
+                return std::cmp::Ordering::Equal;
+            }
+        };
+        
+        let result = match ctx.apply(&partial, b, ctx.env) {
+            Ok(r) => r,
+            Err(e) => {
+                sort_error = Some(e);
+                return std::cmp::Ordering::Equal;
+            }
+        };
+        
+        // Extract the number result
+        let cmp_value = match result.expect_number() {
+            Ok(n) => n,
+            Err(e) => {
+                sort_error = Some(e);
+                return std::cmp::Ordering::Equal;
+            }
+        };
+        
+        // Convert to Ordering
+        if cmp_value < 0.0 {
+            std::cmp::Ordering::Less
+        } else if cmp_value > 0.0 {
+            std::cmp::Ordering::Greater
+        } else {
+            std::cmp::Ordering::Equal
+        }
+    });
+    
+    // Check if there was an error during sorting
+    if let Some(e) = sort_error {
+        return Err(e);
+    }
+    
+    native_result(Value::List(ListRepr::from_vec(items)))
+});
+
 // Get a random element from a list
 native_op!(ListRandGet, "list.choice", [lst], {
     let lst = lst.expect_list()?;
@@ -376,6 +441,7 @@ pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
 - list.find-index: finds index of first match
 - list.iterate: iterates forward
 - list.<iterate, list.iterate-backward: iterates backward
+- list.sort: sorts list using comparator function
 - list.choice: gets random element from list"
             .to_string(),
     );
@@ -514,6 +580,9 @@ pub fn bind_list_module(env: &EnvRef, inter: Rc<Interpretator>) {
 
     define_native!(ListSlice, env, inter);
     define_help!(ListSlice, env, "[start:number end:number list]: extracts sublist from start(inclusice) to end(non-inclusive) index\n\nlet lst [1 2 3 4]\nlist.slice 0 2 lst ; [1 2]");
+
+    define_native!(ListSort, env, inter);
+    define_help!(ListSort, env, "[comparator:lambda list]: sorts list using comparator function. Comparator takes two arguments and returns a number (negative if a < b, zero if equal, positive if a > b)\n\nlist.sort (fn [a b] (- a b)) [3 1 2]  ; [1 2 3]\nlist.sort (fn [a b] (- b a)) [3 1 2]  ; [3 2 1]");
 
     define_native!(ListRandGet, env, inter);
     define_help!(ListRandGet, env, "[list]: returns a random element from the list, or null if empty\n\nlist.choice [1 2 3 4 5]  ; random element");

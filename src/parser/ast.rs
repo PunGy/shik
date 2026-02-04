@@ -9,7 +9,7 @@ impl Span {
     pub fn new(line: usize, column: usize) -> Self {
         Self { line, column }
     }
-    
+
     pub fn unknown() -> Self {
         Self { line: 0, column: 0 }
     }
@@ -48,11 +48,14 @@ impl Expression {
     pub fn new(kind: ExpressionKind, span: Span) -> Self {
         Self { kind, span }
     }
-    
+
     pub fn with_span(kind: ExpressionKind, line: usize, column: usize) -> Self {
-        Self { kind, span: Span::new(line, column) }
+        Self {
+            kind,
+            span: Span::new(line, column),
+        }
     }
-    
+
     // Convenience constructors that create expressions with unknown span
     // These are used in tests and places where span isn't critical
     pub fn number(value: f64) -> Self {
@@ -68,31 +71,43 @@ impl Expression {
     }
 
     pub fn pipe(left: Expression, right: Expression) -> Self {
-        Self::new(ExpressionKind::Pipe {
-            left: Box::new(left),
-            right: Box::new(right),
-        }, Span::unknown())
+        Self::new(
+            ExpressionKind::Pipe {
+                left: Box::new(left),
+                right: Box::new(right),
+            },
+            Span::unknown(),
+        )
     }
 
     pub fn chain(left: Expression, right: Expression) -> Self {
-        Self::new(ExpressionKind::Chain {
-            left: Box::new(left),
-            right: Box::new(right),
-        }, Span::unknown())
+        Self::new(
+            ExpressionKind::Chain {
+                left: Box::new(left),
+                right: Box::new(right),
+            },
+            Span::unknown(),
+        )
     }
 
     pub fn flow(left: Expression, right: Expression) -> Self {
-        Self::new(ExpressionKind::Flow {
-            left: Box::new(left),
-            right: Box::new(right),
-        }, Span::unknown())
+        Self::new(
+            ExpressionKind::Flow {
+                left: Box::new(left),
+                right: Box::new(right),
+            },
+            Span::unknown(),
+        )
     }
 
     pub fn application(function: Expression, argument: Expression) -> Self {
-        Self::new(ExpressionKind::Application {
-            function: Box::new(function),
-            argument: Box::new(argument),
-        }, Span::unknown())
+        Self::new(
+            ExpressionKind::Application {
+                function: Box::new(function),
+                argument: Box::new(argument),
+            },
+            Span::unknown(),
+        )
     }
 
     pub fn list(items: Vec<Expression>) -> Self {
@@ -104,7 +119,10 @@ impl Expression {
     }
 
     pub fn parenthesized(expr: Expression) -> Self {
-        Self::new(ExpressionKind::Parenthesized(Box::new(expr)), Span::unknown())
+        Self::new(
+            ExpressionKind::Parenthesized(Box::new(expr)),
+            Span::unknown(),
+        )
     }
 
     pub fn block(expressions: Vec<Expression>) -> Self {
