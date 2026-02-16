@@ -11,7 +11,7 @@
 ;; One   5   =>   50 point
 
 let dice-game fn [throw] '(
-  let bucket $ (list.fold {} fn [acc dice] '(
+  let bucket $ list.fold {} (fn [acc dice] '(
     let key $ string dice
     if (object.has key acc) $
       object.set key acc (+ (object.get key acc) 1) $
@@ -28,12 +28,12 @@ let dice-game fn [throw] '(
   )
 
   let three? $ <= 3
-  let count-3 $ count-accumulative 1000 100
+  let count-1 $ count-accumulative 1000 100
   let count-5 $ count-accumulative 500 50
 
   object.fold 0 (fn [acc [dice count]] '(
     + acc (match dice {
-            :1 (count-3 count)
+            :1 (count-1 count)
             :2 (if (three? count) 200 0)
             :3 (if (three? count) 300 0)
             :4 (if (three? count) 400 0)

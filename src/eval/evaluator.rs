@@ -308,7 +308,7 @@ impl Interpretator {
                     curried.bind_variables_into(&call_env)?;
 
                     // Evaluate the body in the call frame (not in closure.env)
-                    self.eval_expr(&curried.body, &call_env)
+                    self.eval_expand(&curried.body, &call_env)
                 } else {
                     // Make a new curried lambda
                     Ok(Rc::new(Value::Lambda(curried)))
