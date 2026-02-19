@@ -46,44 +46,6 @@ pub fn print_ast(input: Result<Program, ParseError>) {
     }
 }
 
-pub fn run_repl(mode: Option<String>) {
-    use std::io::{self, Write};
-
-    println!("=== SHIK ===");
-    println!("Enter expressions to evaluate, or 'quit' to exit.");
-    println!("Type 'help' for available commands.\n");
-
-    let interpretator = Interpretator::new();
-
-    loop {
-        print!("> ");
-        io::stdout().flush().unwrap();
-
-        let mut input = String::new();
-        if io::stdin().read_line(&mut input).is_err() {
-            println!("Error reading input");
-            continue;
-        }
-
-        let input = input.trim();
-
-        match input {
-            "quit" | "exit" => {
-                println!("Goodbye!");
-                break;
-            }
-            "" => {
-                // Empty input, just continue
-            }
-            _ => match mode.as_deref() {
-                Some("ast") => {
-                    print_ast(parse(input));
-                },
-                _ => print(evaluate(input, &interpretator), false),
-            },
-        }
-    }
-}
 
 pub fn eval_file(path: String) {
     use std::fs::read_to_string;

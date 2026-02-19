@@ -1,20 +1,14 @@
-use shik::lang::{eval_file, run_repl};
+use shik::cli::{parse_args, print_help, print_version, Command};
+use shik::lang::eval_file;
+use shik::repl;
 use std::env;
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    println!("args: {:?}", args);
-    let mode = args.get(1).map(|arg| {
-        if arg.starts_with("--") {
-            arg[2..].to_string()
-        } else {
-            "file".to_string()
-        }
-    });
-
-    if mode != None && mode.as_deref() == Some("file") {
-        eval_file(args[1].clone());
-    } else {
-        run_repl(mode);
+    let args: Vec<String> = env::args().skip(1).collect();
+    match parse_args(&args) {
+        Command::Help => print_help(),
+        Command::Version => print_version(),
+        Command::File { path } => eval_file(path),
+        Command::Repl { ast_mode } => repl::run(repl::ReplConfig { ast_mode }),
     }
 }

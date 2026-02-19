@@ -10,12 +10,6 @@
 
 - **RegExp support**
 
-## REPL possibilities
-
-- **Navigation left right arrows by chars**
-- **Previous command (arrow_up)**
-- **Multiline support**
-
 ## Misc
 
 - **Shebang support**

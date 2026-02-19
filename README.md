@@ -31,6 +31,9 @@ shik script.shk
 
 # Start REPL (interactive mode)
 shik
+
+# Read help
+shik --help
 ```
 
 ## Language Features
@@ -40,8 +43,37 @@ shik
 - Operators for arguments piping, function compositions and more
 - Pattern matching capabilities (in progress)
 - Rich standard library for working with system
+- Builtin documentation with `help` command
+- Nice REPL
 
 ## Example
+
+### Read documentation
+
+```
+> help
+-- Type modules
+- number.: arithmetic, rounding, comparison, math functions, random
+- string.: string manipulation, conversion, iteration
+- list.: list operations, higher-order functions
+...
+
+> help list.
+list module:
+
+- list.set: sets element at index (mutates list)
+- list.push, list.push>, list.push-right: appends value to end (mutates list)
+- list.<push, list.push-left: prepends value to start (mutates list)
+- list.at: gets element at index
+- list.len: returns length
+...
+
+> help list.push
+native-lambda: list.push, list.push>, list.push-right
+[list value]: appends value to end of list (mutates list)
+
+list.push mylist 42
+```
 
 ### Make file with content inside
 
