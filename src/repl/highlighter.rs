@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use streaming_iterator::StreamingIterator;
 use tree_sitter::{Language, Parser, Query, QueryCursor};
+use tree_sitter_shik::{HIGHLIGHTS_QUERY};
 
 // ANSI color codes
 pub const RESET: &str = "\x1b[0m";
@@ -17,8 +18,6 @@ const BOLD_WHITE: &str = "\x1b[1;37m";
 pub const BOLD_GREEN: &str = "\x1b[1;32m";
 pub const PROMPT: &str = "> ";
 pub const PROMPT_CONTINUATION: &str = "… ";
-
-const HIGHLIGHTS_QUERY: &str = include_str!("../../docs/treesitter/queries/shik/highlights.scm");
 
 pub struct ShikHighlighter {
     language: Language,
