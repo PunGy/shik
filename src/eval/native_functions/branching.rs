@@ -1,14 +1,14 @@
 use crate::{
-    define_help,
+    count_args, define_help,
     eval::{
         error::RuntimeError,
         evaluator::Interpretator,
         native_functions::native_result,
-        value::{EnvRef, NativeContext, SpecialClosure, SpecialFn, Value},
+        value::{EnvRef, NativeContext, SpecialBoundClosure, SpecialClosure, SpecialFn, Value},
         EvalResult,
     },
     parser::Expression,
-    special_op,
+    special_b_op, special_op,
 };
 use std::rc::Rc;
 
@@ -39,9 +39,9 @@ if predicate
 special_op!(If, "if", args, ctx, {
     let args_count = args.len();
     if args_count < 2 {
-        return Err(RuntimeError::invalid_application(
-            format!("(if) must be at least two arguments, but got {args_count}"),
-        ));
+        return Err(RuntimeError::invalid_application(format!(
+            "(if) must be at least two arguments, but got {args_count}"
+        )));
     }
 
     let mut args_it = args.iter().peekable();
@@ -72,7 +72,9 @@ special_op!(If, "if", args, ctx, {
         }
 
         if predicate {
-            let next = args_it.next().ok_or(RuntimeError::invalid_application("(if) cannot find body for succeeded else-if block".to_string()))?;
+            let next = args_it.next().ok_or(RuntimeError::invalid_application(
+                "(if) cannot find body for succeeded else-if block".to_string(),
+            ))?;
             ctx.inter.eval_expand(next, &ctx.env)
         } else {
             Ok(Rc::new(Value::Null))
@@ -101,17 +103,22 @@ special_op!(If, "if", args, ctx, {
         }
 
         // the next would be the desired body for sure, either `elseif` block, or `else`
-        let next = next.ok_or(RuntimeError::invalid_application("(if) unballanced number of arguments".to_string()))?;
+        let next = next.ok_or(RuntimeError::invalid_application(
+            "(if) unballanced number of arguments".to_string(),
+        ))?;
         ctx.inter.eval_expand(next, &ctx.env)
     }
 });
 
-special_op!(While, "while", args, ctx, {
-    let pred_fn = ctx.inter.eval_expand(&args[0], &ctx.env)?;
+special_b_op!(While, "while", [body], ctx, {
+    let pred_fn = ctx.inter.eval_expand(body, &ctx.env)?;
 
     let void = Rc::new(Value::Null);
     loop {
-        let should_continue = ctx.inter.apply_fn(&pred_fn, &void, ctx.env)?.expect_bool()?;
+        let should_continue = ctx
+            .inter
+            .apply_fn(&pred_fn, &void, ctx.env)?
+            .expect_bool()?;
         if !should_continue {
             return native_result(Value::Null);
         }

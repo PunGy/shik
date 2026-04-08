@@ -11,8 +11,8 @@ enum Precedence {
     Lowest = 0,
     Pipe = 1,  // $> - pipe/apply value to function (lowest precedence of operators)
     Chain = 2, // $ - chain application - acts like apply, but with lower precedence
-    Apply = 3, // function application (medium precedence)
-    Flow = 4,  // #> - function composition (highest precedence)
+    Flow = 3,  // #> - function composition (medium precedence)
+    Apply = 4, // function application (highest precedence)
 }
 
 pub struct Parser {

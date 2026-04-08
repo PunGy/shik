@@ -1,54 +1,43 @@
-# Shik Language
+# Shik
 
-## Overview
-Shik is a functional, dynamically-typed scripting language designed for shell automation with a minimalist syntax designed to be easily written in the terminal.
+A functional, dynamically-typed scripting language for shell automation — with a minimalist syntax designed to be written left-to-right in the terminal.
+
+```shik
+file.glob :./src/**/*.rs $>
+  list.map (file.read #> string.lines #> list.len) $>
+  list.sum $>
+  print
+```
+
+Shik draws from **Lisp** (everything is function application) and **Haskell** (whitespace application, automatic currying), adapted for terminal ergonomics. No arithmetic operators, no special syntax — just functions, four application operators, and consistent rules.
 
 ## Installation
 
-### Cargo
-
 ```bash
-# Requires Rust toolchain (https://rustup.rs/)
+# macOS / Linux
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/pungy/shik/releases/latest/download/shik-installer.sh | sh
+
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://github.com/pungy/shik/releases/latest/download/shik-installer.ps1 | iex"
+
+# From crates.io (requires Rust toolchain)
 cargo install shik
-```
 
-### From Pre-built Binaries
-Download the appropriate binary for your platform from the [Releases](https://github.com/pungy/shik/releases) page.
-
-### Build from Source
-```bash
+# Or build from source
 git clone https://github.com/pungy/shik
-cd shik
-cargo build --release
-# Binary will be at target/release/shik
+cd shik && cargo build --release
 ```
+
+Pre-built binaries for all platforms available on the [Releases](https://github.com/pungy/shik/releases) page.
 
 ## Usage
 
 ```bash
-# Run a script file
-shik script.shk
-
-# Start REPL (interactive mode)
-shik
-
-# Read help
-shik --help
+shik              # Start REPL
+shik script.shk   # Run a script file
 ```
 
-## Language Features
-
-- Clear application rules with whitespace
-- First-class functions
-- Operators for arguments piping, function compositions and more
-- Pattern matching capabilities (in progress)
-- Rich standard library for working with system
-- Builtin documentation with `help` command
-- Nice REPL
-
-## Example
-
-### Read documentation
+### Built-in documentation
 
 ```
 > help
@@ -56,274 +45,363 @@ shik --help
 - number.: arithmetic, rounding, comparison, math functions, random
 - string.: string manipulation, conversion, iteration
 - list.: list operations, higher-order functions
+- object.: object operations, iteration
+- file.: file system operations
+- shell.: shell commands, environment
 ...
 
-> help list.
-list module:
-
-- list.set: sets element at index (mutates list)
-- list.push, list.push>, list.push-right: appends value to end (mutates list)
-- list.<push, list.push-left: prepends value to start (mutates list)
-- list.at: gets element at index
-- list.len: returns length
-...
-
-> help list.push
-native-lambda: list.push, list.push>, list.push-right
-[list value]: appends value to end of list (mutates list)
-
-list.push mylist 42
+> help list.map
+native-lambda: list.map
+[function list]: applies function to each element, returns new list
 ```
 
-### Make file with content inside
+## Core Concepts
+
+### Everything is function application
+
+There are no operators in the traditional sense. `+ 1 2` is a call to function `+` with arguments `1` and `2`. `list.map`, `file.glob`, `string.upper` — these are all function names. The dot is part of the name, not a module accessor.
+
+### Space is application
 
 ```shik
-file.write :sample.txt "some text"
+file.glob :./src/**/*.rs       ; apply :./src/**/*.rs to file.glob
++ 1 2                          ; apply 1 and 2 to +
+list.at 0 lst                  ; apply 0 and lst to list.at
 ```
 
-### Read file, make content upper case, write back
+Like `f(x)`, but without parentheses. Multiple arguments are separated by spaces.
+
+### Automatic currying
+
+Every function supports partial application. Pass fewer arguments than expected — get a new function waiting for the rest:
 
 ```shik
-file.read :sample.txt $> string.upper $> file.write :sample.txt
-print (file.read :sample.txt) ;; SOME TEXT HERE
+let inc (+ 1)                  ; function: add 1
+let write (file.write :out.txt) ; function: write to out.txt
+
+[1 2 3] $> list.map inc        ; [2 3 4]
+write "hello"                  ; writes "hello" to out.txt
 ```
 
-### Make curried writer and reader
+### Four operators
+
+From lowest to highest precedence:
+
+| Operator | Name | Description | Example |
+|----------|------|-------------|---------|
+| `$>` | Pipe | Left-to-right application | `x a $> f a` = `(f a) (x a)` |
+| `$` | Chain | Lower-precedence application | `f $ g x` = `f (g x)` |
+| `#>` | Flow | Function composition | `f #> g` = `fn [x] g (f x)` |
+| ` ` | Space | Standard application | `f x` |
+
+Operators, especially `$` and `$>`, can be used in order to move application chain to the next line.
+
+## Syntax
+
+### Literals
 
 ```shik
-let file.reader fn [name] (fn [] file.read name)
-
-let write (file.write :sample.txt)
-let read (file.reader :sample.txt)
-
-write :hello
-read ;; "hello"
-
-read $> string.upper $> write $> read ;; HELLO
+42                     ; number (f64)
+"hello world"          ; string
+:hello                 ; inline string (no spaces, no quotes needed)
+[1 2 3]                ; list
+{:name :Alice :age 30} ; object
+true                   ; boolean
 ```
 
-### Count of lines in all *.rs files in src
-
-```shik
-file.glob :./src/**/*.rs $>
-  list.map file.read $>
-  list.map (fn [c] string.lines c $> list.len) $>
-  list.sum $>
-  print
-
-```
+`:symbol` is shorthand for `"symbol"` — faster to type in the terminal.
 
 ### String interpolation
 
 ```shik
-let greet (fn [name] "Hello, {string.upper name}!")
-
-print $ greet :max ;; Hello, MAX!
+let name :Alice
+print "Hello, {name}!"                ; Hello, Alice!
+print "Sum: {+ 10 20}"                ; Sum: 30
 ```
 
-## Application operators
-
-### Pipe with `$>`
-
-Piping - left-to-right application:
-
-```
-(f a b) == (b $> f a)
-```
-
-Example:
+### Variables
 
 ```shik
-let files (file.list "./") ;; [ "a.txt"  "b.txt" ]
-list.map (fn [path] file.size path) (files) ;; [ 5012 3024 ]
-
-;; Same with piping
-
-file.list "./" $> let files
-files $> list.map (fn [path] file.size path)
-
-;; Same but one line and minimalistic strings and without new function
-
-file.list :./ $> list.map file.size
+let x 10                ; bind
+set x (+ x 5)           ; mutate
+let$ [a b c] [1 2 3]    ; destructure with let$
 ```
 
-`$>` operator can also continue application on the next line (must be at the end of the line):
+### Functions
 
 ```shik
-file.glob :./**/*.txt $> list.map file.size $> list.sum
+let greet fn [name] "Hello, {name}!"
 
-;; Same as
+; Multi-expression body with '()
+let fac fn [x] '(
+  if (< x 2) $
+    1 $
+    (* x (fac (- 1 x)))
+)
+```
 
+### Pattern matching
+
+Matching was tried to be made as simple and straightforward as possible.
+
+The `match` function has two arguments: `value` - what we would try to match, and the object.
+
+```shik
+let value [1 2 3 4]
+let variable 500
+
+match value {
+  :literal    :exact-match
+  variable    "exactly 500"
+  [x y #rest] "destructure list: head({x}), tail({rest})"
+  _           :wildcard
+} $> print
+```
+
+You can match against:
+
+- `literal`: some literal value;
+- `literal under variable`: if you provide variable, it would try to match against the literal value the variable is hold;
+- `list pattern`: same rules as in destructuring;
+- `object pattern`: same rules as in destructuring;
+- `wildcard`: fallthrough case, if any other doesn't matched
+- `#otherwise`: same as wildcard, but put the value into the `otherwise` variable;
+
+### Control flow
+
+`if` is a special function with dynamic number of arguments.
+
+The first argument is a condition, and all following is a branches.
+
+Here is a rules for `if` arguments:
+
+- **one argument**: error;
+- **two arguments**: `first` - condition, `second` - executed if condition is true;
+- **three arguments**: `first` - condition, `second` - executed if condition is true, `third` - executed if condition is false;
+
+Following rules are similar for any number of arguments (for arguments count > than 1):
+
+- **if even count of arguments:**:
+    - **every odd argument**: is a condition;
+    - **every even argument**: executed if previous condition is true;
+- **if odd count of arguments:**:
+    - **every odd argument**: is a condition;
+    - **every even argument**: executed if previous condition is true;
+    - **last argument**: is an `else` block, executed if all previous conditions false
+
+```shik
+let x 11
+if (< x 10) (print :small) (print :big)
+
+; of course, it can be done with matching, but just for example
+let dice (number.rand 1 7)
+if (< dice 3)  $ ; if you want to move application to the next line - add $ at the end
+     :loose    $
+   (<= dice 5) $
+     :win      $
+   :Jackpot!   $> print
+
+;; While loop. Until internal function returns true - continue execution
+while (fn [] '(
+  set x (- 1 x)
+  print "x is {x}"
+  > x 0
+))
+```
+
+### Shell commands
+
+```shik
+shell "git status"                     ; run command, return stdout
+shell.lines "git branch"               ; return as list of lines
+shell.has :docker                      ; check if command exists
+shell.env :HOME                        ; environment variable
+shell.os                               ; "Darwin", "Linux", etc.
+```
+
+### Polymorphic functions
+
+Some library functions has a polymorpic nature - it can work differently with different types of values provided.
+
+- **+**:
+    - `Number + Number`: summation;
+    - `String + String`: string concatenation (`string.+`);
+    - `String + other`: Convert to string counterpart and make sring concatenation (`string.+ str (string other)`);
+- **at**:
+    - `String`: get character under the index (`string.at`)
+    - `List`: get elemenet under the index (`list.at`)
+- **iterate**:
+    - `String`: iterate over string (`string.iterate`);
+    - `List`: iterate over list (`list.iterate`);
+- **iterate-backward, <iterate**:
+    - `String`: iterate right-to-left over string (`string.iterate-backward`);
+    - `List`: iterate right-to-left over list (`list.iterate-backward`);
+- **print**: print anything to stdout;
+
+### Non-curried functions
+
+Some functions has dynamic number of arguments, so cannot be curried:
+
+- `if`
+- `help`
+- `number.rand`
+- `list.range`
+- `shell.ask`
+
+## Application Operators
+
+### Pipe `$>`
+
+Left-to-right application — the core of Shik's ergonomics. Result flows left to right:
+
+```shik
+file.read :data.txt $> string.lines $> list.len
+
+; Equivalent to:
+list.len (string.lines (file.read :data.txt))
+
+; Multi-line (place $> at end of line):
 file.glob :./**/*.txt $>
   list.map file.size $>
-  list.sum
+  list.sum $>
+  print
 ```
 
-### Less priority apply with `$`
+### Chain `$`
 
-`$` is the same right-to-left application as usual, but with lesser priority, which allows to avoid grouping functions with parantesis in some cases.
-
-```
-(f (a b)) == (f $ a b)
-```
+Right-to-left application with lower precedence — eliminates parentheses:
 
 ```shik
-let files (file.list :./)
-print (list.map string.upper files)
+print $ list.map string.upper $ file.list :./
 
-;; Same with $
-
-let files $ file.list :./
-print $ list.map string.upper files
+; Equivalent to:
+print (list.map string.upper (file.list :./))
 ```
 
+Also extends expressions to the next line:
+
 ```shik
-let lst [10 20 30 40]
-
-list.map (+ "number: ") lst ;; ["number: 10" "number: 20" ...]
-
-;; Same with $
-
-list.map $ + "number: " $ lst
+if (= shell.os :Darwin) $
+  print "macOS" $
+  print "other"
 ```
 
-It is also allow you to extend the function application to the next line:
+### Flow `#>`
+
+Function composition — creates a new function from a chain:
 
 ```shik
-if (= shell.cwd :/) $
-    print "You are on the root!" $
-    print "nah"
-```
-
-## Composition operator
-
-TBD
-
-```shik
-let inc $ + 1
-
-let inc3 (inc #> inc #> inc)
-
-print $ inc  0 ;; 1
-print $ inc3 0 ;; 3
-
-
 let read-lines (file.read #> string.lines)
-;; same for
-; let read-lines (fn [path] file.read path $> string.lines)
 
-read-lines :.gitignore ;; [ :target :docs :releases ]
+read-lines :.gitignore    ; ["target" "docs" "releases"]
+
+; Useful inside list.map:
+file.glob :./src/**/*.rs $>
+  list.map (file.read #> string.lines #> list.len)
 ```
 
-## Prescedence
+### Non-piped functions
 
-From lowest to highest:
+Some functions, actually, are not really functions, but grammatical constructions in a shape of function application. For that reason, it cannot be used with pipe `$>` (and essential any other) operator. Hopefully, there is only three of them:
 
-- `$>` operator: lowest prescedence
-- `$` operator
-- ` `: function application via whitespace
-- `#>`: function composition, highest prescedence
+- `match` - pattern matching;
+- `fn` - function literal;
+- `let$` - that is the reason why there is two `let` functions. `let` is an ordinary function, while `let$` is a grammatical construction allowing pattern matching;
 
-### Special notes
+## Function Arguments Position Rule
 
-Declaration of the labmda with `fn` is not a usual function, and it is always tighten together and treated as a single value, so, there is no need to wrap `fn [] ...` with parantesis:
+Argument order is designed to maximize currying effectiveness. The rule: **the first argument is the one you fix** when partially applying.
+
+### Mutation: PLACE first, then CONTENT
 
 ```shik
-let say-hello fn [name] "hello my neighbour {name}!"
+file.write :out.txt "content"         ; place, then what
+file.copy :dest :source               ; where to, then from
+list.set 0 lst 10                     ; index, list, value
 
-[1 2 3] $>
-    list.iterate fn [n] print "number: {n}"
+; Why: enables curried patterns like
+files $> list.iterate (file.copy :backup)
 ```
 
-## Function arguments position rule
-
-Argument position is always a controversary topic. In `shik`, argument position plays crucial role, since everything is a function, and everything automatically curried.
-
-The ultimate goal of `shik` is to write minimal amount of code. So, the agrument position designed to utilize currying at a maximum. In order to achieve it, the following rules applied:
-
-### Mutation: into the PLACE put SOMETHING
-
-When `mutation` is applied, first comes the destination of the mutation, and next is the payload. In case if `place` have a parts (`index` in `list`). The argument sequence is:
-
-```
-PLACE: from MOST specific, to LEAST specific
-
-;; SET: INDEX , LIST , VALUE
-list.set 0 lst 10
-```
-
-Examples:
+### Arithmetic: MODIFIER first, then BASE
 
 ```shik
-;; LIST
-
-let lst [ 0 1 2 3 ]
-
-list.push lst 4
-list.set 0 lst -1
-
-;; FILES
-
-let dir :./copy-dest
-
-; PLACE , CONTENT
-file.copy dir :local-file.txt
-file.write :local-file.txt "new content"
-
-;;;; why?
-
-let files (file.glob ./src/**.ts)
-
-files $> list.iterate (file.copy dir) ;; copy each file from files to `dir`
+- 1 5    ; 4   (subtract 1 from 5)
+/ 2 10   ; 5   (divide 10 by 2)
+^ 3 5    ; 125 (raise 5 to power 3)
 ```
 
-### Numeric operations: apply MUTATOR to the BASE
-
-The most unintuitive and controversal decicion, but tho I made it: for all non-associative operations (`-`, `/`, `%`, etc), the first goes the `mutation` part, and then the `base`:
+This is unconventional, but it makes currying uniform:
 
 ```shik
-print $ - 1 5  ; 4
-
-print $ / 2 10 ; 5
-
-print $ ^ 3 5  ; 125
+lst $> list.map (+ 1)    ; add 1 to each
+lst $> list.map (- 1)    ; subtract 1 from each
+lst $> list.map (* 2)    ; multiply each by 2
+lst $> list.map (^ 2)    ; square each
 ```
 
-The reason is again the ease of use with currying: **associative** and **non-associative** must be written in the **same way** with currying.
+All four lines follow the same pattern. If `-` worked as "first minus second", `(- 1)` would mean "1 minus something", breaking the symmetry.
+
+### Read: HOW first, then WHERE
 
 ```shik
-let lst [ 1 2 3 4 ]
-
-lst $> list.map $ + 1 ; [ 2 3 4  5 ]
-lst $> list.map $ - 1 ; [ 0 1 2  3 ]
-lst $> list.map $ ^ 2 ; [ 1 4 9 16 ]
-lst $> list.map $ * 2 ; [ 2 4 6  8 ]
+list.at 0 lst                         ; what index, from what list
+list.map (+ 1) lst                    ; what function, on what list
+string.has :a :banana                 ; what to find, in what string
 ```
 
-### Read value: read HOW from WHERE
+## Standard Library
 
-When we want to read something, we use an opposite logic from the mutation: first come is `HOW` we want to read, then from `WHERE` we want to read it:
+All modules are available without imports.
 
-```shik
-let lst [ 1 2 3 4 ]
+| Module | Description | Key functions |
+|--------|-------------|---------------|
+| `number.` | Arithmetic & math | `abs`, `ceil`, `floor`, `round`, `sqrt`, `sin`, `cos`, `rand` |
+| `string.` | String manipulation | `upper`, `lower`, `trim`, `split`, `join`, `has`, `replace`, `lines`, `len`, `iterate` |
+| `list.` | List operations | `map`, `filter`, `fold`, `sort`, `head`, `tail`, `push`, `at`, `len`, `range`, `take`, `drop`, `find` |
+| `object.` | Key-value maps | `get`, `set`, `has`, `keys`, `values`, `merge`, `map`, `filter`, `fold`, `pick`, `omit` |
+| `file.` | Filesystem | `read`, `write`, `glob`, `copy`, `move`, `remove`, `size`, `exists`, `list`, `mkdir`, `stat` |
+| `shell.` | System & processes | `shell`, `lines`, `os`, `arch`, `cwd`, `home`, `env`, `has`, `which`, `ask`, `cd` |
+| `path.` | Path manipulation | `name`, `stem`, `ext`, `parent`, `join`, `absolute` |
+| `fn.` | Function utilities | `id`, `invoke` |
+| `var.` | Variable access | `get` (access variables by string at runtime) |
 
-list.at 0 lst
+Use `help <module>.` in the REPL to explore.
 
-;; HOW to iterate LST
-list.iterate print lst
+## REPL
 
-string.has :a :bbaa
+The REPL includes:
 
-;; Although it might be correct to suppose the `map` should be in a `mutate` field of rules, since it generates something from something, the primary here is PEEKING the content, and only then the application
-list.map (+ 1) lst
+- **Syntax highlighting** (via tree-sitter)
+- **History** (persisted to `~/.shik_history`)
+- **Multi-line input** (Shift+Enter or place `$>` / `$` at end of line)
+- **Built-in help** (`help`, `help module.`, `help function`)
+
+## Examples
+
+See the [`demo/`](demo/) directory for runnable examples:
+
+```bash
+shik demo/line-count.shk      # Count lines in source files
+shik demo/match.shk           # Pattern matching showcase
+shik demo/files-new-demo.shk  # File operations pipeline
+shik demo/dice-game.shk       # Codewars kata solution
 ```
 
+## Status
 
-## Building for Distribution
+Shik is in active development (v0.7). Usable for real tasks, but expect rough edges.
 
-See [DISTRIBUTION.md](DISTRIBUTION.md) for detailed instructions on building release binaries for multiple platforms.
+**Planned, from highest to lowest priority:**
+- Shebang support (`#!/usr/bin/env shik`);
+- Regular expressions;
+- Multiple statements per line with `,`;
+- Networking;
+- Lambda shorthand: `#(- #1 #2)` instead of `fn [a b] - a b`;
+- JSON parsing;
+- User-facing error handling (`try`/`catch` or similar);
+- Threading;
 
 ## License
 
 MIT
-
