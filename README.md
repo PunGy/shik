@@ -11,6 +11,8 @@ file.glob :./src/**/*.rs $>
 
 Shik draws from **Lisp** (everything is function application) and **Haskell** (whitespace application, automatic currying), adapted for terminal ergonomics. No arithmetic operators, no special syntax — just functions, four application operators, and consistent rules.
 
+<img src="./shik-demo.gif" alt="shik-demo.gif">
+
 ## Installation
 
 ```bash
