@@ -1009,6 +1009,8 @@ native-lambda: list.fold
 
 ### 4.9 Built-in Modules
 
+First of all, I will mention it another time - there is **NO module system** in Shik. I use the word "modules" to tie different functions together under one specialization, it is just a convention. There is no module `file`, there is just a bunch of functions with the `file.` prefix.
+
 All modules are available without imports. Use `help module.` in the REPL to explore.
 
 ---
