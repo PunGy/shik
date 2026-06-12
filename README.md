@@ -12,6 +12,25 @@ Shik is for people who write small automation scripts every few days — moving 
 
 ---
 
+
+## Try it
+
+```bash
+# Via cargo
+cargo install shik
+
+# macOS / Linux
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/pungy/shik/releases/latest/download/shik-installer.sh | sh
+
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://github.com/pungy/shik/releases/latest/download/shik-installer.ps1 | iex"
+```
+
+```bash
+shik              # REPL — try typing help inside
+shik script.shk   # run a file
+```
+
 ## Learn
 
 Read the [origin story](https://blog.pungy.me/articles/shik), which will give you a quick overview of the **Shik**.
