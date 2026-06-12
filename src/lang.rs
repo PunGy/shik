@@ -14,6 +14,17 @@ pub enum EvalError {
     Runtime(#[from] RuntimeError),
 }
 
+#[derive(Error, Debug)]
+pub enum FileError {
+    #[error("shik: cannot open {path}: {source}")]
+    Io {
+        path: String,
+        source: std::io::Error,
+    },
+    #[error("{0}")]
+    Eval(#[from] EvalError),
+}
+
 pub fn evaluate(input: &str, interpretator: &Interpretator) -> Result<ValueRef, EvalError> {
     let program = parse(input)?;
     let result = interpretator.interpretate(&program)?;
@@ -31,7 +42,7 @@ pub fn print(input: Result<ValueRef, EvalError>, silent: bool) {
                 };
             }
         }
-        Err(e) => println!("{}", e),
+        Err(e) => eprintln!("{}", e),
     }
 }
 
@@ -41,16 +52,26 @@ pub fn print_ast(input: Result<Program, ParseError>) {
             println!("{:?}", res);
         }
         Err(err) => {
-            println!("Error: {:?}", err);
+            eprintln!("Error: {:?}", err);
         }
     }
 }
 
-pub fn eval_file(path: String) {
+pub fn eval_file(path: &str, ast_mode: bool) -> Result<(), FileError> {
     use std::fs::read_to_string;
 
-    let contents = read_to_string(path).expect("Unable to open the file");
-    let interpretator = Interpretator::new();
+    let contents = read_to_string(path).map_err(|source| FileError::Io {
+        path: path.to_string(),
+        source,
+    })?;
 
-    print(evaluate(&contents, &interpretator), true)
+    if ast_mode {
+        let program = parse(&contents).map_err(EvalError::from)?;
+        println!("{:?}", program);
+        return Ok(());
+    }
+
+    let interpretator = Interpretator::new();
+    evaluate(&contents, &interpretator)?;
+    Ok(())
 }
