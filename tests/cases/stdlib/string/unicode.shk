@@ -1,0 +1,5 @@
+; non-ASCII strings: len/at/slice must be char-based
+[(string.len "привет")
+ (string.upper "привет")
+ (string.at 1 "привет")
+ (string.slice 1 3 "привет")]

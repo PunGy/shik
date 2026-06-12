@@ -1,0 +1,7 @@
+; Recursion (adapted from demo/factorial.shk)
+let fac fn [x] '(
+  if (< x 2) $
+    1 $
+    (* x (fac (- 1 x)))
+)
+fac 10

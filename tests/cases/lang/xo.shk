@@ -1,0 +1,20 @@
+; adapted from demo/xo.shk (codewars 55908aad6620c066bc00002a)
+let xo fn [str] '(
+  let x 0
+  let o 0
+  set str (string.lower str)
+
+  string.iterate $
+    (fn [char]
+      if $
+        = char "x" $
+            set x (+ x 1) $
+        = char "o" $
+            set o (+ o 1)) $
+    str
+
+  = x o
+)
+
+; expected: true false true true false
+[(xo "ooxx") (xo "xooxx") (xo "ooxXm") (xo "zpzpzpp") (xo "zzoo")]

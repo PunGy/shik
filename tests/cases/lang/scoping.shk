@@ -1,0 +1,10 @@
+; adapted from demo/nested-scope.shk: closures capture references; outer x untouched
+let x 0
+let counter fn [base] '(
+  let x base
+  let bump fn [much] set x $ + much x
+  bump
+)
+let ctr1 $ counter 10
+let ctr2 $ counter 20
+[(ctr1 1) (ctr2 1) (ctr1 5) x]

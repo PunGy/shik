@@ -1,0 +1,6 @@
+---
+source: tests/golden.rs
+expression: rendered
+input_file: tests/cases/stdlib/object/mutate.shk
+---
+[ 2 0 ]

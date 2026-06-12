@@ -1,0 +1,6 @@
+---
+source: tests/golden.rs
+expression: rendered
+input_file: tests/cases/stdlib/object/basics.shk
+---
+[ max true false 1 [ name ] [ max ] true ]

@@ -1,0 +1,6 @@
+---
+source: tests/golden.rs
+expression: rendered
+input_file: tests/cases/errors/lazy-not-implemented.shk
+---
+ERROR: NotImplemented: Feature Lazy([Expression { kind: Number(1.0), span: Span { line: 3, column: 4 } }]) is not yet implemented

@@ -1,0 +1,6 @@
+---
+source: tests/golden.rs
+expression: rendered
+input_file: tests/cases/stdlib/string/basics.shk
+---
+[ 5 HELLO hello hi [ a b c ] 1-2-3 true true true heLLo foobar ]

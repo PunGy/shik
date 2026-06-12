@@ -1,0 +1,21 @@
+; adapted from demo/chainer.shk: pattern matching + scoping + recursion
+let chainer fn [lst] match (list.len lst) {
+  0 "[]"
+  1 "[{list.head lst}]"
+  2 "[{list.head lst}-{list.last lst}]"
+  _ '(
+    let res "[{list.head lst}-"
+
+    let chain fn [lst] match (list.len lst) {
+      1 "{list.head lst}]"
+      2 "{list.head lst}-{list.last lst}]"
+      _ "{list.head lst}-{chain $ list.tail lst}"
+    }
+
+    string.+ res (chain $ list.tail lst)
+  )
+}
+
+let chainer' fn [lst] "[{string.join :- lst}]"
+
+[(chainer [1 2 3]) (chainer [1]) (chainer [5 5 5 5 5]) (chainer' [1 2 3 4])]

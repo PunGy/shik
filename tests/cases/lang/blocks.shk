@@ -1,0 +1,7 @@
+; '( ) blocks evaluate eagerly, return last expression
+let r '(
+  let a 1
+  let b 2
+  + a b
+)
+r

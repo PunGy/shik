@@ -1,0 +1,6 @@
+---
+source: tests/golden.rs
+expression: rendered
+input_file: tests/cases/lang/factorial.shk
+---
+3628800

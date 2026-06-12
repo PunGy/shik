@@ -1,0 +1,6 @@
+---
+source: tests/golden.rs
+expression: rendered
+input_file: tests/cases/errors/parse-unterminated-string.shk
+---
+ERROR: Parsing failed: Unterminated string at line 1, column 12

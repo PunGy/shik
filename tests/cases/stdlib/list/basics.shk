@@ -1,0 +1,2 @@
+let lst [3 1 2]
+[(list.len lst) (list.head lst) (list.last lst) (list.tail lst) (list.sum lst) (list.empty? lst) (list.empty? [])]

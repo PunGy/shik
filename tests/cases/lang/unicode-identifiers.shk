@@ -1,0 +1,4 @@
+; Unicode (Cyrillic) identifiers and string contents must keep working
+let привет "мир"
+let счёт 5
+"{привет} {+ счёт счёт}"

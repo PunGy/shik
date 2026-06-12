@@ -1,0 +1,6 @@
+---
+source: tests/golden.rs
+expression: rendered
+input_file: tests/cases/lang/arithmetic.shk
+---
+[ 3 4 12 5 1 ]

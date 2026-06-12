@@ -1,0 +1,25 @@
+; adapted from demo/match.shk: literal, list-destructuring, #rest, named wildcard, _
+let values [ 1 2 3 4 ]
+let r1 $ match values {
+  :name :string
+  [x y] :wrong
+  [x y #rest] "position {x} {y}, rest: {rest}"
+}
+let r2 $ match 0 {
+  1 :no
+  2 :no
+  _ :wildcard
+}
+let r3 $ match "linux-aarch64" {
+  :macos-aarch64 :Darwin-arm64
+  :linux-aarch64 :Linux-aarch64
+  _ "unknown"
+}
+let r4 $ match [7 8] {
+  [x y] "pair {x}-{y}"
+  _ :nope
+}
+let r5 $ match :anything {
+  #pl "named wildcard got {pl}"
+}
+[r1 r2 r3 r4 r5]

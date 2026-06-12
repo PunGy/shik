@@ -1,0 +1,9 @@
+; adapted from demo/branching.shk
+let x 10
+let count 0
+while (fn [] '(
+  set x (- 1 x)
+  set+ count 1
+  > x 0
+))
+[x count]

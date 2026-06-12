@@ -1,0 +1,6 @@
+---
+source: tests/golden.rs
+expression: rendered
+input_file: tests/cases/stdlib/list/map-filter-fold.shk
+---
+[ [ 2 4 6 8 10 ] [ 2 4 ] 15 4 true true ]

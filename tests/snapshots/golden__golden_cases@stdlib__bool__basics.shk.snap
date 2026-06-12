@@ -1,0 +1,6 @@
+---
+source: tests/golden.rs
+expression: rendered
+input_file: tests/cases/stdlib/bool/basics.shk
+---
+[ true false true false false true true true false true ]

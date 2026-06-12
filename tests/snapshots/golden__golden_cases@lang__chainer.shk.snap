@@ -1,0 +1,6 @@
+---
+source: tests/golden.rs
+expression: rendered
+input_file: tests/cases/lang/chainer.shk
+---
+[ [1-2-3] [1] [5-5-5-5-5] [1-2-3-4] ]

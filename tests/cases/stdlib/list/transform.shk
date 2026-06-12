@@ -1,0 +1,8 @@
+let lst [5 3 1 4 2]
+[(list.reverse lst)
+ (list.sort (fn [a b] - a b) lst)
+ (list.take 2 lst)
+ (list.drop 2 lst)
+ (list.concat [1 2] [3 4])
+ (list.at 1 lst)
+ (list.range 5)]

@@ -1,0 +1,9 @@
+; single-key objects only: multi-key Display order is non-deterministic (HashMap)
+let obj {:name :max}
+[(object.get :name obj)
+ (object.has :name obj)
+ (object.has :age obj)
+ (object.len obj)
+ (object.keys obj)
+ (object.values obj)
+ (object.empty? {})]

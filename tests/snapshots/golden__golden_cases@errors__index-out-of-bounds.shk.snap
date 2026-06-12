@@ -1,0 +1,7 @@
+---
+source: tests/golden.rs
+expression: rendered
+input_file: tests/cases/errors/index-out-of-bounds.shk
+---
+ERROR: IndexError: Index 100 is out of bounds
+  --> at line 2, column 1

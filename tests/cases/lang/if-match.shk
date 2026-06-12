@@ -1,0 +1,8 @@
+; adapted from demo/try.shk
+if true $
+    match 3 {
+      3 500
+      1 50
+      _ 0
+    } $
+    0

@@ -1,0 +1,9 @@
+; adapted from demo/list.shk: multi-line literals (objects excluded: unordered Display)
+let lst1 [5 5 5
+          5 5 5]
+let lst2 [
+  1
+  2
+  3
+]
+[ lst1 lst2 ]

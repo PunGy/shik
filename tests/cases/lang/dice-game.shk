@@ -1,0 +1,36 @@
+; adapted from demo/dice-game.shk (codewars 5270d0d18625160ada0000e4)
+let dice-game fn [throw] '(
+  let bucket $ list.fold {} (fn [acc dice] '(
+    let key $ string dice
+    if (object.has key acc) $
+      object.set key acc (+ (object.get key acc) 1) $
+      object.set key acc 1
+    acc
+  )) throw
+
+  let count-accumulative fn [triple-mod single-mod count] '(
+    if (= count 3)  $
+         triple-mod $
+       (> count 3)  $
+         (+ triple-mod (count $> % 3 $> * single-mod)) $
+         (count $> % 3 $> * single-mod)
+  )
+
+  let three? $ <= 3
+  let count-1 $ count-accumulative 1000 100
+  let count-5 $ count-accumulative 500 50
+
+  object.fold 0 (fn [acc [dice count]] '(
+    + acc (match dice {
+            :1 (count-1 count)
+            :2 (if (three? count) 200 0)
+            :3 (if (three? count) 300 0)
+            :4 (if (three? count) 400 0)
+            :5 (count-5 count)
+            :6 (if (three? count) 600 0)
+          })
+  )) bucket
+)
+
+; expected: 250, 1100, 450
+[(dice-game [ 5 1 3 4 1 ]) (dice-game [ 1 1 1 3 1 ]) (dice-game [ 2 4 4 5 4 ])]

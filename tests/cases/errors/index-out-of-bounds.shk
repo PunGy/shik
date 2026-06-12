@@ -1,0 +1,2 @@
+; mutations error on bad index (reads like list.at return null instead)
+list.set 100 [1 2 3] 0

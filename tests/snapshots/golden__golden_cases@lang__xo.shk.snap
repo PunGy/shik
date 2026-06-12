@@ -1,0 +1,6 @@
+---
+source: tests/golden.rs
+expression: rendered
+input_file: tests/cases/lang/xo.shk
+---
+[ true false true true false ]

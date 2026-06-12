@@ -1,0 +1,6 @@
+---
+source: tests/golden.rs
+expression: rendered
+input_file: tests/cases/lang/match.shk
+---
+[ position 1 2, rest: [ 3 4 ] wildcard Linux-aarch64 pair 7-8 named wildcard got anything ]

@@ -1,0 +1,4 @@
+; `let` is a native function, `let$` is the keyword form — both must bind.
+let x 10
+let$ y 20
++ x y

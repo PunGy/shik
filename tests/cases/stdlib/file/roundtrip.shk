@@ -1,0 +1,7 @@
+; write/read/remove roundtrip in the OS temp dir
+let path (path.join file.temp-dir :shik-golden-roundtrip.txt)
+file.write path "hello from golden test"
+let content (file.read path)
+let existed (file.exists path)
+file.remove path
+[content existed (file.exists path)]

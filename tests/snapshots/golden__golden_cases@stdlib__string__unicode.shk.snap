@@ -1,0 +1,6 @@
+---
+source: tests/golden.rs
+expression: rendered
+input_file: tests/cases/stdlib/string/unicode.shk
+---
+[ 6 ПРИВЕТ р ри ]

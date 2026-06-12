@@ -1,0 +1,5 @@
+let add (fn [a b] + a b)
+let add5 (add 5)
+let make-adder (fn [n] (fn [x] (+ x n)))
+let add10 (make-adder 10)
+[(add 1 2) (add5 10) (add10 32)]

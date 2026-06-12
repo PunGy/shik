@@ -1,0 +1,7 @@
+---
+source: tests/golden.rs
+expression: rendered
+input_file: tests/cases/errors/type-mismatch.shk
+---
+ERROR: TypeError: Expected List, but got Number
+  --> at line 1, column 1

@@ -1,0 +1,6 @@
+---
+source: tests/golden.rs
+expression: rendered
+input_file: tests/cases/lang/list-literals.shk
+---
+[ [ 5 5 5 5 5 5 ] [ 1 2 3 ] ]

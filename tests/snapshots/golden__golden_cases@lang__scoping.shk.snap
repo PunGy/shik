@@ -1,0 +1,6 @@
+---
+source: tests/golden.rs
+expression: rendered
+input_file: tests/cases/lang/scoping.shk
+---
+[ 11 21 16 0 ]

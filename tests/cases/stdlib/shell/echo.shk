@@ -1,0 +1,1 @@
+[(shell "echo hello") (shell.ok? "true") (shell.ok? "false")]

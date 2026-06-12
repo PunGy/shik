@@ -1,0 +1,2 @@
+; reads return null on miss (mutations error — see errors/index-out-of-bounds)
+[(list.at 100 [1 2 3]) (list.find (fn [x] > x 9) [1 2])]

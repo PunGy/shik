@@ -1,0 +1,8 @@
+[(number.abs -5)
+ (number.floor 3.7)
+ (number.ceil 3.2)
+ (number.round 3.6)
+ (number.max 3 7)
+ (number.min 3 7)
+ (number.pow 2 10)
+ (number.sqrt 16)]

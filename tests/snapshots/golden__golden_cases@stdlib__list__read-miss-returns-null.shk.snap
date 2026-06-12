@@ -1,0 +1,6 @@
+---
+source: tests/golden.rs
+expression: rendered
+input_file: tests/cases/stdlib/list/read-miss-returns-null.shk
+---
+[ null null ]

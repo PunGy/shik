@@ -1,0 +1,6 @@
+---
+source: tests/golden.rs
+expression: rendered
+input_file: tests/cases/stdlib/number/basics.shk
+---
+[ 5 3 4 4 7 3 100 4 ]

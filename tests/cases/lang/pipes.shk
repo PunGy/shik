@@ -1,0 +1,8 @@
+; $> pipe, #> flow composition, $ chain
+; note: $ binds tighter than $>, so `let r $ 5 $> f` binds 5, then pipes the result
+let double fn [n] * n 2
+let inc fn [n] + n 1
+let res1 (5 $> double $> inc)
+let res2 (5 $> (double #> inc))
+let res3 (double $ inc 5)
+[res1 res2 res3]

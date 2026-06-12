@@ -1,0 +1,5 @@
+let obj {:count 1}
+object.set :count obj 2
+let got (object.get :count obj)
+object.remove :count obj
+[got (object.len obj)]

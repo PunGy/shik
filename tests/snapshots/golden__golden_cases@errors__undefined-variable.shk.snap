@@ -1,0 +1,7 @@
+---
+source: tests/golden.rs
+expression: rendered
+input_file: tests/cases/errors/undefined-variable.shk
+---
+ERROR: UndefinedVariable: Variable 'definitely-not-defined-anywhere' is not defined
+  --> at line 1, column 1

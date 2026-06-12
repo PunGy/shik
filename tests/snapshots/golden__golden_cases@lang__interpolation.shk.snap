@@ -1,0 +1,6 @@
+---
+source: tests/golden.rs
+expression: rendered
+input_file: tests/cases/lang/interpolation.shk
+---
+hello world, sum is 6, product is 6

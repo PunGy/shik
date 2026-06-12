@@ -1,0 +1,9 @@
+; zero-arg lambdas are thunks: not run at definition, forced by fn.invoke
+let x 1
+let thunk (fn [] '(
+  set x (+ x 1)
+  x
+))
+let before x
+let forced (fn.invoke thunk)
+[before forced x]

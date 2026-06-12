@@ -1,0 +1,2 @@
+; Math argument order is reversed: (- 1 5) subtracts 1 FROM 5.
+[(+ 1 2) (- 1 5) (* 3 4) (/ 2 10) (% 3 10)]

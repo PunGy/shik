@@ -1,0 +1,6 @@
+---
+source: tests/golden.rs
+expression: rendered
+input_file: tests/cases/errors/parse-unexpected-token.shk
+---
+ERROR: Parsing failed: Unexpected token ')' at line 1, column 7. Expected: expression

@@ -1,0 +1,6 @@
+let lst [1 2 3 4 5]
+let doubled (list.map (fn [x] * x 2) lst)
+let evens (list.filter (fn [x] = 0 (% 2 x)) lst)
+let total (list.fold 0 (fn [acc x] + acc x) lst)
+let found (list.find (fn [x] > x 3) lst)
+[doubled evens total found (list.any (fn [x] = x 5) lst) (list.all (fn [x] > x 0) lst)]

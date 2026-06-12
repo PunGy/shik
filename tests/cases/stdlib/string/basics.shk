@@ -1,0 +1,11 @@
+[(string.len "hello")
+ (string.upper "hello")
+ (string.lower "HeLLo")
+ (string.trim "  hi  ")
+ (string.split :, "a,b,c")
+ (string.join :- [1 2 3])
+ (string.has "ell" "hello")
+ (string.starts-with "he" "hello")
+ (string.ends-with "lo" "hello")
+ (string.replace "l" "L" "hello")
+ (string.+ "foo" "bar")]
