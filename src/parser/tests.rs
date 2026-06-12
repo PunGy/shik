@@ -92,7 +92,7 @@ mod tests {
 
     #[test]
     fn test_parse_let() {
-        let input = "let x 10";
+        let input = "let$ x 10";
         let result = parse(input).unwrap();
         assert_eq!(result.statements.len(), 1);
 
@@ -327,7 +327,7 @@ mod tests {
 
     #[test]
     fn test_complex_expression() {
-        let input = "let result (fn [x] x $> double #> add 10)";
+        let input = "let$ result (fn [x] x $> double #> add 10)";
         let result = parse(input).unwrap();
 
         match &result.statements[0].expression.kind {
@@ -350,7 +350,7 @@ mod tests {
 
     #[test]
     fn test_multiple_statements_with_newlines() {
-        let input = "let x 10\nlet y 20\nx";
+        let input = "let$ x 10\nlet$ y 20\nx";
         let result = parse(input).unwrap();
 
         assert_eq!(result.statements.len(), 3);
@@ -536,7 +536,7 @@ mod tests {
 
     #[test]
     fn test_complex_nested_structure() {
-        let input = "let process (fn [data] '(\n  let cleaned trim data\n  save cleaned\n))";
+        let input = "let$ process (fn [data] '(\n  let$ cleaned trim data\n  save cleaned\n))";
         let result = parse(input).unwrap();
 
         assert_eq!(result.statements.len(), 1);
