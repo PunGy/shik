@@ -1,0 +1,49 @@
+---
+source: src/parser/tests.rs
+expression: "ast(\"x $>\\nf\\ny\")"
+---
+[
+    Statement {
+        expression: Expression {
+            kind: Pipe {
+                left: Expression {
+                    kind: Identifier(
+                        "x",
+                    ),
+                    span: Span {
+                        line: 1,
+                        column: 1,
+                    },
+                },
+                right: Expression {
+                    kind: Identifier(
+                        "f",
+                    ),
+                    span: Span {
+                        line: 2,
+                        column: 1,
+                    },
+                },
+            },
+            span: Span {
+                line: 1,
+                column: 1,
+            },
+        },
+        line: 1,
+        column: 1,
+    },
+    Statement {
+        expression: Expression {
+            kind: Identifier(
+                "y",
+            ),
+            span: Span {
+                line: 3,
+                column: 1,
+            },
+        },
+        line: 3,
+        column: 1,
+    },
+]

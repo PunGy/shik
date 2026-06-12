@@ -1,7 +1,7 @@
 use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::rc::{Rc};
+use std::rc::Rc;
 
 use crate::eval::evaluator::Interpretator;
 use crate::eval::utils::define_match;
@@ -146,7 +146,7 @@ impl ListRepr {
     /// Materialize the view into a new owned vector
     /// This is used before mutations on non-full views
     pub fn materialize(&self) -> Vec<ValueRef> {
-        self.with_slice(|s| s.iter().cloned().collect())
+        self.with_slice(|s| s.to_vec())
     }
 
     /// Ensure this is a full view, materializing if necessary
@@ -201,8 +201,6 @@ impl ListRepr {
     pub fn iter(&self) -> ListIter<'_> {
         ListIter {
             data: self.data.borrow(),
-            start: self.start,
-            end: self.end,
             current_front: self.start,
             current_back: self.end,
         }
@@ -212,8 +210,6 @@ impl ListRepr {
 /// Iterator over a ListRepr view
 pub struct ListIter<'a> {
     data: Ref<'a, Vec<ValueRef>>,
-    start: usize,
-    end: usize,
     current_front: usize,
     current_back: usize,
 }
@@ -288,16 +284,16 @@ thread_local! {
 /// Get cached null value
 #[inline]
 pub fn null_value() -> ValueRef {
-    NULL_VALUE.with(|v| Rc::clone(v))
+    NULL_VALUE.with(Rc::clone)
 }
 
 /// Get cached boolean value
 #[inline]
 pub fn bool_value(b: bool) -> ValueRef {
     if b {
-        TRUE_VALUE.with(|v| Rc::clone(v))
+        TRUE_VALUE.with(Rc::clone)
     } else {
-        FALSE_VALUE.with(|v| Rc::clone(v))
+        FALSE_VALUE.with(Rc::clone)
     }
 }
 
@@ -305,9 +301,9 @@ pub fn bool_value(b: bool) -> ValueRef {
 #[inline]
 pub fn number_value(n: f64) -> ValueRef {
     if n == 0.0 {
-        ZERO_VALUE.with(|v| Rc::clone(v))
+        ZERO_VALUE.with(Rc::clone)
     } else if n == 1.0 {
-        ONE_VALUE.with(|v| Rc::clone(v))
+        ONE_VALUE.with(Rc::clone)
     } else {
         Rc::new(Value::Number(n))
     }
@@ -355,17 +351,22 @@ pub struct NativeContext<'a> {
 }
 
 impl<'a> NativeContext<'a> {
-    pub fn apply(&self, f: &ValueRef, arg: &ValueRef, env: &EnvRef) -> Result<ValueRef, RuntimeError> {
+    pub fn apply(
+        &self,
+        f: &ValueRef,
+        arg: &ValueRef,
+        env: &EnvRef,
+    ) -> Result<ValueRef, RuntimeError> {
         self.inter.expand(self.inter.apply_fn(f, arg, env)?, env)
     }
 }
 
 pub trait NativeFn: Debug {
-    fn exec(&self, args: &Vec<ValueRef>, ctx: &NativeContext) -> Result<ValueRef, RuntimeError>;
+    fn exec(&self, args: &[ValueRef], ctx: &NativeContext) -> Result<ValueRef, RuntimeError>;
 }
 
 pub trait SpecialFn: Debug {
-    fn exec(&self, args: &Vec<Expression>, ctx: &NativeContext) -> Result<ValueRef, RuntimeError>;
+    fn exec(&self, args: &[Expression], ctx: &NativeContext) -> Result<ValueRef, RuntimeError>;
 }
 
 // ============================================================================
@@ -408,18 +409,11 @@ impl NativeClosure {
     /// Returns EnvironmentDropped error if the environment was garbage collected
     pub fn exec(&self, env: EnvRef) -> Result<Rc<Value>, RuntimeError> {
         let inter = &self.inter;
-        let ctx = NativeContext {
-            inter: inter,
-            env: &env,
-        };
+        let ctx = NativeContext { inter, env: &env };
         self.logic.exec(&self.binded, &ctx)
     }
 
-    pub fn new(
-        params_count: usize,
-        logic: Rc<dyn NativeFn>,
-        inter: Rc<Interpretator>,
-    ) -> Self {
+    pub fn new(params_count: usize, logic: Rc<dyn NativeFn>, inter: Rc<Interpretator>) -> Self {
         Self {
             params_count,
             binded: Vec::new(),
@@ -433,10 +427,7 @@ impl SpecialClosure {
     /// Execute the special closure
     pub fn exec(&self, env: EnvRef) -> Result<Rc<Value>, RuntimeError> {
         let inter = &self.interpretator;
-        let ctx = NativeContext {
-            inter: &inter,
-            env: &env,
-        };
+        let ctx = NativeContext { inter, env: &env };
         self.logic.exec(&self.params, &ctx)
     }
 
@@ -453,18 +444,11 @@ impl SpecialBoundClosure {
     /// Execute the special bound closure
     pub fn exec(&self, env: EnvRef) -> Result<Rc<Value>, RuntimeError> {
         let inter = &self.inter;
-        let ctx = NativeContext {
-            inter: &inter,
-            env: &env,
-        };
+        let ctx = NativeContext { inter, env: &env };
         self.logic.exec(&self.binded, &ctx)
     }
 
-    pub fn new(
-        params_count: usize,
-        logic: Rc<dyn SpecialFn>,
-        inter: Rc<Interpretator>,
-    ) -> Self {
+    pub fn new(params_count: usize, logic: Rc<dyn SpecialFn>, inter: Rc<Interpretator>) -> Self {
         Self {
             params_count,
             binded: Vec::new(),
@@ -541,37 +525,55 @@ impl Value {
     pub fn expect_number(&self) -> Result<f64, RuntimeError> {
         match self {
             Value::Number(x) => Ok(*x),
-            _ => Err(RuntimeError::mismatched_types(self.get_type(), ValueType::Number)),
+            _ => Err(RuntimeError::mismatched_types(
+                self.get_type(),
+                ValueType::Number,
+            )),
         }
     }
     pub fn expect_bool(&self) -> Result<bool, RuntimeError> {
         match self {
             Value::Bool(x) => Ok(*x),
-            _ => Err(RuntimeError::mismatched_types(self.get_type(), ValueType::Bool)),
+            _ => Err(RuntimeError::mismatched_types(
+                self.get_type(),
+                ValueType::Bool,
+            )),
         }
     }
     pub fn expect_string(&self) -> Result<&String, RuntimeError> {
         match self {
             Value::String(s) => Ok(s),
-            _ => Err(RuntimeError::mismatched_types(self.get_type(), ValueType::String)),
+            _ => Err(RuntimeError::mismatched_types(
+                self.get_type(),
+                ValueType::String,
+            )),
         }
     }
     pub fn expect_list(&self) -> Result<&ListRepr, RuntimeError> {
         match self {
             Value::List(lst) => Ok(lst),
-            _ => Err(RuntimeError::mismatched_types(self.get_type(), ValueType::List)),
+            _ => Err(RuntimeError::mismatched_types(
+                self.get_type(),
+                ValueType::List,
+            )),
         }
     }
     pub fn expect_obj(&self) -> Result<&HashMap<String, ValueRef>, RuntimeError> {
         match self {
             Value::Object(obj) => Ok(obj),
-            _ => Err(RuntimeError::mismatched_types(self.get_type(), ValueType::Object)),
+            _ => Err(RuntimeError::mismatched_types(
+                self.get_type(),
+                ValueType::Object,
+            )),
         }
     }
     pub fn expect_native_lambda(&self) -> Result<&NativeClosure, RuntimeError> {
         match self {
             Value::NativeLambda(l) => Ok(l),
-            _ => Err(RuntimeError::mismatched_types(self.get_type(), ValueType::Lambda)),
+            _ => Err(RuntimeError::mismatched_types(
+                self.get_type(),
+                ValueType::Lambda,
+            )),
         }
     }
 
@@ -680,7 +682,7 @@ impl std::fmt::Display for Value {
             Value::Object(o) => {
                 write!(f, "{{")?;
                 for (name, value) in o.iter() {
-                    write!(f, "{}: {},\n", name, value)?;
+                    writeln!(f, "{}: {},", name, value)?;
                 }
                 write!(f, "}}")
             }

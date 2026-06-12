@@ -134,7 +134,7 @@ special_op!(RandNumber, "number.rand", args, ctx, {
         }
         1 => {
             // One argument: return random integer 0 to max (exclusive)
-            let max = ctx.inter.eval_expand(&args[0], &ctx.env)?.expect_number()? as i64;
+            let max = ctx.inter.eval_expand(&args[0], ctx.env)?.expect_number()? as i64;
             if max <= 0 {
                 return native_result(Value::Number(0.0));
             }
@@ -143,15 +143,18 @@ special_op!(RandNumber, "number.rand", args, ctx, {
         }
         2 => {
             // Two arguments: return random integer min to max (exclusive)
-            let min = ctx.inter.eval_expand(&args[0], &ctx.env)?.expect_number()? as i64;
-            let max = ctx.inter.eval_expand(&args[1], &ctx.env)?.expect_number()? as i64;
+            let min = ctx.inter.eval_expand(&args[0], ctx.env)?.expect_number()? as i64;
+            let max = ctx.inter.eval_expand(&args[1], ctx.env)?.expect_number()? as i64;
             if max <= min {
                 return native_result(Value::Number(min as f64));
             }
             let n = rng.random_range(min..max);
             native_result(Value::Number(n as f64))
         }
-        count => Err(RuntimeError::invalid_application(format!("(number.rand) wrong number of arguments. Must be 1, 2 or 3. Got {}", count))),
+        count => Err(RuntimeError::invalid_application(format!(
+            "(number.rand) wrong number of arguments. Must be 1, 2 or 3. Got {}",
+            count
+        ))),
     }
 });
 
@@ -318,6 +321,6 @@ Random:
         "[number]: returns base-10 logarithm\n\nnumber.log10 100  ; 2"
     );
 
-    RandNumber::define(&env, Rc::clone(&inter));
+    RandNumber::define(env, Rc::clone(&inter));
     define_help!(RandNumber, env, "[] or [max:number] or [min:number max:number]: generates random numbers\n\nnumber.rand  ; random float 0.0 to 1.0\nnumber.rand 10  ; random integer 0 to 9\nnumber.rand 5 10  ; random integer 5 to 9");
 }

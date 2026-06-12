@@ -1,0 +1,80 @@
+---
+source: src/parser/tests.rs
+expression: "ast(\"'(\\n  if true $\\n    print 1\\n)\")"
+---
+[
+    Statement {
+        expression: Expression {
+            kind: Block(
+                [
+                    Expression {
+                        kind: Chain {
+                            left: Expression {
+                                kind: Application {
+                                    function: Expression {
+                                        kind: Identifier(
+                                            "if",
+                                        ),
+                                        span: Span {
+                                            line: 2,
+                                            column: 3,
+                                        },
+                                    },
+                                    argument: Expression {
+                                        kind: Identifier(
+                                            "true",
+                                        ),
+                                        span: Span {
+                                            line: 2,
+                                            column: 6,
+                                        },
+                                    },
+                                },
+                                span: Span {
+                                    line: 2,
+                                    column: 3,
+                                },
+                            },
+                            right: Expression {
+                                kind: Application {
+                                    function: Expression {
+                                        kind: Identifier(
+                                            "print",
+                                        ),
+                                        span: Span {
+                                            line: 3,
+                                            column: 5,
+                                        },
+                                    },
+                                    argument: Expression {
+                                        kind: Number(
+                                            1.0,
+                                        ),
+                                        span: Span {
+                                            line: 3,
+                                            column: 11,
+                                        },
+                                    },
+                                },
+                                span: Span {
+                                    line: 3,
+                                    column: 5,
+                                },
+                            },
+                        },
+                        span: Span {
+                            line: 2,
+                            column: 3,
+                        },
+                    },
+                ],
+            ),
+            span: Span {
+                line: 1,
+                column: 1,
+            },
+        },
+        line: 1,
+        column: 1,
+    },
+]

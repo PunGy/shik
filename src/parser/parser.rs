@@ -108,10 +108,13 @@ impl Parser {
                         self.advance();
                     }
                     let right = self.parse_expression(Precedence::Pipe)?;
-                    left = Expression::new(ExpressionKind::Pipe {
-                        left: Box::new(left),
-                        right: Box::new(right),
-                    }, span);
+                    left = Expression::new(
+                        ExpressionKind::Pipe {
+                            left: Box::new(left),
+                            right: Box::new(right),
+                        },
+                        span,
+                    );
                     true
                 }
                 Ok(TokenType::Chain) if precedence < Precedence::Chain => {
@@ -122,10 +125,13 @@ impl Parser {
                         self.advance();
                     }
                     let right = self.parse_expression(Precedence::Chain)?;
-                    left = Expression::new(ExpressionKind::Chain {
-                        left: Box::new(left),
-                        right: Box::new(right),
-                    }, span);
+                    left = Expression::new(
+                        ExpressionKind::Chain {
+                            left: Box::new(left),
+                            right: Box::new(right),
+                        },
+                        span,
+                    );
                     true
                 }
                 Ok(TokenType::Flow) if precedence < Precedence::Flow => {
@@ -136,10 +142,13 @@ impl Parser {
                         self.advance();
                     }
                     let right = self.parse_expression(Precedence::Flow)?;
-                    left = Expression::new(ExpressionKind::Flow {
-                        left: Box::new(left),
-                        right: Box::new(right),
-                    }, span);
+                    left = Expression::new(
+                        ExpressionKind::Flow {
+                            left: Box::new(left),
+                            right: Box::new(right),
+                        },
+                        span,
+                    );
                     true
                 }
                 Ok(TokenType::Newline) => {
@@ -150,10 +159,13 @@ impl Parser {
                     if self.can_start_primary() && precedence < Precedence::Apply {
                         let span = left.span;
                         let arg = self.parse_expression(Precedence::Apply)?;
-                        left = Expression::new(ExpressionKind::Application {
-                            function: Box::new(left),
-                            argument: Box::new(arg),
-                        }, span);
+                        left = Expression::new(
+                            ExpressionKind::Application {
+                                function: Box::new(left),
+                                argument: Box::new(arg),
+                            },
+                            span,
+                        );
                         true
                     } else {
                         false
@@ -212,7 +224,10 @@ impl Parser {
                     string: value.string,
                     entries: interpolatons,
                 };
-                Ok(Expression::new(ExpressionKind::StringInterpolation(inter_info), span))
+                Ok(Expression::new(
+                    ExpressionKind::StringInterpolation(inter_info),
+                    span,
+                ))
             }
             Some(TokenType::Ident) => {
                 let name = self.current_lexeme().to_string();
@@ -235,7 +250,10 @@ impl Parser {
                 self.advance();
                 let expr = self.parse_expression(Precedence::Lowest)?;
                 self.expect_token(TokenType::RightParen)?;
-                Ok(Expression::new(ExpressionKind::Parenthesized(Box::new(expr)), span))
+                Ok(Expression::new(
+                    ExpressionKind::Parenthesized(Box::new(expr)),
+                    span,
+                ))
             }
             Some(TokenType::OpenBlock) => {
                 self.advance();
@@ -271,7 +289,10 @@ impl Parser {
         let pattern = self.parse_match_pattern()?;
         let value = Box::new(self.parse_expression(Precedence::Lowest)?);
 
-        Ok(Expression::new(ExpressionKind::Let { pattern, value }, span))
+        Ok(Expression::new(
+            ExpressionKind::Let { pattern, value },
+            span,
+        ))
     }
 
     fn parse_match_expression(&mut self, span: Span) -> ParseResult<Expression> {
@@ -295,7 +316,10 @@ impl Parser {
 
         self.expect_token(TokenType::RightCurlyBracket)?;
 
-        Ok(Expression::new(ExpressionKind::Match { item, entries }, span))
+        Ok(Expression::new(
+            ExpressionKind::Match { item, entries },
+            span,
+        ))
     }
 
     fn parse_lambda(&mut self, span: Span) -> ParseResult<Expression> {
@@ -318,11 +342,14 @@ impl Parser {
         // Parse the body - this should parse the entire remaining expression
         let body = Box::new(self.parse_expression(Precedence::Lowest)?);
 
-        Ok(Expression::new(ExpressionKind::Lambda {
-            parameters,
-            rest,
-            body,
-        }, span))
+        Ok(Expression::new(
+            ExpressionKind::Lambda {
+                parameters,
+                rest,
+                body,
+            },
+            span,
+        ))
     }
 
     fn parse_match_pattern(&mut self) -> ParseResult<MatchPattern> {
@@ -421,10 +448,13 @@ impl Parser {
                 None => primary,
                 Some(left) => {
                     let span = left.span;
-                    Expression::new(ExpressionKind::Application {
-                        function: Box::new(left),
-                        argument: Box::new(primary),
-                    }, span)
+                    Expression::new(
+                        ExpressionKind::Application {
+                            function: Box::new(left),
+                            argument: Box::new(primary),
+                        },
+                        span,
+                    )
                 }
             });
 
@@ -476,10 +506,13 @@ impl Parser {
                         self.advance();
                     }
                     let right = self.parse_expression(Precedence::Pipe)?;
-                    left = Expression::new(ExpressionKind::Pipe {
-                        left: Box::new(left),
-                        right: Box::new(right),
-                    }, span);
+                    left = Expression::new(
+                        ExpressionKind::Pipe {
+                            left: Box::new(left),
+                            right: Box::new(right),
+                        },
+                        span,
+                    );
                     true
                 }
                 Ok(TokenType::Chain) if precedence < Precedence::Chain => {
@@ -490,10 +523,13 @@ impl Parser {
                         self.advance();
                     }
                     let right = self.parse_expression(Precedence::Chain)?;
-                    left = Expression::new(ExpressionKind::Chain {
-                        left: Box::new(left),
-                        right: Box::new(right),
-                    }, span);
+                    left = Expression::new(
+                        ExpressionKind::Chain {
+                            left: Box::new(left),
+                            right: Box::new(right),
+                        },
+                        span,
+                    );
                     true
                 }
                 Ok(TokenType::Flow) if precedence < Precedence::Flow => {
@@ -504,10 +540,13 @@ impl Parser {
                         self.advance();
                     }
                     let right = self.parse_expression(Precedence::Flow)?;
-                    left = Expression::new(ExpressionKind::Flow {
-                        left: Box::new(left),
-                        right: Box::new(right),
-                    }, span);
+                    left = Expression::new(
+                        ExpressionKind::Flow {
+                            left: Box::new(left),
+                            right: Box::new(right),
+                        },
+                        span,
+                    );
                     true
                 }
                 Ok(TokenType::Newline) => false,
@@ -633,20 +672,20 @@ impl Parser {
     }
 
     fn can_start_primary(&self) -> bool {
-        match self.current.as_ref().map(|t| &t.token_type) {
+        matches!(
+            self.current.as_ref().map(|t| &t.token_type),
             Some(TokenType::Number(_))
-            | Some(TokenType::String(_))
-            | Some(TokenType::StringInterpolation(_))
-            | Some(TokenType::Ident)
-            | Some(TokenType::Let)
-            | Some(TokenType::Fn)
-            | Some(TokenType::LeftParen)
-            | Some(TokenType::OpenBlock)
-            | Some(TokenType::OpenLazy)
-            | Some(TokenType::LeftBracket)
-            | Some(TokenType::LeftCurlyBracket) => true,
-            _ => false,
-        }
+                | Some(TokenType::String(_))
+                | Some(TokenType::StringInterpolation(_))
+                | Some(TokenType::Ident)
+                | Some(TokenType::Let)
+                | Some(TokenType::Fn)
+                | Some(TokenType::LeftParen)
+                | Some(TokenType::OpenBlock)
+                | Some(TokenType::OpenLazy)
+                | Some(TokenType::LeftBracket)
+                | Some(TokenType::LeftCurlyBracket)
+        )
     }
 
     fn is_at_end(&self) -> bool {

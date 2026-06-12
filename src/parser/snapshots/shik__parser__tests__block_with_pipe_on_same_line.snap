@@ -1,0 +1,72 @@
+---
+source: src/parser/tests.rs
+expression: "ast(\"'(\\n  x $> f\\n  y $> g\\n)\")"
+---
+[
+    Statement {
+        expression: Expression {
+            kind: Block(
+                [
+                    Expression {
+                        kind: Pipe {
+                            left: Expression {
+                                kind: Identifier(
+                                    "x",
+                                ),
+                                span: Span {
+                                    line: 2,
+                                    column: 3,
+                                },
+                            },
+                            right: Expression {
+                                kind: Identifier(
+                                    "f",
+                                ),
+                                span: Span {
+                                    line: 2,
+                                    column: 8,
+                                },
+                            },
+                        },
+                        span: Span {
+                            line: 2,
+                            column: 3,
+                        },
+                    },
+                    Expression {
+                        kind: Pipe {
+                            left: Expression {
+                                kind: Identifier(
+                                    "y",
+                                ),
+                                span: Span {
+                                    line: 3,
+                                    column: 3,
+                                },
+                            },
+                            right: Expression {
+                                kind: Identifier(
+                                    "g",
+                                ),
+                                span: Span {
+                                    line: 3,
+                                    column: 8,
+                                },
+                            },
+                        },
+                        span: Span {
+                            line: 3,
+                            column: 3,
+                        },
+                    },
+                ],
+            ),
+            span: Span {
+                line: 1,
+                column: 1,
+            },
+        },
+        line: 1,
+        column: 1,
+    },
+]

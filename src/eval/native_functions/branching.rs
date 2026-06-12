@@ -48,26 +48,26 @@ special_op!(If, "if", args, ctx, {
     let predicate = args_it.next().ok_or(RuntimeError::invalid_application(
         "(if) must be at least two arguments".to_string(),
     ))?;
-    let mut predicate = ctx.inter.eval_expand(predicate, &ctx.env)?.expect_bool()?;
+    let mut predicate = ctx.inter.eval_expand(predicate, ctx.env)?.expect_bool()?;
 
     if args_count == 2 {
         // Simple if without else
         if predicate {
-            ctx.inter.eval_expand(&args_it.next().unwrap(), &ctx.env)
+            ctx.inter.eval_expand(args_it.next().unwrap(), ctx.env)
         } else {
             Ok(Rc::new(Value::Null))
         }
-    } else if args_count % 2 == 0 {
+    } else if args_count.is_multiple_of(2) {
         // Without else at the end
         while !predicate {
             args_it.next(); // skip body
             let next = args_it.next();
-            if next == None {
+            if next.is_none() {
                 break;
             }
             predicate = ctx
                 .inter
-                .eval_expand(next.unwrap(), &ctx.env)?
+                .eval_expand(next.unwrap(), ctx.env)?
                 .expect_bool()?;
         }
 
@@ -75,7 +75,7 @@ special_op!(If, "if", args, ctx, {
             let next = args_it.next().ok_or(RuntimeError::invalid_application(
                 "(if) cannot find body for succeeded else-if block".to_string(),
             ))?;
-            ctx.inter.eval_expand(next, &ctx.env)
+            ctx.inter.eval_expand(next, ctx.env)
         } else {
             Ok(Rc::new(Value::Null))
         }
@@ -86,12 +86,12 @@ special_op!(If, "if", args, ctx, {
         while !predicate {
             next = args_it.next();
             // if it is the last - go back, we found final `else`
-            if args_it.peek() == None {
+            if args_it.peek().is_none() {
                 break;
             }
             predicate = ctx
                 .inter
-                .eval_expand(next.unwrap(), &ctx.env)?
+                .eval_expand(next.unwrap(), ctx.env)?
                 .expect_bool()?;
             if predicate {
                 // next body
@@ -106,12 +106,12 @@ special_op!(If, "if", args, ctx, {
         let next = next.ok_or(RuntimeError::invalid_application(
             "(if) unballanced number of arguments".to_string(),
         ))?;
-        ctx.inter.eval_expand(next, &ctx.env)
+        ctx.inter.eval_expand(next, ctx.env)
     }
 });
 
 special_b_op!(While, "while", [body], ctx, {
-    let pred_fn = ctx.inter.eval_expand(body, &ctx.env)?;
+    let pred_fn = ctx.inter.eval_expand(body, ctx.env)?;
 
     let void = Rc::new(Value::Null);
     loop {
@@ -136,7 +136,7 @@ pub fn bind_special_module(env: &EnvRef, inter: Rc<Interpretator>) {
             .to_string(),
     );
 
-    If::define(&env, Rc::clone(&inter));
+    If::define(env, Rc::clone(&inter));
     define_help!(If, env, "[predicate:bool body:value ...]: conditional branching. Supports if, if-else, and if-elseif-else patterns\n\nif (> x 5) \"big\"\nif (> x 5) \"big\" \"small\"\nif (> x 10) \"huge\" (> x 5) \"big\" \"small\"");
 
     While::define(env, Rc::clone(&inter));

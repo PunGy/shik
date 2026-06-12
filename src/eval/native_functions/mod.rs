@@ -1,21 +1,21 @@
 pub mod bool;
-pub mod number;
-pub mod polymorphic;
-pub mod keywords;
 pub mod branching;
-pub mod macros;
 pub mod file;
-pub mod string;
-pub mod list;
-pub mod object;
-pub mod variables;
-pub mod shell;
-pub mod misc;
 pub mod function;
 pub mod help;
+pub mod keywords;
+pub mod list;
+pub mod macros;
+pub mod misc;
+pub mod number;
+pub mod object;
+pub mod polymorphic;
+pub mod shell;
+pub mod string;
+pub mod variables;
 
 use crate::eval::{
-    value::{Value, null_value, bool_value, number_value},
+    value::{bool_value, null_value, number_value, Value},
     EvalResult,
 };
 use std::rc::Rc;

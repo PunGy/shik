@@ -61,7 +61,7 @@ MODULES:
 
 special_op!(Help, "help", args, ctx, {
     let msg: String;
-    if args.len() > 0 {
+    if !args.is_empty() {
         let arg = &args[0];
 
         match &arg.kind {
@@ -70,11 +70,11 @@ special_op!(Help, "help", args, ctx, {
                 match help_msg {
                     Some(help_msg) => msg = help_msg,
                     None => {
-                        msg = help_for_literal(&arg, ctx, Some(format!("Identifier {}\n", ident)))
+                        msg = help_for_literal(arg, ctx, Some(format!("Identifier {}\n", ident)))
                     }
                 }
             }
-            _ => msg = help_for_literal(&arg, ctx, None),
+            _ => msg = help_for_literal(arg, ctx, None),
         }
     } else {
         msg = GENERAL_HELP.to_string();
@@ -88,13 +88,13 @@ special_op!(Help, "help", args, ctx, {
 });
 
 fn help_for_literal(expr: &Expression, ctx: &NativeContext, prefix: Option<String>) -> String {
-    let val = ctx.inter.eval_expr(expr, &ctx.env);
+    let val = ctx.inter.eval_expr(expr, ctx.env);
     match val {
         Ok(val) => format!(
             "{}{:?}: {}",
             prefix.unwrap_or("".to_string()),
             val.get_type(),
-            val.to_string()
+            val
         ),
         Err(_) => "Unable to get help".to_string(),
     }
@@ -105,7 +105,9 @@ pub fn bind_help_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_help!(Help, env, "[value?]: print help information about anything. Enter help without arguments to get general information about the language.");
 
     // Language concept documentation
-    env.define_help("syntax.".to_string(), r#"SHIK Syntax Guide
+    env.define_help(
+        "syntax.".to_string(),
+        r#"SHIK Syntax Guide
 
 EXPRESSIONS & APPLICATION
 
@@ -164,7 +166,9 @@ COMMENTS
     ; single line comment
     {* block comment
        can span multiple lines *}
-"#.to_string());
+"#
+        .to_string(),
+    );
 
     env.define_help("let$.".to_string(), r#"Pattern Matching with let$ and fn
 
@@ -225,7 +229,9 @@ NOTES
     The only exceptions are `special-lambda`, such as `if`, `or?`. They are limited and embed to the language, and cannot be curried.
 "#.to_string());
 
-    env.define_help("match.".to_string(), r#"Pattern Matching with match
+    env.define_help(
+        "match.".to_string(),
+        r#"Pattern Matching with match
 
 SYNTAX
 
@@ -304,5 +310,7 @@ NOTES
 - Patterns are tested in order; first match wins
 - String patterns match exact string values
 - Identifiers matched against the value it has
-"#.to_string());
+"#
+        .to_string(),
+    );
 }

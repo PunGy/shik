@@ -1,10 +1,12 @@
 use crate::{
-    count_args, define_native, define_help,
+    count_args, define_help, define_native,
     eval::{
         error::RuntimeError,
         evaluator::Interpretator,
         native_functions::native_result,
-        value::{EnvRef, ListRepr, NativeClosure, NativeContext, NativeFn, Value, ValueRef, ValueType},
+        value::{
+            EnvRef, ListRepr, NativeClosure, NativeContext, NativeFn, Value, ValueRef, ValueType,
+        },
         EvalResult,
     },
     native_op,
@@ -132,7 +134,7 @@ native_op!(StringJoin, "string.join", [sep, lst], {
     let strings: Result<Vec<String>, _> = lst
         .iter()
         .flat_map(|v| MakeString::run(&v))
-        .map(|v| v.expect_string().map(|s| s.clone()))
+        .map(|v| v.expect_string().cloned())
         .collect();
     let strings = strings?;
     native_result(Value::String(strings.join(sep.as_str())))
@@ -180,14 +182,20 @@ native_op!(StringIterate, "string.iterate", [func, str], ctx, {
     native_result(Value::Null)
 });
 
-native_op!(StringIterateBackward, ["string.iterate-backward", "string.<iterate"], [func, str], ctx, {
-    let str = str.expect_string()?;
-    for char in str.chars().rev() {
-        let char = Rc::new(Value::String(char.to_string()));
-        ctx.apply(func, &char, ctx.env)?;
+native_op!(
+    StringIterateBackward,
+    ["string.iterate-backward", "string.<iterate"],
+    [func, str],
+    ctx,
+    {
+        let str = str.expect_string()?;
+        for char in str.chars().rev() {
+            let char = Rc::new(Value::String(char.to_string()));
+            ctx.apply(func, &char, ctx.env)?;
+        }
+        native_result(Value::Null)
     }
-    native_result(Value::Null)
-});
+);
 
 // Helper: convert a *character index* into a UTF-8 byte range (start..end)
 fn char_byte_range(s: &str, char_index: usize) -> Option<(usize, usize)> {
@@ -207,13 +215,16 @@ native_op!(StringSet, "string.set", [inx, s, content], {
         match &mut *s_ptr {
             Value::String(st) => {
                 // Replace the single character at `inx` with `replacement`
-                let (start, end) = char_byte_range(st, inx)
-                    .ok_or(RuntimeError::index_out_of_bounds(inx))?;
+                let (start, end) =
+                    char_byte_range(st, inx).ok_or(RuntimeError::index_out_of_bounds(inx))?;
 
                 st.replace_range(start..end, replacement);
-                Ok(Rc::clone(&content))
+                Ok(Rc::clone(content))
             }
-            _ => Err(RuntimeError::mismatched_types(s.get_type(), ValueType::String)),
+            _ => Err(RuntimeError::mismatched_types(
+                s.get_type(),
+                ValueType::String,
+            )),
         }
     }
 });
@@ -231,9 +242,12 @@ native_op!(
             match &mut *s_ptr {
                 Value::String(st) => {
                     st.push_str(suffix);
-                    Ok(Rc::clone(&content))
+                    Ok(Rc::clone(content))
                 }
-                _ => Err(RuntimeError::mismatched_types(s.get_type(), ValueType::String)),
+                _ => Err(RuntimeError::mismatched_types(
+                    s.get_type(),
+                    ValueType::String,
+                )),
             }
         }
     }
@@ -258,9 +272,12 @@ native_op!(
                     new.push_str(&suffix);
                     *st = new;
 
-                    Ok(Rc::clone(&content))
+                    Ok(Rc::clone(content))
                 }
-                _ => Err(RuntimeError::mismatched_types(s.get_type(), ValueType::String)),
+                _ => Err(RuntimeError::mismatched_types(
+                    s.get_type(),
+                    ValueType::String,
+                )),
             }
         }
     }
@@ -268,7 +285,9 @@ native_op!(
 
 pub fn bind_string_module(env: &EnvRef, inter: Rc<Interpretator>) {
     // Module help
-    env.define_help("string.".to_string(), "string module:
+    env.define_help(
+        "string.".to_string(),
+        "string module:
 
 - string: converts value to string
 - string.split: splits by delimiter
@@ -294,10 +313,16 @@ pub fn bind_string_module(env: &EnvRef, inter: Rc<Interpretator>) {
 - string.push, string.push>, string.push-right: appends (mutates)
 - string.<push, string.push-left: prepends (mutates)
 - string.iterate: iterates characters forward
-- string.<iterate, string.iterate-backward: iterates backward".to_string());
+- string.<iterate, string.iterate-backward: iterates backward"
+            .to_string(),
+    );
 
     define_native!(MakeString, env, inter);
-    define_help!(MakeString, env, "[value]: converts value to string\n\nstring 42  ; \"42\"");
+    define_help!(
+        MakeString,
+        env,
+        "[value]: converts value to string\n\nstring 42  ; \"42\""
+    );
 
     define_native!(StringSplit, env, inter);
     define_help!(StringSplit, env, "[delimiter:string string]: splits string by delimiter, returns list\n\nstring.split \",\" \"a,b,c\"  ; [\"a\" \"b\" \"c\"]");
@@ -306,22 +331,46 @@ pub fn bind_string_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_help!(StringConcat, env, "[string string]: concatenates two strings\n\nstring.+ \"hello\" \" world\"  ; \"hello world\"");
 
     define_native!(StringEq, env, inter);
-    define_help!(StringEq, env, "[string string]: checks string equality\n\nstring.= \"abc\" \"abc\"  ; true");
+    define_help!(
+        StringEq,
+        env,
+        "[string string]: checks string equality\n\nstring.= \"abc\" \"abc\"  ; true"
+    );
 
     define_native!(StringTrim, env, inter);
-    define_help!(StringTrim, env, "[string]: removes whitespace from both ends\n\nstring.trim \"  hello  \"  ; \"hello\"");
+    define_help!(
+        StringTrim,
+        env,
+        "[string]: removes whitespace from both ends\n\nstring.trim \"  hello  \"  ; \"hello\""
+    );
 
     define_native!(StringTrimStart, env, inter);
-    define_help!(StringTrimStart, env, "[string]: removes whitespace from start\n\nstring.trim-start \"  hello\"  ; \"hello\"");
+    define_help!(
+        StringTrimStart,
+        env,
+        "[string]: removes whitespace from start\n\nstring.trim-start \"  hello\"  ; \"hello\""
+    );
 
     define_native!(StringTrimEnd, env, inter);
-    define_help!(StringTrimEnd, env, "[string]: removes whitespace from end\n\nstring.trim-end \"hello  \"  ; \"hello\"");
+    define_help!(
+        StringTrimEnd,
+        env,
+        "[string]: removes whitespace from end\n\nstring.trim-end \"hello  \"  ; \"hello\""
+    );
 
     define_native!(StringUppercase, env, inter);
-    define_help!(StringUppercase, env, "[string]: converts to uppercase\n\nstring.upper \"hello\"  ; \"HELLO\"");
+    define_help!(
+        StringUppercase,
+        env,
+        "[string]: converts to uppercase\n\nstring.upper \"hello\"  ; \"HELLO\""
+    );
 
     define_native!(StringLowercase, env, inter);
-    define_help!(StringLowercase, env, "[string]: converts to lowercase\n\nstring.lower \"HELLO\"  ; \"hello\"");
+    define_help!(
+        StringLowercase,
+        env,
+        "[string]: converts to lowercase\n\nstring.lower \"HELLO\"  ; \"hello\""
+    );
 
     define_native!(StringContains, env, inter);
     define_help!(StringContains, env, "[needle:string haystack:string]: checks if string contains substring\n\nstring.has \"ell\" \"hello\"  ; true");
@@ -336,7 +385,11 @@ pub fn bind_string_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_help!(StringReplace, env, "[from:string to:string string]: replaces all occurrences\n\nstring.replace \"l\" \"L\" \"hello\"  ; \"heLLo\"");
 
     define_native!(StringLength, env, inter);
-    define_help!(StringLength, env, "[string]: returns character count\n\nstring.len \"hello\"  ; 5");
+    define_help!(
+        StringLength,
+        env,
+        "[string]: returns character count\n\nstring.len \"hello\"  ; 5"
+    );
 
     define_native!(StringCharAt, env, inter);
     define_help!(StringCharAt, env, "[index:number string]: returns character at index, or null\n\nstring.at 0 \"hello\"  ; \"h\"");
@@ -351,7 +404,11 @@ pub fn bind_string_module(env: &EnvRef, inter: Rc<Interpretator>) {
     define_help!(StringJoin, env, "[separator:string list]: joins list of strings with separator\n\nstring.join \", \" [\"a\" \"b\" \"c\"]  ; \"a, b, c\"");
 
     define_native!(StringLines, env, inter);
-    define_help!(StringLines, env, "[string]: splits string into lines\n\nstring.lines \"a\\nb\\nc\"  ; [\"a\" \"b\" \"c\"]");
+    define_help!(
+        StringLines,
+        env,
+        "[string]: splits string into lines\n\nstring.lines \"a\\nb\\nc\"  ; [\"a\" \"b\" \"c\"]"
+    );
 
     define_native!(StringBytes, env, inter);
     define_help!(StringBytes, env, "[bytes:number]: formats bytes as human-readable string\n\nstring.bytes 1536  ; \"1.5 KiB\"");

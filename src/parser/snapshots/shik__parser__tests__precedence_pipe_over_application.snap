@@ -1,0 +1,53 @@
+---
+source: src/parser/tests.rs
+expression: "ast(\"x $> f y\")"
+---
+[
+    Statement {
+        expression: Expression {
+            kind: Pipe {
+                left: Expression {
+                    kind: Identifier(
+                        "x",
+                    ),
+                    span: Span {
+                        line: 1,
+                        column: 1,
+                    },
+                },
+                right: Expression {
+                    kind: Application {
+                        function: Expression {
+                            kind: Identifier(
+                                "f",
+                            ),
+                            span: Span {
+                                line: 1,
+                                column: 6,
+                            },
+                        },
+                        argument: Expression {
+                            kind: Identifier(
+                                "y",
+                            ),
+                            span: Span {
+                                line: 1,
+                                column: 8,
+                            },
+                        },
+                    },
+                    span: Span {
+                        line: 1,
+                        column: 6,
+                    },
+                },
+            },
+            span: Span {
+                line: 1,
+                column: 1,
+            },
+        },
+        line: 1,
+        column: 1,
+    },
+]

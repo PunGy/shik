@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use streaming_iterator::StreamingIterator;
 use tree_sitter::{Language, Parser, Query, QueryCursor};
-use tree_sitter_shik::{HIGHLIGHTS_QUERY};
+use tree_sitter_shik::HIGHLIGHTS_QUERY;
 
 // ANSI color codes
 pub const RESET: &str = "\x1b[0m";
@@ -22,6 +22,12 @@ pub const PROMPT_CONTINUATION: &str = "… ";
 pub struct ShikHighlighter {
     language: Language,
     query: Query,
+}
+
+impl Default for ShikHighlighter {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ShikHighlighter {

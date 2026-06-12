@@ -5,7 +5,8 @@ use crate::{
         evaluator::Interpretator,
         native_functions::{native_result, string::StringEq},
         value::{
-            bool_value, EnvRef, NativeClosure, NativeContext, NativeFn, SpecialBoundClosure, SpecialFn, Value, ValueRef
+            bool_value, EnvRef, NativeClosure, NativeContext, NativeFn, SpecialBoundClosure,
+            SpecialFn, Value, ValueRef,
         },
         EvalResult,
     },
@@ -51,31 +52,31 @@ native_op!(Bool, "bool", [val], {
 });
 
 special_b_op!(Or, "or", [x, y], ctx, {
-    let x = ctx.inter.eval_expr(x, &ctx.env)?;
+    let x = ctx.inter.eval_expr(x, ctx.env)?;
     let x = x.expect_bool()?;
 
     if x {
         return Ok(bool_value(true));
     }
 
-    let y = ctx.inter.eval_expr(y, &ctx.env)?;
+    let y = ctx.inter.eval_expr(y, ctx.env)?;
     let y = y.expect_bool()?;
 
     Ok(bool_value(y))
 });
 
 special_b_op!(And, "and", [x, y], ctx, {
-    let x = ctx.inter.eval_expr(x, &ctx.env)?;
+    let x = ctx.inter.eval_expr(x, ctx.env)?;
     let x = x.expect_bool()?;
 
     if !x {
         return Ok(bool_value(false));
     }
 
-    let y = ctx.inter.eval_expr(y, &ctx.env)?;
+    let y = ctx.inter.eval_expr(y, ctx.env)?;
     let y = y.expect_bool()?;
 
-    return Ok(bool_value(y))
+    return Ok(bool_value(y));
 });
 
 native_op!(Eq, "=", [x, y], {

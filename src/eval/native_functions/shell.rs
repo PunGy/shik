@@ -1,12 +1,12 @@
 use crate::{
-    count_args, define_native, define_help,
+    count_args, define_help, define_native,
     eval::{
-        error::{RuntimeError},
+        error::RuntimeError,
         evaluator::Interpretator,
         native_functions::native_result,
         value::{
-            EnvRef, ListRepr, NativeClosure, NativeContext, NativeFn, SpecialClosure, SpecialFn, Value,
-            ValueRef,
+            EnvRef, ListRepr, NativeClosure, NativeContext, NativeFn, SpecialClosure, SpecialFn,
+            Value, ValueRef,
         },
         EvalResult,
     },
@@ -14,9 +14,9 @@ use crate::{
     parser::Expression,
     special_op,
 };
-use std::io::{self, Write};
 use std::collections::HashMap;
 use std::env;
+use std::io::{self, Write};
 use std::process::{Command, Stdio};
 use std::rc::Rc;
 
@@ -213,7 +213,7 @@ special_op!(ShellRead, "shell.ask", args, ctx, {
 
     // Optional prompt
     if args.len() == 1 {
-        let prompt_val = ctx.inter.eval_expand(&args[0], &ctx.env)?;
+        let prompt_val = ctx.inter.eval_expand(&args[0], ctx.env)?;
         let prompt = prompt_val.expect_string()?;
 
         print!("{prompt}");
@@ -484,7 +484,9 @@ native_op!(ProcessSleep, "process.sleep", [ms], {
 
 pub fn bind_shell_module(env: &EnvRef, inter: Rc<Interpretator>) {
     // Module help
-    env.define_help("shell.".to_string(), "shell module:
+    env.define_help(
+        "shell.".to_string(),
+        "shell module:
 
 Execution:
 - shell: executes command, returns stdout
@@ -516,24 +518,38 @@ Path utilities:
 System info:
 - shell.args: all command line arguments
 - shell.os: operating system name
-- shell.arch: CPU architecture".to_string());
+- shell.arch: CPU architecture"
+            .to_string(),
+    );
 
-    env.define_help("process.".to_string(), "process module:
+    env.define_help(
+        "process.".to_string(),
+        "process module:
 
 - process.pid: current process ID
 - process.file: currently executed file
 - process.args: command line arguments (without shik and filename)
 - process.sleep: sleeps for milliseconds
-- process.abort: aborts process".to_string());
+- process.abort: aborts process"
+            .to_string(),
+    );
 
-    env.define_help("exit".to_string(), "exit [number]: exits process with given exit code
+    env.define_help(
+        "exit".to_string(),
+        "exit [number]: exits process with given exit code
 
 exit 0  ; success
-exit 1  ; failure".to_string());
+exit 1  ; failure"
+            .to_string(),
+    );
 
     // Shell execution
     define_native!(Shell, env, inter);
-    define_help!(Shell, env, "[cmd:string]: executes shell command, returns stdout as string\n\nshell \"ls -la\"");
+    define_help!(
+        Shell,
+        env,
+        "[cmd:string]: executes shell command, returns stdout as string\n\nshell \"ls -la\""
+    );
 
     define_native!(ShellExec, env, inter);
     define_help!(ShellExec, env, "[cmd:string]: executes shell command with output shown in terminal, returns exit code\n\nshell! \"npm install\"");
@@ -551,71 +567,151 @@ exit 1  ; failure".to_string());
     define_help!(ShellOk, env, "[cmd:string]: executes shell command silently, returns true if successful\n\nshell.ok? \"which git\"");
 
     define_native!(ShellLines, env, inter);
-    define_help!(ShellLines, env, "[cmd:string]: executes shell command, returns stdout lines as list\n\nshell.lines \"ls\"");
+    define_help!(
+        ShellLines,
+        env,
+        "[cmd:string]: executes shell command, returns stdout lines as list\n\nshell.lines \"ls\""
+    );
 
     // Environment variables
     define_native!(ShellEnv, env, inter);
-    define_help!(ShellEnv, env, "[name:string]: gets environment variable, returns null if not found\n\nshell.env \"HOME\"");
+    define_help!(
+        ShellEnv,
+        env,
+        "[name:string]: gets environment variable, returns null if not found\n\nshell.env \"HOME\""
+    );
 
     define_native!(ShellSetEnv, env, inter);
     define_help!(ShellSetEnv, env, "[name:string value:string]: sets environment variable for current process\n\nshell.env.set \"MY_VAR\" \"value\"");
 
     define_native!(ShellUnsetEnv, env, inter);
-    define_help!(ShellUnsetEnv, env, "[name:string]: removes environment variable\n\nshell.env.remove \"MY_VAR\"");
+    define_help!(
+        ShellUnsetEnv,
+        env,
+        "[name:string]: removes environment variable\n\nshell.env.remove \"MY_VAR\""
+    );
 
     define_native!(ShellEnvAll, env, inter);
-    define_help!(ShellEnvAll, env, "[]: returns all environment variables as object\n\nshell.env.all");
+    define_help!(
+        ShellEnvAll,
+        env,
+        "[]: returns all environment variables as object\n\nshell.env.all"
+    );
 
     // IO
-    ShellRead::define(&env, Rc::clone(&inter));
-    define_help!(ShellRead, env, "[prompt:string?]: reads line from stdin, optional prompt\n\nshell.ask \"Enter name: \"");
+    ShellRead::define(env, Rc::clone(&inter));
+    define_help!(
+        ShellRead,
+        env,
+        "[prompt:string?]: reads line from stdin, optional prompt\n\nshell.ask \"Enter name: \""
+    );
 
     // Working directory
     define_native!(ShellCwd, env, inter);
-    define_help!(ShellCwd, env, "[]: returns current working directory\n\nshell.cwd");
+    define_help!(
+        ShellCwd,
+        env,
+        "[]: returns current working directory\n\nshell.cwd"
+    );
 
     define_native!(ShellCd, env, inter);
-    define_help!(ShellCd, env, "[path:string]: changes current working directory\n\nshell.cd \"/tmp\"");
+    define_help!(
+        ShellCd,
+        env,
+        "[path:string]: changes current working directory\n\nshell.cd \"/tmp\""
+    );
 
     define_native!(ShellHome, env, inter);
-    define_help!(ShellHome, env, "[]: returns home directory path\n\nshell.home");
+    define_help!(
+        ShellHome,
+        env,
+        "[]: returns home directory path\n\nshell.home"
+    );
 
     // Path utilities
     define_native!(ShellWhich, env, inter);
-    define_help!(ShellWhich, env, "[name:string]: finds executable in PATH, returns path or null\n\nshell.which \"git\"");
+    define_help!(
+        ShellWhich,
+        env,
+        "[name:string]: finds executable in PATH, returns path or null\n\nshell.which \"git\""
+    );
 
     define_native!(ShellHas, env, inter);
-    define_help!(ShellHas, env, "[name:string]: checks if command exists in PATH\n\nshell.has \"git\"");
+    define_help!(
+        ShellHas,
+        env,
+        "[name:string]: checks if command exists in PATH\n\nshell.has \"git\""
+    );
 
     // Process information
     define_native!(ProcessPid, env, inter);
-    define_help!(ProcessPid, env, "[]: returns current process ID\n\nprocess.pid");
+    define_help!(
+        ProcessPid,
+        env,
+        "[]: returns current process ID\n\nprocess.pid"
+    );
 
     define_native!(ProcessFile, env, inter);
-    define_help!(ProcessFile, env, "[]: returns name of currently executed file, null in REPL\n\nprocess.file");
+    define_help!(
+        ProcessFile,
+        env,
+        "[]: returns name of currently executed file, null in REPL\n\nprocess.file"
+    );
 
     define_native!(ShellArgs, env, inter);
-    define_help!(ShellArgs, env, "[]: returns all command line arguments as list\n\nshell.args");
+    define_help!(
+        ShellArgs,
+        env,
+        "[]: returns all command line arguments as list\n\nshell.args"
+    );
 
     define_native!(ProcessArgs, env, inter);
-    define_help!(ProcessArgs, env, "[]: returns command line arguments (without shik and filename)\n\nprocess.args");
+    define_help!(
+        ProcessArgs,
+        env,
+        "[]: returns command line arguments (without shik and filename)\n\nprocess.args"
+    );
 
     define_native!(ShellOs, env, inter);
-    define_help!(ShellOs, env, "[]: returns operating system name (linux, macos, windows)\n\nshell.os");
+    define_help!(
+        ShellOs,
+        env,
+        "[]: returns operating system name (linux, macos, windows)\n\nshell.os"
+    );
 
     define_native!(ShellArch, env, inter);
-    define_help!(ShellArch, env, "[]: returns CPU architecture (x86_64, aarch64, etc.)\n\nshell.arch");
+    define_help!(
+        ShellArch,
+        env,
+        "[]: returns CPU architecture (x86_64, aarch64, etc.)\n\nshell.arch"
+    );
 
     // Process control
     define_native!(ProcessExit, env, inter);
-    define_help!(ProcessExit, env, "[code:number]: exits process with given exit code\n\nexit 0");
+    define_help!(
+        ProcessExit,
+        env,
+        "[code:number]: exits process with given exit code\n\nexit 0"
+    );
 
     define_native!(ProcessExitSuccess, env, inter);
-    define_help!(ProcessExitSuccess, env, "[]: exits process with code 0 (success)\n\nexit!");
+    define_help!(
+        ProcessExitSuccess,
+        env,
+        "[]: exits process with code 0 (success)\n\nexit!"
+    );
 
     define_native!(ProcessAbort, env, inter);
-    define_help!(ProcessAbort, env, "[]: aborts process immediately (abnormal termination)\n\nprocess.abort");
+    define_help!(
+        ProcessAbort,
+        env,
+        "[]: aborts process immediately (abnormal termination)\n\nprocess.abort"
+    );
 
     define_native!(ProcessSleep, env, inter);
-    define_help!(ProcessSleep, env, "[ms:number]: sleeps for specified milliseconds\n\nprocess.sleep 1000");
+    define_help!(
+        ProcessSleep,
+        env,
+        "[ms:number]: sleeps for specified milliseconds\n\nprocess.sleep 1000"
+    );
 }

@@ -1,0 +1,80 @@
+---
+source: src/parser/tests.rs
+expression: "ast(\"'(\\n  a b $ c d\\n)\")"
+---
+[
+    Statement {
+        expression: Expression {
+            kind: Block(
+                [
+                    Expression {
+                        kind: Chain {
+                            left: Expression {
+                                kind: Application {
+                                    function: Expression {
+                                        kind: Identifier(
+                                            "a",
+                                        ),
+                                        span: Span {
+                                            line: 2,
+                                            column: 3,
+                                        },
+                                    },
+                                    argument: Expression {
+                                        kind: Identifier(
+                                            "b",
+                                        ),
+                                        span: Span {
+                                            line: 2,
+                                            column: 5,
+                                        },
+                                    },
+                                },
+                                span: Span {
+                                    line: 2,
+                                    column: 3,
+                                },
+                            },
+                            right: Expression {
+                                kind: Application {
+                                    function: Expression {
+                                        kind: Identifier(
+                                            "c",
+                                        ),
+                                        span: Span {
+                                            line: 2,
+                                            column: 9,
+                                        },
+                                    },
+                                    argument: Expression {
+                                        kind: Identifier(
+                                            "d",
+                                        ),
+                                        span: Span {
+                                            line: 2,
+                                            column: 11,
+                                        },
+                                    },
+                                },
+                                span: Span {
+                                    line: 2,
+                                    column: 9,
+                                },
+                            },
+                        },
+                        span: Span {
+                            line: 2,
+                            column: 3,
+                        },
+                    },
+                ],
+            ),
+            span: Span {
+                line: 1,
+                column: 1,
+            },
+        },
+        line: 1,
+        column: 1,
+    },
+]

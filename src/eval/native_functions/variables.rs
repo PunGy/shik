@@ -19,7 +19,7 @@ use std::rc::Rc;
 special_b_op!(Let, "let", [name, val], ctx, {
     match &name.kind {
         ExpressionKind::Identifier(name) => {
-            let val = ctx.inter.eval_expand(val, &ctx.env)?;
+            let val = ctx.inter.eval_expand(val, ctx.env)?;
             ctx.env.define(name.to_string(), Rc::clone(&val));
             Ok(val)
         }
@@ -44,7 +44,7 @@ native_op!(VarGet, "var.get", [name], ctx, {
 special_b_op!(Set, "set", [name, val], ctx, {
     match &name.kind {
         ExpressionKind::Identifier(name) => {
-            let val = ctx.inter.eval_expand(val, &ctx.env)?;
+            let val = ctx.inter.eval_expand(val, ctx.env)?;
             ctx.env.assign(name, Rc::clone(&val));
             Ok(val)
         }
@@ -63,7 +63,7 @@ special_b_op!(SetPlus, "set+", [name, val], ctx, {
                 .env
                 .lookup(name)
                 .ok_or(RuntimeError::undefined_variable(name.clone()))?;
-            let val = ctx.inter.eval_expand(val, &ctx.env)?;
+            let val = ctx.inter.eval_expand(val, ctx.env)?;
 
             let next_val = PPlus::run(&current_val, &val)?;
             ctx.env.assign(name, Rc::clone(&next_val));
@@ -83,7 +83,7 @@ special_b_op!(SetMinus, "set-", [name, val], ctx, {
                 .env
                 .lookup(name)
                 .ok_or(RuntimeError::undefined_variable(name.clone()))?;
-            let val = ctx.inter.eval_expand(val, &ctx.env)?;
+            let val = ctx.inter.eval_expand(val, ctx.env)?;
 
             let next_val = Minus::run(&val, &current_val)?;
             ctx.env.assign(name, Rc::clone(&next_val));

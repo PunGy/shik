@@ -1,0 +1,149 @@
+---
+source: src/parser/tests.rs
+expression: "ast(\"'(\\n  add 1 2\\n  mul 3 4\\n  sub 5 6\\n)\")"
+---
+[
+    Statement {
+        expression: Expression {
+            kind: Block(
+                [
+                    Expression {
+                        kind: Application {
+                            function: Expression {
+                                kind: Application {
+                                    function: Expression {
+                                        kind: Identifier(
+                                            "add",
+                                        ),
+                                        span: Span {
+                                            line: 2,
+                                            column: 3,
+                                        },
+                                    },
+                                    argument: Expression {
+                                        kind: Number(
+                                            1.0,
+                                        ),
+                                        span: Span {
+                                            line: 2,
+                                            column: 7,
+                                        },
+                                    },
+                                },
+                                span: Span {
+                                    line: 2,
+                                    column: 3,
+                                },
+                            },
+                            argument: Expression {
+                                kind: Number(
+                                    2.0,
+                                ),
+                                span: Span {
+                                    line: 2,
+                                    column: 9,
+                                },
+                            },
+                        },
+                        span: Span {
+                            line: 2,
+                            column: 3,
+                        },
+                    },
+                    Expression {
+                        kind: Application {
+                            function: Expression {
+                                kind: Application {
+                                    function: Expression {
+                                        kind: Identifier(
+                                            "mul",
+                                        ),
+                                        span: Span {
+                                            line: 3,
+                                            column: 3,
+                                        },
+                                    },
+                                    argument: Expression {
+                                        kind: Number(
+                                            3.0,
+                                        ),
+                                        span: Span {
+                                            line: 3,
+                                            column: 7,
+                                        },
+                                    },
+                                },
+                                span: Span {
+                                    line: 3,
+                                    column: 3,
+                                },
+                            },
+                            argument: Expression {
+                                kind: Number(
+                                    4.0,
+                                ),
+                                span: Span {
+                                    line: 3,
+                                    column: 9,
+                                },
+                            },
+                        },
+                        span: Span {
+                            line: 3,
+                            column: 3,
+                        },
+                    },
+                    Expression {
+                        kind: Application {
+                            function: Expression {
+                                kind: Application {
+                                    function: Expression {
+                                        kind: Identifier(
+                                            "sub",
+                                        ),
+                                        span: Span {
+                                            line: 4,
+                                            column: 3,
+                                        },
+                                    },
+                                    argument: Expression {
+                                        kind: Number(
+                                            5.0,
+                                        ),
+                                        span: Span {
+                                            line: 4,
+                                            column: 7,
+                                        },
+                                    },
+                                },
+                                span: Span {
+                                    line: 4,
+                                    column: 3,
+                                },
+                            },
+                            argument: Expression {
+                                kind: Number(
+                                    6.0,
+                                ),
+                                span: Span {
+                                    line: 4,
+                                    column: 9,
+                                },
+                            },
+                        },
+                        span: Span {
+                            line: 4,
+                            column: 3,
+                        },
+                    },
+                ],
+            ),
+            span: Span {
+                line: 1,
+                column: 1,
+            },
+        },
+        line: 1,
+        column: 1,
+    },
+]

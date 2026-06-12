@@ -57,7 +57,7 @@ native_op!(ObjectKeys, "object.keys", [obj], {
 native_op!(ObjectValues, "object.values", [obj], {
     let obj = obj.expect_obj()?;
 
-    let values: Vec<ValueRef> = obj.values().map(|v| Rc::clone(v)).collect();
+    let values: Vec<ValueRef> = obj.values().map(Rc::clone).collect();
 
     native_result(Value::List(ListRepr::from_vec(values)))
 });
@@ -110,7 +110,10 @@ native_op!(ObjectSet, "object.set", [key, obj, value], {
                 map.insert(key, Rc::clone(value));
                 Ok(Rc::clone(value))
             }
-            _ => Err(RuntimeError::mismatched_types(obj.get_type(), ValueType::Object)),
+            _ => Err(RuntimeError::mismatched_types(
+                obj.get_type(),
+                ValueType::Object,
+            )),
         }
     }
 });
@@ -129,7 +132,10 @@ native_op!(ObjectRemove, "object.remove", [key, obj], {
                 Some(v) => Ok(v),
                 None => native_result(Value::Null),
             },
-            _ => Err(RuntimeError::mismatched_types(obj.get_type(), ValueType::Object)),
+            _ => Err(RuntimeError::mismatched_types(
+                obj.get_type(),
+                ValueType::Object,
+            )),
         }
     }
 });
@@ -147,9 +153,15 @@ native_op!(ObjectFromEntries, "object.from-entries", [entries], {
 
     for entry in entries.iter() {
         let pair = entry.expect_list()?;
-        let key = pair.get(0).ok_or(RuntimeError::invalid_application("(object.from-entries) must have at least two elements in order to make an object".to_string()))?;
+        let key = pair.get(0).ok_or(RuntimeError::invalid_application(
+            "(object.from-entries) must have at least two elements in order to make an object"
+                .to_string(),
+        ))?;
         let key = key.expect_string()?.clone();
-        let value = pair.get(1).ok_or(RuntimeError::invalid_application("(object.from-entries) must have at least two elements in order to make an object".to_string()))?;
+        let value = pair.get(1).ok_or(RuntimeError::invalid_application(
+            "(object.from-entries) must have at least two elements in order to make an object"
+                .to_string(),
+        ))?;
         result.insert(key, value);
     }
 
@@ -218,7 +230,7 @@ native_op!(ObjectOmit, "object.omit", [keys, obj], {
     // Collect keys to omit into a set for O(1) lookup
     let omit_keys: std::collections::HashSet<String> = keys
         .iter()
-        .filter_map(|k| k.expect_string().ok().map(|s| s.clone()))
+        .filter_map(|k| k.expect_string().ok().cloned())
         .collect();
 
     let mut result: HashMap<String, ValueRef> = HashMap::with_capacity(obj.len());

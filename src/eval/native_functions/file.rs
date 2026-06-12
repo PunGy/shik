@@ -1,7 +1,7 @@
 use crate::{
     count_args, define_help, define_native,
     eval::{
-        error::{RuntimeError},
+        error::RuntimeError,
         evaluator::Interpretator,
         native_functions::native_result,
         value::{EnvRef, ListRepr, NativeClosure, NativeContext, NativeFn, Value, ValueRef},
@@ -105,8 +105,9 @@ native_op!(FileAppend, "file.append", [path, content], {
         .open(path)
         .map_err(|e| RuntimeError::default_error(format!("cannot open file {}: {}", path, e)))?;
 
-    file.write_all(content.as_bytes())
-        .map_err(|e| RuntimeError::default_error(format!("cannot write to file {}: {}", path, e)))?;
+    file.write_all(content.as_bytes()).map_err(|e| {
+        RuntimeError::default_error(format!("cannot write to file {}: {}", path, e))
+    })?;
 
     native_result(Value::Null)
 });
@@ -120,7 +121,7 @@ native_op!(FileWriteBytes, "file.write-bytes", [path, bytes], {
     let mut bytes_vec: Vec<u8> = Vec::with_capacity(bytes_list.len());
     for b in bytes_list.iter() {
         let num = b.expect_number()?;
-        if num < 0.0 || num > 255.0 {
+        if !(0.0..=255.0).contains(&num) {
             return Err(RuntimeError::default_error(format!(
                 "byte value out of range: {}",
                 num
@@ -152,7 +153,11 @@ native_op!(FileCopy, ["file.copy", "file.cp"], [dst, src], {
     let final_dst = if dst_path.is_dir() {
         match src_path.file_name() {
             Some(name) => dst_path.join(name),
-            None => return Err(RuntimeError::default_error("invalid source path".to_string())),
+            None => {
+                return Err(RuntimeError::default_error(
+                    "invalid source path".to_string(),
+                ))
+            }
         }
     } else {
         dst_path.to_path_buf()
@@ -181,7 +186,11 @@ native_op!(FileMove, ["file.move", "file.mv"], [dst, src], {
     let final_dst = if dst_path.is_dir() {
         match src_path.file_name() {
             Some(name) => dst_path.join(name),
-            None => return Err(RuntimeError::default_error("invalid source path".to_string())),
+            None => {
+                return Err(RuntimeError::default_error(
+                    "invalid source path".to_string(),
+                ))
+            }
         }
     } else {
         dst_path.to_path_buf()
@@ -541,11 +550,13 @@ native_op!(FileSymlink, "file.symlink", [link_path, target], {
     {
         let target_path = Path::new(target);
         if target_path.is_dir() {
-            std::os::windows::fs::symlink_dir(target, link_path)
-                .map_err(|e| RuntimeError::default_error(format!("cannot create symlink: {}", e)))?;
+            std::os::windows::fs::symlink_dir(target, link_path).map_err(|e| {
+                RuntimeError::default_error(format!("cannot create symlink: {}", e))
+            })?;
         } else {
-            std::os::windows::fs::symlink_file(target, link_path)
-                .map_err(|e| RuntimeError::default_error(format!("cannot create symlink: {}", e)))?;
+            std::os::windows::fs::symlink_file(target, link_path).map_err(|e| {
+                RuntimeError::default_error(format!("cannot create symlink: {}", e))
+            })?;
         }
     }
 

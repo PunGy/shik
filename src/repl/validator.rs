@@ -3,6 +3,12 @@ use rustyline::validate::ValidationResult;
 
 pub struct ShikValidator;
 
+impl Default for ShikValidator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ShikValidator {
     pub fn new() -> Self {
         Self

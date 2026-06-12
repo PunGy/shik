@@ -39,13 +39,12 @@ pub fn print_ast(input: Result<Program, ParseError>) {
     match input {
         Ok(res) => {
             println!("{:?}", res);
-        },
+        }
         Err(err) => {
             println!("Error: {:?}", err);
         }
     }
 }
-
 
 pub fn eval_file(path: String) {
     use std::fs::read_to_string;

@@ -635,7 +635,7 @@ mod tests {
             match result.unwrap_err() {
                 ParseError::InvalidEscapeSequence { column, .. } => {
                     // The backslash is at column 5 (1-indexed: "abc\ is positions 1-4)
-                    assert!(column >= 4 && column <= 6, "Column was {}", column);
+                    assert!((4..=6).contains(&column), "Column was {}", column);
                 }
                 e => panic!("Expected InvalidEscapeSequence error, got {:?}", e),
             }
@@ -645,7 +645,9 @@ mod tests {
         fn string_token_has_correct_line() {
             let tokens = tokenize("x\n\"hello\"").unwrap();
             // Find the string token
-            let string_token = tokens.iter().find(|t| matches!(t.token_type, TokenType::String(_)));
+            let string_token = tokens
+                .iter()
+                .find(|t| matches!(t.token_type, TokenType::String(_)));
             assert!(string_token.is_some());
             assert_eq!(string_token.unwrap().line, 2);
         }

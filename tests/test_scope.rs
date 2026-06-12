@@ -5,36 +5,9 @@
 //! 2. Calls don't clobber captured vars unexpectedly
 //! 3. Match bindings inside a function disappear after return
 
-use shik::eval::evaluator::Interpretator;
-use shik::eval::value::Value;
-use shik::lang::evaluate;
+mod common;
 
-/// Helper to evaluate and get the result
-fn eval(code: &str) -> Result<String, String> {
-    let inter = Interpretator::new();
-    match evaluate(code, &inter) {
-        Ok(val) => Ok(val.to_string()),
-        Err(e) => Err(e.to_string()),
-    }
-}
-
-/// Helper to evaluate and check if it's an error
-fn eval_is_error(code: &str) -> bool {
-    let inter = Interpretator::new();
-    evaluate(code, &inter).is_err()
-}
-
-/// Helper to evaluate and get the number result
-fn eval_number(code: &str) -> Result<f64, String> {
-    let inter = Interpretator::new();
-    match evaluate(code, &inter) {
-        Ok(val) => match val.as_ref() {
-            Value::Number(n) => Ok(*n),
-            _ => Err(format!("Expected number, got {}", val)),
-        },
-        Err(e) => Err(e.to_string()),
-    }
-}
+use common::{eval, eval_is_error, eval_number};
 
 #[test]
 fn test_local_variables_do_not_persist_across_calls() {

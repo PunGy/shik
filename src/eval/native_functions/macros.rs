@@ -6,7 +6,7 @@ macro_rules! native_op {
 
         impl NativeFn for $name {
             #[allow(unused_variables)]
-            fn exec(&self, args: &Vec<ValueRef>, __native_ctx: &NativeContext) -> EvalResult {
+            fn exec(&self, args: &[ValueRef], __native_ctx: &NativeContext) -> EvalResult {
                 let args_required = $crate::count_args!($($arg),*);
                 if args.len() != args_required {
                     return Err(RuntimeError::invalid_application(format!("({:?}) wrong number of arguments. Expected {}", $fn_title, args_required)));
@@ -92,7 +92,7 @@ macro_rules! special_b_op {
 
         impl SpecialFn for $name {
             #[allow(unused_variables)]
-            fn exec(&self, args: &Vec<Expression>, __native_ctx: &NativeContext) -> EvalResult {
+            fn exec(&self, args: &[Expression], __native_ctx: &NativeContext) -> EvalResult {
                 let args_required = $crate::count_args!($($arg),*);
                 if args.len() != args_required {
                     return Err(RuntimeError::invalid_application(format!("({:?}) wrong number of arguments. Expected {}", $fn_title, args_required)));
@@ -179,7 +179,7 @@ macro_rules! special_op {
         pub struct $name;
 
         impl SpecialFn for $name {
-            fn exec(&self, $args: &Vec<Expression>, $ctx: &NativeContext) -> EvalResult {
+            fn exec(&self, $args: &[Expression], $ctx: &NativeContext) -> EvalResult {
                 $body
             }
         }

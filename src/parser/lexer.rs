@@ -4,7 +4,7 @@ use crate::parser::tokens::{Interpolation, StringInterpolationInfo, Token, Token
 pub type TokenizeResult = ParseResult<Vec<Token>>;
 
 fn is_digit(ch: Option<char>) -> bool {
-    ch.map_or(false, |ch| ch.is_ascii_digit())
+    ch.is_some_and(|ch| ch.is_ascii_digit())
 }
 
 const IDENT_START_CHARSET: &str = "'!@%^&*-=_+|?<>.$/";
@@ -111,7 +111,7 @@ impl Lexer {
             '-' => {
                 if self
                     .peek()
-                    .map(|x| ('0'..='9').contains(&x))
+                    .map(|x: char| x.is_ascii_digit())
                     .unwrap_or(false)
                 {
                     self.advance();
@@ -412,12 +412,7 @@ impl Lexer {
         let lexeme: String = self.input[start..self.current].iter().collect();
 
         let token = match interpolation {
-            None => Token::new(
-                TokenType::String(content),
-                lexeme,
-                self.line,
-                start_column,
-            ),
+            None => Token::new(TokenType::String(content), lexeme, self.line, start_column),
             Some(mut i) => {
                 i.string = content;
                 Token::new(
@@ -443,7 +438,7 @@ impl Lexer {
             match ch {
                 Some('\\') => {
                     self.advance(); // consume backslash
-                    // Check if next char is a separator - if so, escape it
+                                    // Check if next char is a separator - if so, escape it
                     if let Some(next) = self.peek() {
                         if INLINE_STRING_SEPARATOR.contains(next) {
                             // Allow escaping separator characters in inline strings
@@ -530,7 +525,7 @@ impl Lexer {
         }
         let lexeme: String = self.input[start..self.current].iter().collect();
 
-        return Ok(Token::single_line_comment(lexeme, self.line, start_column));
+        Ok(Token::single_line_comment(lexeme, self.line, start_column))
     }
 
     fn ident(&mut self, start_column: usize) -> ParseResult<Token> {

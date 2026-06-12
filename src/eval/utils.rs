@@ -17,7 +17,7 @@ pub fn define_match(
 ) -> EvalResult {
     match pattern {
         MatchPattern::Identifier(name) => {
-            env.define(name.to_string(), Rc::clone(&val));
+            env.define(name.to_string(), Rc::clone(val));
         }
         MatchPattern::List { patterns, rest } => {
             let val_list = val.expect_list()?;
@@ -27,25 +27,21 @@ pub fn define_match(
                 last_inx = inx;
                 let inner_val = val_list
                     .get(inx)
-                    .ok_or_else(|| RuntimeError::invalid_pattern_matching())?;
-                define_match(pattern, &inner_val, env, &match_context)?;
+                    .ok_or_else(RuntimeError::invalid_pattern_matching)?;
+                define_match(pattern, &inner_val, env, match_context)?;
             }
 
-            match rest {
-                Some(rest_name) => {
-                    // Use drop() to get a view of the remaining elements - O(1)
-                    let rest_list = val_list.drop(last_inx + 1);
-                    env.define(rest_name.clone(), Rc::new(Value::List(rest_list)));
-                }
-                _ => (),
+            if let Some(rest_name) = rest {
+                // Use drop() to get a view of the remaining elements - O(1)
+                let rest_list = val_list.drop(last_inx + 1);
+                env.define(rest_name.clone(), Rc::new(Value::List(rest_list)));
             };
         }
-        MatchPattern::Literal(_) => match match_context {
-            MatchContext::Let => {
+        MatchPattern::Literal(_) => {
+            if let MatchContext::Let = match_context {
                 return Err(RuntimeError::invalid_pattern_matching());
             }
-            _ => (),
-        },
+        }
         _ => (),
     }
 
@@ -59,17 +55,16 @@ pub fn pattern_match(
 ) -> Result<bool, RuntimeError> {
     match pattern {
         MatchPattern::Identifier(name) => {
-            env.define(name.to_string(), Rc::clone(&item_val));
+            env.define(name.to_string(), Rc::clone(item_val));
             return Ok(true);
         }
         MatchPattern::List { patterns, rest } => {
-            let val_list;
-            match item_val.as_ref() {
-                Value::List(lst) => val_list = lst,
+            let val_list = match item_val.as_ref() {
+                Value::List(lst) => lst,
                 _ => return Ok(false),
-            }
+            };
 
-            if *rest == None && patterns.len() != val_list.len() {
+            if rest.is_none() && patterns.len() != val_list.len() {
                 return Ok(false);
             }
 
@@ -78,20 +73,17 @@ pub fn pattern_match(
                 last_inx = inx;
                 let inner_val = val_list
                     .get(inx)
-                    .ok_or_else(|| RuntimeError::invalid_pattern_matching())?;
+                    .ok_or_else(RuntimeError::invalid_pattern_matching)?;
                 let success = pattern_match(pattern, &inner_val, env)?;
                 if !success {
                     return Ok(false);
                 }
             }
 
-            match rest {
-                Some(rest_name) => {
-                    // Use drop() to get a view of the remaining elements - O(1)
-                    let rest_list = val_list.drop(last_inx + 1);
-                    env.define(rest_name.clone(), Rc::new(Value::List(rest_list)));
-                }
-                _ => (),
+            if let Some(rest_name) = rest {
+                // Use drop() to get a view of the remaining elements - O(1)
+                let rest_list = val_list.drop(last_inx + 1);
+                env.define(rest_name.clone(), Rc::new(Value::List(rest_list)));
             };
 
             return Ok(true);

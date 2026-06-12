@@ -95,23 +95,28 @@ special_op!(ListRange, "list.range", args, ctx, {
 
     match args.len() {
         1 => {
-            end = ctx.inter.eval_expand(&args[0], &ctx.env)?.expect_number()? as i64;
+            end = ctx.inter.eval_expand(&args[0], ctx.env)?.expect_number()? as i64;
         }
         2 => {
-            start = ctx.inter.eval_expand(&args[0], &ctx.env)?.expect_number()? as i64;
-            end = ctx.inter.eval_expand(&args[1], &ctx.env)?.expect_number()? as i64;
+            start = ctx.inter.eval_expand(&args[0], ctx.env)?.expect_number()? as i64;
+            end = ctx.inter.eval_expand(&args[1], ctx.env)?.expect_number()? as i64;
         }
         3 => {
-            start = ctx.inter.eval_expand(&args[0], &ctx.env)?.expect_number()? as i64;
-            end = ctx.inter.eval_expand(&args[1], &ctx.env)?.expect_number()? as i64;
-            step = ctx.inter.eval_expand(&args[2], &ctx.env)?.expect_number()? as usize;
+            start = ctx.inter.eval_expand(&args[0], ctx.env)?.expect_number()? as i64;
+            end = ctx.inter.eval_expand(&args[1], ctx.env)?.expect_number()? as i64;
+            step = ctx.inter.eval_expand(&args[2], ctx.env)?.expect_number()? as usize;
         }
-        count => return Err(RuntimeError::invalid_application(format!("(list.range) wrong number of arguments. Must be 1, 2 or 3. Got {}", count))),
+        count => {
+            return Err(RuntimeError::invalid_application(format!(
+                "(list.range) wrong number of arguments. Must be 1, 2 or 3. Got {}",
+                count
+            )))
+        }
     }
 
     // Pre-allocate with known size
     let len = if end > start && step > 0 {
-        ((end - start) as usize + step - 1) / step
+        ((end - start) as usize).div_ceil(step)
     } else {
         0
     };
@@ -255,7 +260,7 @@ native_op!(ListSet, "list.set", [inx, lst, content], {
     unsafe {
         match &mut *lst_ptr {
             Value::List(list_repr) => {
-                list_repr.set(inx, Rc::clone(&content))?;
+                list_repr.set(inx, Rc::clone(content))?;
                 return Ok(Rc::clone(content));
             }
             _ => {
@@ -279,7 +284,7 @@ native_op!(
         unsafe {
             match &mut *lst_ptr {
                 Value::List(list_repr) => {
-                    list_repr.push(Rc::clone(&content));
+                    list_repr.push(Rc::clone(content));
                     return Ok(Rc::clone(content));
                 }
                 _ => {
@@ -304,7 +309,7 @@ native_op!(
         unsafe {
             match &mut *lst_ptr {
                 Value::List(list_repr) => {
-                    list_repr.push_front(Rc::clone(&content));
+                    list_repr.push_front(Rc::clone(content));
                     return Ok(Rc::clone(content));
                 }
                 _ => {
@@ -335,19 +340,19 @@ native_op!(ListSlice, "list.slice", [start, end, lst], {
 // Usage: list.sort (fn [a b] (- a b)) [3 1 2]  ; [1 2 3]
 native_op!(ListSort, "list.sort", [func, lst], ctx, {
     let lst = lst.expect_list()?;
-    
+
     // Materialize the list into a Vec for sorting
     let mut items: Vec<ValueRef> = lst.iter().collect();
-    
+
     // We need to sort with a fallible comparator, so we use a cell to capture any error
     let mut sort_error: Option<RuntimeError> = None;
-    
+
     items.sort_by(|a, b| {
         // If we already have an error, don't do more comparisons
         if sort_error.is_some() {
             return std::cmp::Ordering::Equal;
         }
-        
+
         // Apply the comparator function: func a b
         let partial = match ctx.apply(func, a, ctx.env) {
             Ok(p) => p,
@@ -356,7 +361,7 @@ native_op!(ListSort, "list.sort", [func, lst], ctx, {
                 return std::cmp::Ordering::Equal;
             }
         };
-        
+
         let result = match ctx.apply(&partial, b, ctx.env) {
             Ok(r) => r,
             Err(e) => {
@@ -364,7 +369,7 @@ native_op!(ListSort, "list.sort", [func, lst], ctx, {
                 return std::cmp::Ordering::Equal;
             }
         };
-        
+
         // Extract the number result
         let cmp_value = match result.expect_number() {
             Ok(n) => n,
@@ -373,7 +378,7 @@ native_op!(ListSort, "list.sort", [func, lst], ctx, {
                 return std::cmp::Ordering::Equal;
             }
         };
-        
+
         // Convert to Ordering
         if cmp_value < 0.0 {
             std::cmp::Ordering::Less
@@ -383,12 +388,12 @@ native_op!(ListSort, "list.sort", [func, lst], ctx, {
             std::cmp::Ordering::Equal
         }
     });
-    
+
     // Check if there was an error during sorting
     if let Some(e) = sort_error {
         return Err(e);
     }
-    
+
     native_result(Value::List(ListRepr::from_vec(items)))
 });
 

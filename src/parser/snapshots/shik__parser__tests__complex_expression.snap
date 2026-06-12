@@ -1,0 +1,103 @@
+---
+source: src/parser/tests.rs
+expression: "ast(\"let$ result (fn [x] x $> double #> add 10)\")"
+---
+[
+    Statement {
+        expression: Expression {
+            kind: Let {
+                pattern: Identifier(
+                    "result",
+                ),
+                value: Expression {
+                    kind: Parenthesized(
+                        Expression {
+                            kind: Lambda {
+                                parameters: [
+                                    Identifier(
+                                        "x",
+                                    ),
+                                ],
+                                rest: None,
+                                body: Expression {
+                                    kind: Pipe {
+                                        left: Expression {
+                                            kind: Identifier(
+                                                "x",
+                                            ),
+                                            span: Span {
+                                                line: 1,
+                                                column: 21,
+                                            },
+                                        },
+                                        right: Expression {
+                                            kind: Flow {
+                                                left: Expression {
+                                                    kind: Identifier(
+                                                        "double",
+                                                    ),
+                                                    span: Span {
+                                                        line: 1,
+                                                        column: 26,
+                                                    },
+                                                },
+                                                right: Expression {
+                                                    kind: Application {
+                                                        function: Expression {
+                                                            kind: Identifier(
+                                                                "add",
+                                                            ),
+                                                            span: Span {
+                                                                line: 1,
+                                                                column: 36,
+                                                            },
+                                                        },
+                                                        argument: Expression {
+                                                            kind: Number(
+                                                                10.0,
+                                                            ),
+                                                            span: Span {
+                                                                line: 1,
+                                                                column: 40,
+                                                            },
+                                                        },
+                                                    },
+                                                    span: Span {
+                                                        line: 1,
+                                                        column: 36,
+                                                    },
+                                                },
+                                            },
+                                            span: Span {
+                                                line: 1,
+                                                column: 26,
+                                            },
+                                        },
+                                    },
+                                    span: Span {
+                                        line: 1,
+                                        column: 21,
+                                    },
+                                },
+                            },
+                            span: Span {
+                                line: 1,
+                                column: 14,
+                            },
+                        },
+                    ),
+                    span: Span {
+                        line: 1,
+                        column: 13,
+                    },
+                },
+            },
+            span: Span {
+                line: 1,
+                column: 1,
+            },
+        },
+        line: 1,
+        column: 1,
+    },
+]

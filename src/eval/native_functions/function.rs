@@ -25,7 +25,7 @@ special_b_op!(Quote, ["'", "fn.quote"], [val], ctx, {
 
 native_op!(Id, ["fn.id", "fn.invoke", "invoke"], [fun], ctx, {
     ctx.inter.ctx.borrow_mut().quoted = true;
-    let res = ctx.apply(&fun, &Rc::new(Value::Null), ctx.env);
+    let res = ctx.apply(fun, &Rc::new(Value::Null), ctx.env);
     ctx.inter.ctx.borrow_mut().quoted = false;
 
     res

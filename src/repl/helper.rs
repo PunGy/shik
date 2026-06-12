@@ -14,6 +14,12 @@ pub struct ReplHelper {
     validator: ShikValidator,
 }
 
+impl Default for ReplHelper {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ReplHelper {
     pub fn new() -> Self {
         Self {

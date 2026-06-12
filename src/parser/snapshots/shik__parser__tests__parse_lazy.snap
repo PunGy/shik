@@ -1,0 +1,46 @@
+---
+source: src/parser/tests.rs
+expression: "ast(\"#(x y)\")"
+---
+[
+    Statement {
+        expression: Expression {
+            kind: Lazy(
+                [
+                    Expression {
+                        kind: Application {
+                            function: Expression {
+                                kind: Identifier(
+                                    "x",
+                                ),
+                                span: Span {
+                                    line: 1,
+                                    column: 3,
+                                },
+                            },
+                            argument: Expression {
+                                kind: Identifier(
+                                    "y",
+                                ),
+                                span: Span {
+                                    line: 1,
+                                    column: 5,
+                                },
+                            },
+                        },
+                        span: Span {
+                            line: 1,
+                            column: 3,
+                        },
+                    },
+                ],
+            ),
+            span: Span {
+                line: 1,
+                column: 1,
+            },
+        },
+        line: 1,
+        column: 1,
+    },
+]

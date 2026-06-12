@@ -10,8 +10,8 @@ pub enum TokenType {
     Let,
     Match,
     Fn,
-    Pipe, // $>
-    Flow, // #>
+    Pipe,  // $>
+    Flow,  // #>
     Chain, // $
 
     // Delimiters

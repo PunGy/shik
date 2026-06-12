@@ -66,15 +66,15 @@ native_op!(
             Value::String(_) => StringIterateBackward::run(func, s, ctx),
             Value::List(_) => ListIterateBackward::run(func, s, ctx),
             _ => Err(RuntimeError::invalid_application(format!(
-            "(iterate-backward) type {:?} is not supported",
-            s.get_type()
-        ))),
+                "(iterate-backward) type {:?} is not supported",
+                s.get_type()
+            ))),
         }
     }
 );
 
 native_op!(Print, "print", [arg], {
-    println!("{}", arg.to_string());
+    println!("{}", arg);
 
     native_result(Value::Null)
 });

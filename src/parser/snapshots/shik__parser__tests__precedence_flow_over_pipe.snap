@@ -1,0 +1,53 @@
+---
+source: src/parser/tests.rs
+expression: "ast(\"a #> b $> c\")"
+---
+[
+    Statement {
+        expression: Expression {
+            kind: Pipe {
+                left: Expression {
+                    kind: Flow {
+                        left: Expression {
+                            kind: Identifier(
+                                "a",
+                            ),
+                            span: Span {
+                                line: 1,
+                                column: 1,
+                            },
+                        },
+                        right: Expression {
+                            kind: Identifier(
+                                "b",
+                            ),
+                            span: Span {
+                                line: 1,
+                                column: 6,
+                            },
+                        },
+                    },
+                    span: Span {
+                        line: 1,
+                        column: 1,
+                    },
+                },
+                right: Expression {
+                    kind: Identifier(
+                        "c",
+                    ),
+                    span: Span {
+                        line: 1,
+                        column: 11,
+                    },
+                },
+            },
+            span: Span {
+                line: 1,
+                column: 1,
+            },
+        },
+        line: 1,
+        column: 1,
+    },
+]

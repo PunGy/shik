@@ -1,0 +1,47 @@
+---
+source: src/parser/tests.rs
+expression: "ast(\"#(\\n  x\\n  y\\n  z\\n)\")"
+---
+[
+    Statement {
+        expression: Expression {
+            kind: Lazy(
+                [
+                    Expression {
+                        kind: Identifier(
+                            "x",
+                        ),
+                        span: Span {
+                            line: 2,
+                            column: 3,
+                        },
+                    },
+                    Expression {
+                        kind: Identifier(
+                            "y",
+                        ),
+                        span: Span {
+                            line: 3,
+                            column: 3,
+                        },
+                    },
+                    Expression {
+                        kind: Identifier(
+                            "z",
+                        ),
+                        span: Span {
+                            line: 4,
+                            column: 3,
+                        },
+                    },
+                ],
+            ),
+            span: Span {
+                line: 1,
+                column: 1,
+            },
+        },
+        line: 1,
+        column: 1,
+    },
+]

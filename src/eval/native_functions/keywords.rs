@@ -1,7 +1,7 @@
 use crate::eval::{
-        evaluator::Interpretator,
-        value::{EnvRef, Value},
-    };
+    evaluator::Interpretator,
+    value::{EnvRef, Value},
+};
 use std::rc::Rc;
 
 pub fn bind_keywords_module(env: &EnvRef, _: Rc<Interpretator>) {
